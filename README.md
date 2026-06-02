@@ -56,3 +56,39 @@ GET /api/v1/health
 ```text
 INVITE-ABC
 ```
+
+## 本地校验
+
+### 基础构建
+
+```bash
+cd backend
+mvn -q -DskipTests compile
+
+cd ../frontend
+pnpm build
+```
+
+### 服务检查
+
+```bash
+./infra/scripts/check-services.sh
+```
+
+### 冒烟回归
+
+先启动后端服务，再执行：
+
+```bash
+chmod +x ./infra/scripts/smoke-test.sh
+./infra/scripts/smoke-test.sh
+```
+
+默认脚本会覆盖以下主链路：
+
+- 健康检查与登录成功/失败
+- 管理员邀请码创建与普通用户访问管理员接口被拒绝
+- 模型配置创建与查询
+- 会话创建、SSE 执行、报告产物生成
+- 图片生成、历史查询、回放产物恢复
+- 知识库创建、上传、索引和检索测试

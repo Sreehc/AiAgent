@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: aiagent-backend
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+server:
+  port: ${APP_PORT:8080}
+
+app:
+  security:
+    jwt-secret: ${APP_JWT_SECRET:change-me}
+  datasource:
+    host: ${APP_DB_HOST:localhost}
+    port: ${APP_DB_PORT:5432}
+    database: ${APP_DB_NAME:aiagent}
+    username: ${APP_DB_USERNAME:postgres}
+    password: ${APP_DB_PASSWORD:postgres}
+  redis:
+    host: ${APP_REDIS_HOST:localhost}
+    port: ${APP_REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${APP_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  storage:
+    endpoint: ${APP_MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${APP_MINIO_ACCESS_KEY:minioadmin}
+    secret-key: ${APP_MINIO_SECRET_KEY:minioadmin}
+    bucket: ${APP_MINIO_BUCKET:aiagent}
+

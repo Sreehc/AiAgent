@@ -2,6 +2,7 @@ package com.sreehc.aiagent.application.session;
 
 import com.sreehc.aiagent.application.common.AppException;
 import com.sreehc.aiagent.application.knowledge.KnowledgeBaseService;
+import com.sreehc.aiagent.application.mcp.McpExecutionService;
 import com.sreehc.aiagent.domain.auth.SessionUser;
 import com.sreehc.aiagent.domain.knowledge.SearchHit;
 import com.sreehc.aiagent.domain.session.AgentMode;
@@ -27,10 +28,16 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class SessionService {
     private final SessionRepository sessionRepository;
     private final KnowledgeBaseService knowledgeBaseService;
+    private final McpExecutionService mcpExecutionService;
 
-    public SessionService(SessionRepository sessionRepository, KnowledgeBaseService knowledgeBaseService) {
+    public SessionService(
+            SessionRepository sessionRepository,
+            KnowledgeBaseService knowledgeBaseService,
+            McpExecutionService mcpExecutionService
+    ) {
         this.sessionRepository = sessionRepository;
         this.knowledgeBaseService = knowledgeBaseService;
+        this.mcpExecutionService = mcpExecutionService;
     }
 
     @Transactional
@@ -55,6 +62,7 @@ public class SessionService {
         List<ExecutionRun> runs = sessionRepository.listRuns(session.id());
         ExecutionRun latestRun = runs.stream().findFirst().orElse(null);
         List<ExecutionPlanStep> planSteps = latestRun == null ? List.of() : sessionRepository.listPlanSteps(latestRun.id());
+        List<McpExecutionService.ToolInvocationSummary> toolInvocations = latestRun == null ? List.of() : mcpExecutionService.listInvocations(latestRun.id());
         List<ArtifactRecord> artifacts = sessionRepository.listArtifacts(session.id());
         List<String> boundKnowledgeBaseIds = sessionRepository.listBoundKnowledgeBaseIds(session.id());
         String summary = sessionRepository.listMessages(session.id()).stream()
@@ -62,7 +70,7 @@ public class SessionService {
                 .reduce((first, second) -> second)
                 .map(message -> message.content())
                 .orElse(null);
-        return new SessionDetail(session, runs, planSteps, artifacts, summary, boundKnowledgeBaseIds);
+        return new SessionDetail(session, runs, planSteps, toolInvocations, artifacts, summary, boundKnowledgeBaseIds);
     }
 
     @Transactional
@@ -133,6 +141,12 @@ public class SessionService {
 
             for (PlanSeed step : plan) {
                 sessionRepository.markPlanStepRunning(run.id(), step.stepNo(), step.toolName(), step.toolInput());
+                McpExecutionService.InvocationResult invocationResult = mcpExecutionService.invokeForStep(
+                        run.id(),
+                        step.toolName(),
+                        step.title(),
+                        step.toolInput()
+                );
                 trySend(emitter, "task.started", Map.of(
                         "sessionId", session.sessionCode(),
                         "runId", run.runCode(),
@@ -143,16 +157,20 @@ public class SessionService {
                         "sessionId", session.sessionCode(),
                         "runId", run.runCode(),
                         "stepNo", step.stepNo(),
-                        "toolName", step.toolName(),
+                        "toolName", invocationResult == null ? step.toolName() : invocationResult.toolName(),
+                        "toolType", invocationResult == null ? "BUILTIN" : invocationResult.toolType(),
+                        "toolCallId", invocationResult == null ? null : invocationResult.toolCallId(),
                         "toolInput", step.toolInput()
                 ));
-                String toolOutput = step.toolOutput();
+                String toolOutput = invocationResult == null ? step.toolOutput() : invocationResult.resultText();
                 sessionRepository.markPlanStepCompleted(run.id(), step.stepNo(), toolOutput);
                 trySend(emitter, "tool.completed", Map.of(
                         "sessionId", session.sessionCode(),
                         "runId", run.runCode(),
                         "stepNo", step.stepNo(),
-                        "toolName", step.toolName(),
+                        "toolName", invocationResult == null ? step.toolName() : invocationResult.toolName(),
+                        "toolType", invocationResult == null ? "BUILTIN" : invocationResult.toolType(),
+                        "toolCallId", invocationResult == null ? null : invocationResult.toolCallId(),
                         "toolOutput", toolOutput
                 ));
             }
@@ -335,6 +353,7 @@ public class SessionService {
             AgentSession session,
             List<ExecutionRun> runs,
             List<ExecutionPlanStep> planSteps,
+            List<McpExecutionService.ToolInvocationSummary> toolInvocations,
             List<ArtifactRecord> artifacts,
             String summary,
             List<String> knowledgeBaseIds

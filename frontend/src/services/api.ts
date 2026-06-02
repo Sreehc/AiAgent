@@ -50,6 +50,7 @@ export type SessionDetailResponse = {
   session: SessionItem;
   runs: RunItem[];
   planSteps: PlanStepItem[];
+  toolInvocations: ToolInvocationItem[];
   artifacts: ArtifactItem[];
   summary: string | null;
   knowledgeBaseIds: string[];
@@ -83,6 +84,46 @@ export type SearchHit = {
   chunkNo: number;
   contentPreview: string;
   score: number;
+};
+
+export type ToolInvocationItem = {
+  toolCallId: string;
+  toolName: string;
+  toolType: string;
+  status: string;
+  requestPayload: string;
+  responsePayload: string | null;
+  startedAt: string;
+  endedAt: string | null;
+};
+
+export type McpServerItem = {
+  serverCode: string;
+  name: string;
+  transportType: "SSE" | "STDIO" | "STREAMABLE_HTTP";
+  endpoint: string;
+  commandLine: string | null;
+  status: "ACTIVE" | "INACTIVE";
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type McpToolDescriptor = {
+  toolName: string;
+  toolType: string;
+  description: string;
+};
+
+export type McpDiscoverResponse = {
+  serverCode: string;
+  tools: McpToolDescriptor[];
+  cached: boolean;
+};
+
+export type McpHealthResponse = {
+  serverCode: string;
+  status: string;
+  message: string;
 };
 
 export type SessionStreamEvent = {

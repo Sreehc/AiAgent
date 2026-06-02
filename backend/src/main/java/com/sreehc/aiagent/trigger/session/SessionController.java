@@ -134,6 +134,16 @@ public class SessionController {
                         step.toolInput(),
                         step.toolOutput()
                 )).toList(),
+                detail.toolInvocations().stream().map(toolInvocation -> new ToolInvocationResponse(
+                        toolInvocation.toolCallId(),
+                        toolInvocation.toolName(),
+                        toolInvocation.toolType(),
+                        toolInvocation.status(),
+                        toolInvocation.requestPayload(),
+                        toolInvocation.responsePayload(),
+                        toolInvocation.startedAt().toString(),
+                        toolInvocation.endedAt() == null ? null : toolInvocation.endedAt().toString()
+                )).toList(),
                 detail.artifacts().stream().map(artifact -> new ArtifactResponse(
                         artifact.artifactCode(),
                         artifact.artifactType().name(),
@@ -224,10 +234,23 @@ public class SessionController {
     ) {
     }
 
+    public record ToolInvocationResponse(
+            String toolCallId,
+            String toolName,
+            String toolType,
+            String status,
+            String requestPayload,
+            String responsePayload,
+            String startedAt,
+            String endedAt
+    ) {
+    }
+
     public record SessionDetailResponse(
             SessionResponse session,
             List<RunResponse> runs,
             List<PlanStepResponse> planSteps,
+            List<ToolInvocationResponse> toolInvocations,
             List<ArtifactResponse> artifacts,
             String summary,
             List<String> knowledgeBaseIds

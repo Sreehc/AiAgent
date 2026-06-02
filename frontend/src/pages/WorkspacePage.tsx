@@ -10,6 +10,7 @@ import {
   SessionItem,
   SessionListResponse,
   SessionStreamEvent,
+  ToolInvocationItem,
   streamRequest
 } from "../services/api";
 
@@ -54,6 +55,10 @@ export function WorkspacePage() {
 
   const latestPlanSteps = useMemo<PlanStepItem[]>(() => {
     return sessionDetail?.planSteps ?? [];
+  }, [sessionDetail]);
+
+  const latestToolInvocations = useMemo<ToolInvocationItem[]>(() => {
+    return sessionDetail?.toolInvocations ?? [];
   }, [sessionDetail]);
 
   useEffect(() => {
@@ -388,7 +393,7 @@ export function WorkspacePage() {
             </form>
           </section>
 
-          <section className="workspace-grid">
+          <section className="workspace-grid workspace-grid--three">
             <div className="workspace__panel workspace-main__section">
               <div className="workspace-main__section-header">
                 <div>
@@ -472,6 +477,35 @@ export function WorkspacePage() {
                   {latestArtifact ? <span className="badge badge--soft">{latestArtifact.artifactType}</span> : null}
                 </div>
                 <pre>{sessionDetail?.summary ?? latestArtifact?.content ?? "暂无报告内容"}</pre>
+              </div>
+            </div>
+
+            <div className="workspace__panel workspace-main__section">
+              <div className="workspace-main__section-header">
+                <div>
+                  <p className="eyebrow">Ledger</p>
+                  <h3>工具调用账本</h3>
+                </div>
+                <span className="muted">{latestToolInvocations.length} calls</span>
+              </div>
+              <div className="event-list">
+                {latestToolInvocations.map((toolInvocation) => (
+                  <article key={toolInvocation.toolCallId} className="event-card">
+                    <div className="event-card__header">
+                      <strong>{toolInvocation.toolName}</strong>
+                      <small>{toolInvocation.status}</small>
+                    </div>
+                    <p className="muted">
+                      {toolInvocation.toolType} · {formatDateTime(toolInvocation.startedAt)}
+                    </p>
+                    <pre>{toolInvocation.responsePayload ?? toolInvocation.requestPayload}</pre>
+                  </article>
+                ))}
+                {latestToolInvocations.length === 0 ? (
+                  <div className="workspace-empty-block">
+                    <p>执行接入 MCP 工具后，这里会显示工具调用账本。</p>
+                  </div>
+                ) : null}
               </div>
             </div>
           </section>

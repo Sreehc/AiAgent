@@ -23,7 +23,9 @@ a {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 
@@ -194,7 +196,6 @@ code {
 }
 
 .workspace__panel {
-  min-height: 420px;
   padding: 1.5rem;
   border: 1px solid rgba(61, 53, 36, 0.12);
   border-radius: 28px;
@@ -212,6 +213,175 @@ code {
 .workspace__empty p {
   max-width: 520px;
   color: #5d5648;
+}
+
+.workspace-layout {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 1.5rem;
+}
+
+.workspace-sidebar,
+.workspace-main,
+.workspace-grid,
+.workspace-sidebar__section,
+.workspace-main__section,
+.workspace-form,
+.session-list,
+.event-list,
+.plan-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.workspace-sidebar {
+  align-content: start;
+}
+
+.workspace-sidebar__heading,
+.workspace-main__section-header,
+.event-card__header,
+.plan-card__header,
+.report-card__header,
+.result-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.workspace-sidebar__section h3,
+.workspace-main__section h3 {
+  margin: 0;
+  font-family: "Iowan Old Style", "Georgia", serif;
+}
+
+.workspace-form label {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.workspace-form input,
+.workspace-form select,
+.workspace-form textarea,
+.workspace-form button {
+  min-height: 44px;
+  padding: 0.75rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid rgba(61, 53, 36, 0.18);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.workspace-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.workspace-form button {
+  border: none;
+  background: #1f4d42;
+  color: #f7f3eb;
+  cursor: pointer;
+}
+
+.workspace-form button:disabled {
+  opacity: 0.65;
+  cursor: progress;
+}
+
+.workspace-form__row,
+.workspace-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.workspace-main {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.session-card {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1rem;
+  border: 1px solid rgba(61, 53, 36, 0.12);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.85);
+  text-align: left;
+  cursor: pointer;
+}
+
+.session-card span,
+.session-card small {
+  color: #5d5648;
+}
+
+.session-card--active {
+  border-color: rgba(31, 77, 66, 0.35);
+  background: rgba(31, 77, 66, 0.1);
+}
+
+.workspace-empty-block {
+  padding: 1.25rem;
+  border-radius: 18px;
+  background: rgba(31, 77, 66, 0.06);
+  color: #5d5648;
+}
+
+.ghost-button--inline {
+  margin-top: 0;
+  min-height: auto;
+  padding: 0.6rem 0.9rem;
+}
+
+.badge--soft {
+  background: rgba(61, 53, 36, 0.08);
+  color: #3d3524;
+}
+
+.event-list,
+.plan-list {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.event-card,
+.plan-card,
+.report-card {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 20px;
+  background: rgba(31, 77, 66, 0.06);
+}
+
+.event-card pre,
+.report-card pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.plan-card p {
+  margin: 0;
+}
+
+.result-meta {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.result-meta div {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  background: rgba(61, 53, 36, 0.06);
 }
 
 .account-page {
@@ -288,6 +458,13 @@ code {
   }
 
   .account-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-layout,
+  .workspace-grid,
+  .workspace-form__row,
+  .result-meta {
     grid-template-columns: 1fr;
   }
 }

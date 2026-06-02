@@ -340,28 +340,36 @@ public class SessionRepository {
 
     public long createArtifact(
             String artifactCode,
-            long sessionId,
-            long runId,
+            long userId,
+            Long sessionId,
+            Long runId,
             ArtifactType artifactType,
             String title,
-            String content
+            String content,
+            String storageUri,
+            String mimeType
     ) {
         Long id = jdbcTemplate.queryForObject("""
                         insert into artifact_record (
-                            artifact_code, session_id, run_id, artifact_type, title, content, created_at
+                            artifact_code, user_id, session_id, run_id, artifact_type,
+                            title, content, storage_uri, mime_type, created_at
                         )
                         values (
-                            :artifactCode, :sessionId, :runId, :artifactType, :title, :content, now()
+                            :artifactCode, :userId, :sessionId, :runId, :artifactType,
+                            :title, :content, :storageUri, :mimeType, now()
                         )
                         returning id
                         """,
                 new MapSqlParameterSource()
                         .addValue("artifactCode", artifactCode)
+                        .addValue("userId", userId)
                         .addValue("sessionId", sessionId)
                         .addValue("runId", runId)
                         .addValue("artifactType", artifactType.name())
                         .addValue("title", title)
-                        .addValue("content", content),
+                        .addValue("content", content)
+                        .addValue("storageUri", storageUri)
+                        .addValue("mimeType", mimeType),
                 Long.class
         );
         if (id == null) {
@@ -372,13 +380,25 @@ public class SessionRepository {
 
     public List<ArtifactRecord> listArtifacts(long sessionId) {
         return jdbcTemplate.query("""
-                        select id, artifact_code, session_id, run_id, artifact_type, title, content, created_at
+                        select id, artifact_code, user_id, session_id, run_id, artifact_type,
+                               title, content, storage_uri, mime_type, created_at
                         from artifact_record
                         where session_id = :sessionId
                         order by created_at desc
                         """,
                 Map.of("sessionId", sessionId),
                 (rs, rowNum) -> mapArtifact(rs));
+    }
+
+    public Optional<ArtifactRecord> findArtifactByCode(long userId, String artifactCode) {
+        return jdbcTemplate.query("""
+                        select id, artifact_code, user_id, session_id, run_id, artifact_type,
+                               title, content, storage_uri, mime_type, created_at
+                        from artifact_record
+                        where user_id = :userId and artifact_code = :artifactCode
+                        """,
+                Map.of("userId", userId, "artifactCode", artifactCode),
+                rs -> rs.next() ? Optional.of(mapArtifact(rs)) : Optional.empty());
     }
 
     public void createMessage(String messageCode, long sessionId, Long runId, String roleCode, String content) {
@@ -456,11 +476,14 @@ public class SessionRepository {
         return new ArtifactRecord(
                 rs.getLong("id"),
                 rs.getString("artifact_code"),
-                rs.getLong("session_id"),
-                rs.getLong("run_id"),
+                rs.getLong("user_id"),
+                rs.getObject("session_id") == null ? null : rs.getLong("session_id"),
+                rs.getObject("run_id") == null ? null : rs.getLong("run_id"),
                 ArtifactType.valueOf(rs.getString("artifact_type")),
                 rs.getString("title"),
                 rs.getString("content"),
+                rs.getString("storage_uri"),
+                rs.getString("mime_type"),
                 rs.getTimestamp("created_at").toInstant()
         );
     }

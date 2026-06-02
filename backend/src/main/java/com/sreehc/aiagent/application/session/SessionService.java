@@ -179,11 +179,14 @@ public class SessionService {
             String artifactCode = nextCode("art");
             sessionRepository.createArtifact(
                     artifactCode,
+                    currentUser.id(),
                     session.id(),
                     run.id(),
                     ArtifactType.REPORT,
                     session.title() + " 研究报告",
-                    reportContent
+                    reportContent,
+                    null,
+                    "text/markdown"
             );
             sessionRepository.createMessage(nextCode("msg"), session.id(), run.id(), "ASSISTANT", reportContent);
             sessionRepository.markRunCompleted(run.id());

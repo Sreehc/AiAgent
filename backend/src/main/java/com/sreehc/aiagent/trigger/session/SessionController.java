@@ -4,6 +4,7 @@ import com.sreehc.aiagent.application.session.SessionService;
 import com.sreehc.aiagent.domain.auth.SessionUser;
 import com.sreehc.aiagent.domain.session.AgentMode;
 import com.sreehc.aiagent.domain.session.AgentSession;
+import com.sreehc.aiagent.infrastructure.storage.ObjectStorageService;
 import com.sreehc.aiagent.trigger.ApiResponse;
 import com.sreehc.aiagent.trigger.AuthFilter;
 import jakarta.validation.Valid;
@@ -28,9 +29,11 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RequestMapping("/api/v1/sessions")
 public class SessionController {
     private final SessionService sessionService;
+    private final ObjectStorageService objectStorageService;
 
-    public SessionController(SessionService sessionService) {
+    public SessionController(SessionService sessionService, ObjectStorageService objectStorageService) {
         this.sessionService = sessionService;
+        this.objectStorageService = objectStorageService;
     }
 
     @PostMapping
@@ -149,6 +152,9 @@ public class SessionController {
                         artifact.artifactType().name(),
                         artifact.title(),
                         artifact.content(),
+                        artifact.storageUri(),
+                        artifact.mimeType(),
+                        artifact.storageUri() == null ? null : objectStorageService.createDownloadUrl(artifact.storageUri()),
                         artifact.createdAt().toString()
                 )).toList(),
                 detail.summary(),
@@ -230,6 +236,9 @@ public class SessionController {
             String artifactType,
             String title,
             String content,
+            String storageUri,
+            String mimeType,
+            String resultUrl,
             String createdAt
     ) {
     }

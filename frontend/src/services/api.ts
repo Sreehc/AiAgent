@@ -40,9 +40,12 @@ export type PlanStepItem = {
 
 export type ArtifactItem = {
   artifactId: string;
-  artifactType: "REPORT";
+  artifactType: "REPORT" | "IMAGE" | "IMAGE_REFERENCE";
   title: string;
   content: string;
+  storageUri: string | null;
+  mimeType: string | null;
+  resultUrl: string | null;
   createdAt: string;
 };
 
@@ -124,6 +127,40 @@ export type McpHealthResponse = {
   serverCode: string;
   status: string;
   message: string;
+};
+
+export type ImageGenerationItem = {
+  jobId: string;
+  mode: "IMAGES" | "EDITS";
+  size: string;
+  sessionId: string | null;
+  sourceArtifactId: string | null;
+  artifactId: string;
+  title: string;
+  storageUri: string;
+  mimeType: string;
+  resultUrl: string | null;
+  createdAt: string;
+};
+
+export type ImageHistoryItem = {
+  jobId: string;
+  mode: "IMAGES" | "EDITS";
+  prompt: string;
+  size: string;
+  sessionId: string | null;
+  sourceArtifactId: string | null;
+  resultArtifactId: string | null;
+  status: "COMPLETED" | "FAILED";
+  errorMessage: string | null;
+  resultUrl: string | null;
+  createdAt: string;
+};
+
+export type ImageHistoryResponse = {
+  pageNo: number;
+  pageSize: number;
+  items: ImageHistoryItem[];
 };
 
 export type SessionStreamEvent = {

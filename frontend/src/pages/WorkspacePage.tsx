@@ -50,7 +50,11 @@ export function WorkspacePage() {
   const [error, setError] = useState<string | null>(null);
 
   const latestArtifact = useMemo<ArtifactItem | null>(() => {
-    return sessionDetail?.artifacts[0] ?? null;
+    return sessionDetail?.artifacts.find((artifact) => artifact.artifactType === "REPORT") ?? null;
+  }, [sessionDetail]);
+
+  const visibleArtifacts = useMemo<ArtifactItem[]>(() => {
+    return sessionDetail?.artifacts ?? [];
   }, [sessionDetail]);
 
   const latestPlanSteps = useMemo<PlanStepItem[]>(() => {
@@ -477,6 +481,24 @@ export function WorkspacePage() {
                   {latestArtifact ? <span className="badge badge--soft">{latestArtifact.artifactType}</span> : null}
                 </div>
                 <pre>{sessionDetail?.summary ?? latestArtifact?.content ?? "暂无报告内容"}</pre>
+              </div>
+
+              <div className="plan-list">
+                {visibleArtifacts.map((artifact) => (
+                  <article key={artifact.artifactId} className="plan-card">
+                    <div className="plan-card__header">
+                      <strong>{artifact.title}</strong>
+                      <span>{artifact.artifactType}</span>
+                    </div>
+                    {artifact.resultUrl && artifact.artifactType !== "REPORT" ? (
+                      <a href={artifact.resultUrl} target="_blank" rel="noreferrer">
+                        打开产物
+                      </a>
+                    ) : null}
+                    {artifact.artifactType === "REPORT" ? <p className="muted">结构化研究报告</p> : null}
+                    {artifact.artifactType !== "REPORT" ? <p className="muted">{artifact.mimeType ?? "binary artifact"}</p> : null}
+                  </article>
+                ))}
               </div>
             </div>
 

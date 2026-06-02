@@ -5,11 +5,14 @@ import java.time.Instant;
 public record ArtifactRecord(
         long id,
         String artifactCode,
-        long sessionId,
-        long runId,
+        long userId,
+        Long sessionId,
+        Long runId,
         ArtifactType artifactType,
         String title,
         String content,
+        String storageUri,
+        String mimeType,
         Instant createdAt
 ) {
 }

@@ -2,11 +2,14 @@ package com.sreehc.aiagent.infrastructure.storage;
 
 import com.sreehc.aiagent.app.AppProperties;
 import io.minio.BucketExistsArgs;
+import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.http.Method;
 import java.io.ByteArrayInputStream;
+import java.util.concurrent.TimeUnit;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -52,6 +55,27 @@ public class ObjectStorageService {
                     .build());
         } catch (Exception exception) {
             throw new IllegalStateException("Failed to delete object", exception);
+        }
+    }
+
+    public String createDownloadUrl(String storageUri) {
+        if (storageUri == null || !storageUri.startsWith("minio://")) {
+            return null;
+        }
+        String prefix = "minio://" + appProperties.storage().bucket() + "/";
+        if (!storageUri.startsWith(prefix)) {
+            return null;
+        }
+        try {
+            ensureBucket();
+            return minioClient.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+                    .method(Method.GET)
+                    .bucket(appProperties.storage().bucket())
+                    .object(storageUri.substring(prefix.length()))
+                    .expiry(7, TimeUnit.DAYS)
+                    .build());
+        } catch (Exception exception) {
+            throw new IllegalStateException("Failed to create download url", exception);
         }
     }
 

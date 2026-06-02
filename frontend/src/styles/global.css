@@ -339,6 +339,14 @@ code {
   padding: 0.6rem 0.9rem;
 }
 
+.ghost-button--link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0;
+  padding: 0.75rem 0.9rem;
+}
+
 .ghost-button--danger {
   border-color: rgba(154, 44, 30, 0.3);
   color: #9a2c1e;
@@ -425,6 +433,70 @@ code {
   background: rgba(61, 53, 36, 0.06);
 }
 
+.image-stage,
+.image-gallery {
+  display: grid;
+  gap: 1rem;
+}
+
+.image-stage__preview,
+.image-card__preview {
+  width: 100%;
+  border-radius: 24px;
+  border: 1px solid rgba(61, 53, 36, 0.12);
+  background: rgba(255, 255, 255, 0.85);
+  object-fit: cover;
+}
+
+.image-stage__preview {
+  max-height: 520px;
+}
+
+.image-gallery {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.image-card {
+  overflow: hidden;
+  border: 1px solid rgba(61, 53, 36, 0.12);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.image-card__preview,
+.image-card__placeholder {
+  aspect-ratio: 1 / 1;
+}
+
+.image-card__placeholder {
+  display: grid;
+  place-items: center;
+  color: #5d5648;
+  background: linear-gradient(135deg, rgba(31, 77, 66, 0.1), rgba(240, 134, 72, 0.12));
+}
+
+.image-card__body {
+  display: grid;
+  gap: 0.6rem;
+  padding: 1rem;
+}
+
+.image-card__body p,
+.image-card__body small {
+  margin: 0;
+}
+
+.image-card__body a {
+  color: #1f4d42;
+}
+
+.image-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
 .account-page {
   display: grid;
   gap: 1.5rem;
@@ -507,6 +579,10 @@ code {
   .workspace-grid--three,
   .workspace-form__row,
   .result-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .image-gallery {
     grid-template-columns: 1fr;
   }
 }

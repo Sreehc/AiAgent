@@ -6,6 +6,7 @@ import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
 import { KnowledgeBasesPage } from "../pages/KnowledgeBasesPage";
 import { LoginPage } from "../pages/LoginPage";
 import { McpServersPage } from "../pages/McpServersPage";
+import { ImageGenerationPage } from "../pages/ImageGenerationPage";
 import { RegisterPage } from "../pages/RegisterPage";
 import { WorkspacePage } from "../pages/WorkspacePage";
 
@@ -19,6 +20,7 @@ export function AppRouter() {
         <Route element={<AppShell />}>
           <Route path="/workspace/chat" element={<WorkspacePage />} />
           <Route path="/workspace/knowledge-bases" element={<KnowledgeBasesPage />} />
+          <Route path="/workspace/image-generation" element={<ImageGenerationPage />} />
           <Route path="/admin/mcp-servers" element={<McpServersPage />} />
           <Route path="/account" element={<AccountPage />} />
         </Route>

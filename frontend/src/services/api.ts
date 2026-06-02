@@ -129,6 +129,25 @@ export type McpHealthResponse = {
   message: string;
 };
 
+export type ModelConfigItem = {
+  modelCode: string;
+  name: string;
+  provider: string;
+  modelType: "CHAT" | "EMBEDDING";
+  baseUrl: string;
+  apiKeyMasked: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InviteItem = {
+  inviteToken: string;
+  status: string;
+  expiresAt: string;
+  createdAt: string;
+};
+
 export type ImageGenerationItem = {
   jobId: string;
   mode: "IMAGES" | "EDITS";

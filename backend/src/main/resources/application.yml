@@ -1,6 +1,17 @@
 spring:
   application:
     name: aiagent-backend
+  datasource:
+    url: jdbc:postgresql://${APP_DB_HOST:localhost}:${APP_DB_PORT:5432}/${APP_DB_NAME:postgres}
+    username: ${APP_DB_USERNAME:postgres}
+    password: ${APP_DB_PASSWORD:root}
+  data:
+    redis:
+      host: ${APP_REDIS_HOST:localhost}
+      port: ${APP_REDIS_PORT:6379}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
 
 management:
   endpoints:
@@ -14,15 +25,8 @@ server:
 app:
   security:
     jwt-secret: ${APP_JWT_SECRET:change-me}
-  datasource:
-    host: ${APP_DB_HOST:localhost}
-    port: ${APP_DB_PORT:5432}
-    database: ${APP_DB_NAME:aiagent}
-    username: ${APP_DB_USERNAME:postgres}
-    password: ${APP_DB_PASSWORD:postgres}
-  redis:
-    host: ${APP_REDIS_HOST:localhost}
-    port: ${APP_REDIS_PORT:6379}
+  auth:
+    session-ttl-seconds: ${APP_SESSION_TTL_SECONDS:7200}
   kafka:
     bootstrap-servers: ${APP_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
   storage:
@@ -30,4 +34,3 @@ app:
     access-key: ${APP_MINIO_ACCESS_KEY:minioadmin}
     secret-key: ${APP_MINIO_SECRET_KEY:minioadmin}
     bucket: ${APP_MINIO_BUCKET:aiagent}
-

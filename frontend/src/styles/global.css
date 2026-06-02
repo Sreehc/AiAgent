@@ -27,6 +27,12 @@ input {
   font: inherit;
 }
 
+code {
+  padding: 0.15rem 0.4rem;
+  border-radius: 8px;
+  background: rgba(31, 77, 66, 0.1);
+}
+
 #root {
   min-height: 100vh;
 }
@@ -60,6 +66,10 @@ input {
   backdrop-filter: blur(10px);
 }
 
+.auth-card--wide {
+  width: min(520px, 100%);
+}
+
 .auth-card h1,
 .workspace__header h2,
 .workspace__empty h3 {
@@ -86,6 +96,7 @@ input {
   padding: 0.75rem 0.9rem;
   border-radius: 14px;
   border: 1px solid rgba(61, 53, 36, 0.18);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .auth-form button {
@@ -93,6 +104,33 @@ input {
   border: none;
   background: #1f4d42;
   color: #f7f3eb;
+}
+
+.auth-form button:disabled {
+  opacity: 0.65;
+  cursor: progress;
+}
+
+.auth-links,
+.auth-footer {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  color: #1f4d42;
+  font-size: 0.92rem;
+}
+
+.form-message {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.form-message--error {
+  color: #9a2c1e;
+}
+
+.form-message--success {
+  color: #1f6d45;
 }
 
 .shell {
@@ -110,11 +148,25 @@ input {
   background: rgba(255, 252, 245, 0.75);
 }
 
+.shell__user {
+  margin-top: 0.75rem;
+}
+
 .shell__nav a {
   display: block;
   padding: 0.85rem 1rem;
   border-radius: 14px;
   background: rgba(31, 77, 66, 0.08);
+}
+
+.ghost-button {
+  margin-top: auto;
+  min-height: 44px;
+  border: 1px solid rgba(31, 77, 66, 0.2);
+  border-radius: 14px;
+  background: transparent;
+  color: #1f4d42;
+  cursor: pointer;
 }
 
 .shell__content {
@@ -162,6 +214,69 @@ input {
   color: #5d5648;
 }
 
+.account-page {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.account-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.account-panel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.account-panel h3 {
+  margin: 0;
+  font-family: "Iowan Old Style", "Georgia", serif;
+}
+
+.account-panel label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.account-panel input,
+.account-panel button {
+  min-height: 44px;
+  padding: 0.75rem 0.9rem;
+  border-radius: 14px;
+  border: 1px solid rgba(61, 53, 36, 0.18);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.account-panel button {
+  border: none;
+  background: #1f4d42;
+  color: #f7f3eb;
+  cursor: pointer;
+}
+
+.account-panel--logs {
+  grid-column: 1 / -1;
+}
+
+.log-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.log-item {
+  display: grid;
+  gap: 0.2rem;
+  padding: 1rem;
+  border-radius: 18px;
+  background: rgba(31, 77, 66, 0.06);
+}
+
+.log-item small {
+  color: #5d5648;
+}
+
 @media (max-width: 900px) {
   .shell {
     grid-template-columns: 1fr;
@@ -171,5 +286,8 @@ input {
     border-right: none;
     border-bottom: 1px solid rgba(61, 53, 36, 0.12);
   }
-}
 
+  .account-grid {
+    grid-template-columns: 1fr;
+  }
+}

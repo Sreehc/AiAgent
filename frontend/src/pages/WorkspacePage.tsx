@@ -3,21 +3,20 @@ export function WorkspacePage() {
     <section className="workspace">
       <header className="workspace__header">
         <div>
-          <p className="eyebrow">P0 基线</p>
-          <h2>聊天工作台骨架</h2>
+          <p className="eyebrow">Research Workspace</p>
+          <h2>聊天研究工作台</h2>
         </div>
-        <span className="badge">SSE / 报告 / 知识库待接入</span>
+        <span className="badge">认证链路已接入</span>
       </header>
       <div className="workspace__panel">
         <div className="workspace__empty">
-          <h3>工程骨架已就绪</h3>
+          <h3>工作台主壳已开放</h3>
           <p>
-            当前阶段完成路由、布局、页面壳和样式基础设施，P2
-            再接入真实会话与执行流。
+            当前已经具备登录、邀请注册、账号中心和基础鉴权。下一步会继续接入真实会话、
+            SSE 执行流、报告产物和知识库绑定。
           </p>
         </div>
       </div>
     </section>
   );
 }
-

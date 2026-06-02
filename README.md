@@ -1,6 +1,6 @@
 # AiAgent
 
-AiAgent 是一个面向研究任务的多智能体工作台。当前仓库已完成 P0 工程基线，提供前端 React 骨架、后端 Spring Boot 骨架、基础环境配置模板和健康检查接口。
+AiAgent 是一个面向研究任务的多智能体工作台。当前仓库已经具备前端 React 骨架、后端 Spring Boot 基线、认证与账号中心主链路、基础环境配置模板和健康检查接口。
 
 ## 当前环境
 
@@ -38,8 +38,21 @@ cd backend
 mvn spring-boot:run
 ```
 
+默认环境直接复用本机现有 Docker 服务：
+
+- PostgreSQL: `localhost:5432` / `postgres` / `root`
+- Redis: `localhost:6379`
+- Kafka: `localhost:9092`
+- MinIO: `http://localhost:9000`
+
 健康检查接口：
 
 ```text
 GET /api/v1/health
+```
+
+默认预置邀请码：
+
+```text
+INVITE-ABC
 ```

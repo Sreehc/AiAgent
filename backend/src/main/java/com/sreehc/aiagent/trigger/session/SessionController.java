@@ -141,8 +141,19 @@ public class SessionController {
                         artifact.content(),
                         artifact.createdAt().toString()
                 )).toList(),
-                detail.summary()
+                detail.summary(),
+                detail.knowledgeBaseIds()
         );
+    }
+
+    @PostMapping("/{sessionId}/knowledge-bases/bind")
+    public ApiResponse<SessionKnowledgeBaseBindingResponse> bindKnowledgeBases(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable("sessionId") String sessionId,
+            @Valid @RequestBody BindKnowledgeBasesRequest request
+    ) {
+        List<String> kbIds = sessionService.bindKnowledgeBases(currentUser, sessionId, request.knowledgeBaseIds());
+        return ApiResponse.success(new SessionKnowledgeBaseBindingResponse(sessionId, kbIds));
     }
 
     public record CreateSessionRequest(
@@ -218,7 +229,22 @@ public class SessionController {
             List<RunResponse> runs,
             List<PlanStepResponse> planSteps,
             List<ArtifactResponse> artifacts,
-            String summary
+            String summary,
+            List<String> knowledgeBaseIds
+    ) {
+    }
+
+    public record BindKnowledgeBasesRequest(
+            List<String> knowledgeBaseIds
+    ) {
+        public List<String> knowledgeBaseIds() {
+            return knowledgeBaseIds == null ? List.of() : knowledgeBaseIds;
+        }
+    }
+
+    public record SessionKnowledgeBaseBindingResponse(
+            String sessionId,
+            List<String> knowledgeBaseIds
     ) {
     }
 }

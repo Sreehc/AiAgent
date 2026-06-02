@@ -1,7 +1,9 @@
 package com.sreehc.aiagent.application.session;
 
 import com.sreehc.aiagent.application.common.AppException;
+import com.sreehc.aiagent.application.knowledge.KnowledgeBaseService;
 import com.sreehc.aiagent.domain.auth.SessionUser;
+import com.sreehc.aiagent.domain.knowledge.SearchHit;
 import com.sreehc.aiagent.domain.session.AgentMode;
 import com.sreehc.aiagent.domain.session.AgentSession;
 import com.sreehc.aiagent.domain.session.ArtifactRecord;
@@ -24,9 +26,11 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @Service
 public class SessionService {
     private final SessionRepository sessionRepository;
+    private final KnowledgeBaseService knowledgeBaseService;
 
-    public SessionService(SessionRepository sessionRepository) {
+    public SessionService(SessionRepository sessionRepository, KnowledgeBaseService knowledgeBaseService) {
         this.sessionRepository = sessionRepository;
+        this.knowledgeBaseService = knowledgeBaseService;
     }
 
     @Transactional
@@ -52,12 +56,13 @@ public class SessionService {
         ExecutionRun latestRun = runs.stream().findFirst().orElse(null);
         List<ExecutionPlanStep> planSteps = latestRun == null ? List.of() : sessionRepository.listPlanSteps(latestRun.id());
         List<ArtifactRecord> artifacts = sessionRepository.listArtifacts(session.id());
+        List<String> boundKnowledgeBaseIds = sessionRepository.listBoundKnowledgeBaseIds(session.id());
         String summary = sessionRepository.listMessages(session.id()).stream()
                 .filter(message -> "ASSISTANT".equals(message.roleCode()))
                 .reduce((first, second) -> second)
                 .map(message -> message.content())
                 .orElse(null);
-        return new SessionDetail(session, runs, planSteps, artifacts, summary);
+        return new SessionDetail(session, runs, planSteps, artifacts, summary, boundKnowledgeBaseIds);
     }
 
     @Transactional
@@ -84,21 +89,34 @@ public class SessionService {
 
     @Transactional
     protected void executeStream(SessionUser currentUser, AgentSession session, CreateRunCommand command, SseEmitter emitter) {
-        ExecutionRun run = getOrCreatePendingRun(currentUser, session, command);
+        List<String> effectiveKnowledgeBaseIds = resolveKnowledgeBaseIds(session, command.knowledgeBaseIds());
+        CreateRunCommand effectiveCommand = new CreateRunCommand(
+                command.query(),
+                command.executionMode(),
+                effectiveKnowledgeBaseIds
+        );
+        ExecutionRun run = getOrCreatePendingRun(currentUser, session, effectiveCommand);
 
         try {
             sessionRepository.markSessionStatus(session.id(), SessionStatus.RUNNING);
             sessionRepository.markRunStarted(run.id());
-            sessionRepository.createMessage(nextCode("msg"), session.id(), run.id(), "USER", command.query());
+            sessionRepository.createMessage(nextCode("msg"), session.id(), run.id(), "USER", effectiveCommand.query());
 
             trySend(emitter, "session.started", Map.of(
                     "sessionId", session.sessionCode(),
                     "runId", run.runCode(),
-                    "executionMode", command.executionMode().name(),
+                    "executionMode", effectiveCommand.executionMode().name(),
+                    "knowledgeBaseIds", effectiveKnowledgeBaseIds,
                     "startedAt", Instant.now().toString()
             ));
 
-            List<PlanSeed> plan = buildPlan(command);
+            List<SearchHit> evidenceHits = knowledgeBaseService.searchAcrossKnowledgeBases(
+                    currentUser,
+                    effectiveKnowledgeBaseIds,
+                    effectiveCommand.query(),
+                    3
+            );
+            List<PlanSeed> plan = buildPlan(effectiveCommand, evidenceHits);
             for (PlanSeed step : plan) {
                 sessionRepository.createPlanStep(run.id(), nextCode("step"), step.stepNo(), step.title(), PlanStepStatus.PENDING);
             }
@@ -139,7 +157,7 @@ public class SessionService {
                 ));
             }
 
-            String reportContent = buildReport(session, command, plan);
+            String reportContent = buildReport(session, effectiveCommand, plan, evidenceHits);
             String artifactCode = nextCode("art");
             sessionRepository.createArtifact(
                     artifactCode,
@@ -215,22 +233,37 @@ public class SessionService {
                 });
     }
 
-    private List<PlanSeed> buildPlan(CreateRunCommand command) {
+    public List<String> bindKnowledgeBases(SessionUser currentUser, String sessionCode, List<String> kbIds) {
+        return knowledgeBaseService.bindSessionKnowledgeBases(currentUser, sessionCode, kbIds);
+    }
+
+    private List<String> resolveKnowledgeBaseIds(AgentSession session, List<String> requestedKnowledgeBaseIds) {
+        if (requestedKnowledgeBaseIds != null && !requestedKnowledgeBaseIds.isEmpty()) {
+            return requestedKnowledgeBaseIds;
+        }
+        return sessionRepository.listBoundKnowledgeBaseIds(session.id());
+    }
+
+    private List<PlanSeed> buildPlan(CreateRunCommand command, List<SearchHit> evidenceHits) {
+        String evidenceSummary = evidenceHits.isEmpty()
+                ? "当前未绑定知识库，使用普通公开执行链路"
+                : "检索到 " + evidenceHits.size() + " 条知识库证据，可注入执行上下文";
         if (command.executionMode() == AgentMode.REACT) {
             return List.of(
                     new PlanSeed(1, "理解研究问题并确定范围", "query-analyzer", command.query(), "识别时间范围、行业对象、输出格式要求"),
-                    new PlanSeed(2, "快速收集公开信息与用户上下文", "web-search", "sources=public,knowledgeBaseIds=" + command.knowledgeBaseIds(), "汇总市场背景、主要玩家、关键变量"),
+                    new PlanSeed(2, "快速收集公开信息与用户上下文", "knowledge-search", "knowledgeBaseIds=" + command.knowledgeBaseIds(), evidenceSummary),
                     new PlanSeed(3, "生成结构化研究结论", "report-writer", "format=markdown", "形成摘要、竞争格局、趋势判断与行动建议")
             );
         }
         return List.of(
                 new PlanSeed(1, "收集行业背景与市场边界", "market-scanner", command.query(), "定义研究对象、时间窗口、关键假设"),
-                new PlanSeed(2, "拆解主要玩家与竞争策略", "competitor-analyzer", "compare=players", "梳理头部玩家、差异化能力、市场位置"),
-                new PlanSeed(3, "归纳趋势并生成交付报告", "report-writer", "output=structured-report", "输出结论摘要、风险、建议与后续观察点")
+                new PlanSeed(2, "注入知识库证据与上下文", "knowledge-search", "knowledgeBaseIds=" + command.knowledgeBaseIds(), evidenceSummary),
+                new PlanSeed(3, "拆解主要玩家与竞争策略", "competitor-analyzer", "compare=players", "梳理头部玩家、差异化能力、市场位置"),
+                new PlanSeed(4, "归纳趋势并生成交付报告", "report-writer", "output=structured-report", "输出结论摘要、风险、建议与后续观察点")
         );
     }
 
-    private String buildReport(AgentSession session, CreateRunCommand command, List<PlanSeed> plan) {
+    private String buildReport(AgentSession session, CreateRunCommand command, List<PlanSeed> plan, List<SearchHit> evidenceHits) {
         StringBuilder builder = new StringBuilder();
         builder.append("# ").append(session.title()).append("\n\n");
         builder.append("## 研究任务\n");
@@ -243,6 +276,18 @@ public class SessionService {
         builder.append("1. 市场背景已经按目标主题完成初步梳理，当前输出基于公开信息模拟链路。\n");
         builder.append("2. 竞争格局分析聚焦主要玩家、差异化能力和潜在风险，便于后续补充真实检索结果。\n");
         builder.append("3. 报告建议保留知识库绑定入口，以便后续将私有资料并入研究过程。\n\n");
+        builder.append("## 检索证据\n");
+        if (evidenceHits.isEmpty()) {
+            builder.append("- 本次未命中知识库证据，已降级到普通执行链路。\n\n");
+        } else {
+            for (SearchHit hit : evidenceHits) {
+                builder.append("- [").append(hit.kbId()).append("] ")
+                        .append(hit.fileName()).append(" / chunk ").append(hit.chunkNo())
+                        .append(" / score=").append(String.format("%.4f", hit.score()))
+                        .append(" / ").append(hit.contentPreview()).append("\n");
+            }
+            builder.append("\n");
+        }
         builder.append("## 执行步骤回顾\n");
         for (PlanSeed step : plan) {
             builder.append(step.stepNo()).append(". ").append(step.title()).append("：").append(step.toolOutput()).append("\n");
@@ -291,7 +336,8 @@ public class SessionService {
             List<ExecutionRun> runs,
             List<ExecutionPlanStep> planSteps,
             List<ArtifactRecord> artifacts,
-            String summary
+            String summary,
+            List<String> knowledgeBaseIds
     ) {
     }
 

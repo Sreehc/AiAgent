@@ -3,6 +3,7 @@ import { AppShell } from "../components/AppShell";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AccountPage } from "../pages/AccountPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
+import { KnowledgeBasesPage } from "../pages/KnowledgeBasesPage";
 import { LoginPage } from "../pages/LoginPage";
 import { RegisterPage } from "../pages/RegisterPage";
 import { WorkspacePage } from "../pages/WorkspacePage";
@@ -16,6 +17,7 @@ export function AppRouter() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route path="/workspace/chat" element={<WorkspacePage />} />
+          <Route path="/workspace/knowledge-bases" element={<KnowledgeBasesPage />} />
           <Route path="/account" element={<AccountPage />} />
         </Route>
       </Route>

@@ -32,6 +32,7 @@ export function AppShell() {
         </div>
         <nav className="shell__nav">
           <Link to="/workspace/chat">聊天研究</Link>
+          <Link to="/workspace/knowledge-bases">知识库</Link>
           <Link to="/account">账号中心</Link>
         </nav>
         <button className="ghost-button" type="button" onClick={logout}>

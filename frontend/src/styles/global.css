@@ -335,9 +335,36 @@ code {
   padding: 0.6rem 0.9rem;
 }
 
+.ghost-button--danger {
+  border-color: rgba(154, 44, 30, 0.3);
+  color: #9a2c1e;
+}
+
 .badge--soft {
   background: rgba(61, 53, 36, 0.08);
   color: #3d3524;
+}
+
+.workspace-inline-actions,
+.workspace-inline-form,
+.workspace-kb-strip,
+.workspace-kb-chips,
+.doc-list {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.workspace-kb-strip {
+  justify-content: space-between;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  background: rgba(61, 53, 36, 0.06);
+}
+
+.workspace-kb-chips {
+  justify-content: flex-end;
 }
 
 .event-list,

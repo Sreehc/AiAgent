@@ -4,6 +4,7 @@ import {
   apiRequest,
   ApiError,
   ArtifactItem,
+  KnowledgeBaseItem,
   PlanStepItem,
   SessionDetailResponse,
   SessionItem,
@@ -43,6 +44,8 @@ export function WorkspacePage() {
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [creatingSession, setCreatingSession] = useState(false);
   const [runningTask, setRunningTask] = useState(false);
+  const [bindingKnowledgeBases, setBindingKnowledgeBases] = useState(false);
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const latestArtifact = useMemo<ArtifactItem | null>(() => {
@@ -58,7 +61,18 @@ export function WorkspacePage() {
       return;
     }
     void loadSessions();
+    void loadKnowledgeBases();
   }, [session?.accessToken]);
+
+  useEffect(() => {
+    if (!sessionDetail) {
+      return;
+    }
+    setRunForm((current) => ({
+      ...current,
+      knowledgeBaseIds: sessionDetail.knowledgeBaseIds.join(",")
+    }));
+  }, [sessionDetail?.session.sessionId, sessionDetail?.knowledgeBaseIds]);
 
   useEffect(() => {
     if (!session?.accessToken || !selectedSessionId) {
@@ -90,6 +104,18 @@ export function WorkspacePage() {
     try {
       const detail = await apiRequest<SessionDetailResponse>(`/sessions/${sessionId}`, {}, session.accessToken);
       setSessionDetail(detail);
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
+    }
+  }
+
+  async function loadKnowledgeBases() {
+    if (!session?.accessToken) {
+      return;
+    }
+    try {
+      const result = await apiRequest<KnowledgeBaseItem[]>("/knowledge-bases", {}, session.accessToken);
+      setKnowledgeBases(result);
     } catch (requestError) {
       setError((requestError as ApiError).message);
     }
@@ -144,6 +170,31 @@ export function WorkspacePage() {
       await loadSessionDetail(selectedSessionId);
     } finally {
       setRunningTask(false);
+    }
+  }
+
+  async function onBindKnowledgeBases() {
+    if (!session?.accessToken || !selectedSessionId) {
+      return;
+    }
+    setBindingKnowledgeBases(true);
+    setError(null);
+    try {
+      await apiRequest<{ sessionId: string; knowledgeBaseIds: string[] }>(
+        `/sessions/${selectedSessionId}/knowledge-bases/bind`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            knowledgeBaseIds: parseKnowledgeBaseIds(runForm.knowledgeBaseIds)
+          })
+        },
+        session.accessToken
+      );
+      await loadSessionDetail(selectedSessionId);
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
+    } finally {
+      setBindingKnowledgeBases(false);
     }
   }
 
@@ -263,6 +314,19 @@ export function WorkspacePage() {
             </div>
 
             <form className="workspace-form" onSubmit={onRunTask}>
+              <div className="workspace-kb-strip">
+                <span className="muted">当前会话知识库</span>
+                <div className="workspace-kb-chips">
+                  {sessionDetail?.knowledgeBaseIds?.map((kbId) => (
+                    <span key={kbId} className="badge badge--soft">
+                      {kbId}
+                    </span>
+                  ))}
+                  {sessionDetail && sessionDetail.knowledgeBaseIds.length === 0 ? (
+                    <span className="muted">未绑定，允许降级到普通执行</span>
+                  ) : null}
+                </div>
+              </div>
               <label>
                 研究问题
                 <textarea
@@ -304,6 +368,19 @@ export function WorkspacePage() {
                   />
                 </label>
               </div>
+              <div className="workspace-inline-actions">
+                <button type="button" className="ghost-button ghost-button--inline" onClick={() => void loadKnowledgeBases()}>
+                  刷新知识库
+                </button>
+                <button type="button" className="ghost-button ghost-button--inline" disabled={!selectedSessionId || bindingKnowledgeBases} onClick={() => void onBindKnowledgeBases()}>
+                  {bindingKnowledgeBases ? "绑定中..." : "绑定到当前会话"}
+                </button>
+              </div>
+              {knowledgeBases.length > 0 ? (
+                <div className="workspace-empty-block">
+                  <p>可用知识库：{knowledgeBases.map((item) => `${item.name}(${item.kbId})`).join("、")}</p>
+                </div>
+              ) : null}
               {error ? <p className="form-message form-message--error">{error}</p> : null}
               <button type="submit" disabled={!selectedSessionId || runningTask}>
                 {runningTask ? "执行中..." : "发起研究"}

@@ -190,6 +190,18 @@ public class SessionRepository {
                 (rs, rowNum) -> mapRun(rs));
     }
 
+    public List<String> listBoundKnowledgeBaseIds(long sessionId) {
+        return jdbcTemplate.query("""
+                        select kb.kb_id
+                        from session_kb_binding binding
+                        join knowledge_base kb on kb.id = binding.knowledge_base_id
+                        where binding.session_id = :sessionId
+                        order by binding.created_at asc
+                        """,
+                Map.of("sessionId", sessionId),
+                (rs, rowNum) -> rs.getString("kb_id"));
+    }
+
     public void markSessionStatus(long sessionId, SessionStatus status) {
         jdbcTemplate.update("""
                         update agent_session

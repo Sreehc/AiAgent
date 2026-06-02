@@ -52,6 +52,37 @@ export type SessionDetailResponse = {
   planSteps: PlanStepItem[];
   artifacts: ArtifactItem[];
   summary: string | null;
+  knowledgeBaseIds: string[];
+};
+
+export type KnowledgeBaseItem = {
+  kbId: string;
+  name: string;
+  description: string | null;
+  status: string;
+  documentCount: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type KnowledgeDocumentItem = {
+  documentId: string;
+  fileName: string;
+  fileType: string;
+  parseStatus: string;
+  storageUri: string;
+  chunkCount: number;
+  createdAt: string;
+};
+
+export type SearchHit = {
+  kbId: string;
+  documentId: string;
+  fileName: string;
+  chunkId: string;
+  chunkNo: number;
+  contentPreview: string;
+  score: number;
 };
 
 export type SessionStreamEvent = {
@@ -72,10 +103,11 @@ export async function apiRequest<T>(
   init: RequestInit = {},
   accessToken?: string | null
 ): Promise<T> {
+  const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
   const response = await fetch(`${API_PREFIX}${path}`, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(init.headers ?? {})
     }

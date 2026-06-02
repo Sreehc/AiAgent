@@ -34,6 +34,7 @@ export function AppShell() {
           <Link to="/workspace/chat">聊天研究</Link>
           <Link to="/workspace/knowledge-bases">知识库</Link>
           <Link to="/workspace/image-generation">图片生成</Link>
+          <Link to="/workspace/history">历史回放</Link>
           {session?.user.roles.includes("ADMIN") ? <Link to="/admin/mcp-servers">MCP 配置</Link> : null}
           <Link to="/account">账号中心</Link>
         </nav>

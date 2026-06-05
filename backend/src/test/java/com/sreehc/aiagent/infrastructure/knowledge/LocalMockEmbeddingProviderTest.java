@@ -32,7 +32,8 @@ class LocalMockEmbeddingProviderTest {
         return new AppProperties(
                 new AppProperties.Auth(7200L),
                 new AppProperties.Storage("http://localhost:9000", "minioadmin", "minioadmin", "aiagent"),
-                new AppProperties.Embedding("local-mock", "text-embedding-3-small", "https://api.openai.com/v1", "", dimension, 5000L, 15000L)
+                new AppProperties.Embedding("local-mock", "text-embedding-3-small", "https://api.openai.com/v1", "", dimension, 5000L, 15000L),
+                new AppProperties.Kafka("localhost:9092", "aiagent.knowledge.index", "aiagent-backend")
         );
     }
 }

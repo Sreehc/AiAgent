@@ -11,6 +11,9 @@ public record KnowledgeDocument(
         String storageUri,
         DocumentParseStatus parseStatus,
         String textContent,
+        String contentHash,
+        int indexVersion,
+        String lastError,
         Instant createdAt,
         Instant updatedAt,
         int chunkCount

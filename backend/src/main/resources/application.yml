@@ -12,6 +12,13 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: ${APP_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: ${APP_KAFKA_CONSUMER_GROUP:aiagent-backend}
+      auto-offset-reset: earliest
+    producer:
+      acks: all
 
 management:
   endpoints:
@@ -29,6 +36,8 @@ app:
     session-ttl-seconds: ${APP_SESSION_TTL_SECONDS:7200}
   kafka:
     bootstrap-servers: ${APP_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    knowledge-index-topic: ${APP_KAFKA_KNOWLEDGE_INDEX_TOPIC:aiagent.knowledge.index}
+    consumer-group: ${APP_KAFKA_CONSUMER_GROUP:aiagent-backend}
   storage:
     endpoint: ${APP_MINIO_ENDPOINT:http://localhost:9000}
     access-key: ${APP_MINIO_ACCESS_KEY:minioadmin}

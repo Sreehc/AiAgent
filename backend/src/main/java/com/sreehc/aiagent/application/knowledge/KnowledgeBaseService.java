@@ -6,8 +6,6 @@ import com.sreehc.aiagent.domain.knowledge.DocumentParseStatus;
 import com.sreehc.aiagent.domain.knowledge.KnowledgeBase;
 import com.sreehc.aiagent.domain.knowledge.KnowledgeDocument;
 import com.sreehc.aiagent.domain.knowledge.SearchHit;
-import com.sreehc.aiagent.infrastructure.knowledge.EmbeddingProviderException;
-import com.sreehc.aiagent.infrastructure.knowledge.EmbeddingProviderRouter;
 import com.sreehc.aiagent.infrastructure.knowledge.KnowledgeRepository;
 import com.sreehc.aiagent.infrastructure.session.SessionRepository;
 import com.sreehc.aiagent.infrastructure.storage.ObjectStorageService;
@@ -27,33 +25,33 @@ public class KnowledgeBaseService {
     private final KnowledgeRepository knowledgeRepository;
     private final SessionRepository sessionRepository;
     private final ObjectStorageService objectStorageService;
-    private final EmbeddingProviderRouter embeddingProviderRouter;
-    private final DocumentChunker documentChunker;
     private final HybridSearchResultMerger hybridSearchResultMerger;
     private final RetrievalReranker retrievalReranker;
     private final ContextAssembler contextAssembler;
     private final QueryRewriteService queryRewriteService;
+    private final KnowledgeIndexJobService knowledgeIndexJobService;
+    private final QueryEmbeddingService queryEmbeddingService;
 
     public KnowledgeBaseService(
             KnowledgeRepository knowledgeRepository,
             SessionRepository sessionRepository,
             ObjectStorageService objectStorageService,
-            EmbeddingProviderRouter embeddingProviderRouter,
-            DocumentChunker documentChunker,
             HybridSearchResultMerger hybridSearchResultMerger,
             RetrievalReranker retrievalReranker,
             ContextAssembler contextAssembler,
-            QueryRewriteService queryRewriteService
+            QueryRewriteService queryRewriteService,
+            KnowledgeIndexJobService knowledgeIndexJobService,
+            QueryEmbeddingService queryEmbeddingService
     ) {
         this.knowledgeRepository = knowledgeRepository;
         this.sessionRepository = sessionRepository;
         this.objectStorageService = objectStorageService;
-        this.embeddingProviderRouter = embeddingProviderRouter;
-        this.documentChunker = documentChunker;
         this.hybridSearchResultMerger = hybridSearchResultMerger;
         this.retrievalReranker = retrievalReranker;
         this.contextAssembler = contextAssembler;
         this.queryRewriteService = queryRewriteService;
+        this.knowledgeIndexJobService = knowledgeIndexJobService;
+        this.queryEmbeddingService = queryEmbeddingService;
     }
 
     @Transactional
@@ -127,35 +125,14 @@ public class KnowledgeBaseService {
     @Transactional
     public KnowledgeDocument indexDocument(SessionUser currentUser, String kbId, String documentId) {
         KnowledgeDocument document = loadDocument(currentUser, kbId, documentId);
-        knowledgeRepository.deleteChunksByDocument(document.id());
+        knowledgeIndexJobService.enqueue(document, "INDEX");
+        return loadDocument(currentUser, kbId, documentId);
+    }
 
-        List<ChunkSegment> chunks = documentChunker.chunk(document.fileName(), document.fileType(), document.textContent());
-        int chunkNo = 1;
-        try {
-            for (ChunkSegment chunk : chunks) {
-                knowledgeRepository.createChunk(
-                        document.id(),
-                        nextCode("chunk"),
-                        chunkNo,
-                        chunk.contentPreview(),
-                        chunk.contentText(),
-                        embeddingProviderRouter.embed(chunk.contentText()),
-                        chunk.sectionTitle(),
-                        chunk.headingPath(),
-                        chunk.tokenCount(),
-                        chunk.metadataJson()
-                );
-                chunkNo += 1;
-            }
-            knowledgeRepository.updateDocumentStatus(document.id(), DocumentParseStatus.INDEXED);
-        } catch (EmbeddingProviderException exception) {
-            knowledgeRepository.updateDocumentStatus(document.id(), DocumentParseStatus.FAILED);
-            throw new AppException("EMBEDDING_PROVIDER_FAILED", exception.getMessage(), HttpStatus.BAD_GATEWAY);
-        } catch (Exception exception) {
-            knowledgeRepository.updateDocumentStatus(document.id(), DocumentParseStatus.FAILED);
-            throw new AppException("DOCUMENT_INDEX_FAILED", "Document indexing failed", HttpStatus.INTERNAL_SERVER_ERROR);
-        }
-
+    @Transactional
+    public KnowledgeDocument reindexDocument(SessionUser currentUser, String kbId, String documentId) {
+        KnowledgeDocument document = loadDocument(currentUser, kbId, documentId);
+        knowledgeIndexJobService.enqueue(document, "REINDEX");
         return loadDocument(currentUser, kbId, documentId);
     }
 
@@ -245,11 +222,7 @@ public class KnowledgeBaseService {
     }
 
     private String embedQuery(String query) {
-        try {
-            return embeddingProviderRouter.embed(query);
-        } catch (EmbeddingProviderException exception) {
-            throw new AppException("EMBEDDING_PROVIDER_FAILED", exception.getMessage(), HttpStatus.BAD_GATEWAY);
-        }
+        return queryEmbeddingService.embed(query);
     }
 
     private List<SearchHit> retrieveSingleQuery(long userId, List<String> kbIdList, String query, int recallSize) {

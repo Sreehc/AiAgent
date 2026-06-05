@@ -106,6 +106,15 @@ public class KnowledgeBaseController {
         return ApiResponse.success(toDocumentResponse(knowledgeBaseService.indexDocument(currentUser, kbId, documentId)));
     }
 
+    @PostMapping("/{kbId}/documents/{documentId}/reindex")
+    public ApiResponse<DocumentResponse> reindexDocument(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable String kbId,
+            @PathVariable String documentId
+    ) {
+        return ApiResponse.success(toDocumentResponse(knowledgeBaseService.reindexDocument(currentUser, kbId, documentId)));
+    }
+
     @PostMapping("/{kbId}/search-test")
     public ApiResponse<List<SearchHit>> searchTest(
             @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
@@ -139,6 +148,7 @@ public class KnowledgeBaseController {
                 document.parseStatus().name(),
                 document.storageUri(),
                 document.chunkCount(),
+                document.lastError(),
                 document.createdAt().toString()
         );
     }
@@ -179,6 +189,7 @@ public class KnowledgeBaseController {
             String parseStatus,
             String storageUri,
             int chunkCount,
+            String lastError,
             String createdAt
     ) {
     }

@@ -6,7 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record AppProperties(
         Auth auth,
         Storage storage,
-        Embedding embedding
+        Embedding embedding,
+        Kafka kafka
 ) {
     public record Auth(
             long sessionTtlSeconds
@@ -29,6 +30,13 @@ public record AppProperties(
             Integer dimension,
             Long connectTimeoutMillis,
             Long readTimeoutMillis
+    ) {
+    }
+
+    public record Kafka(
+            String bootstrapServers,
+            String knowledgeIndexTopic,
+            String consumerGroup
     ) {
     }
 }

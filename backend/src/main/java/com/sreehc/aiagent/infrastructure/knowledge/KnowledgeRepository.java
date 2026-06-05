@@ -1,6 +1,8 @@
 package com.sreehc.aiagent.infrastructure.knowledge;
 
 import com.sreehc.aiagent.domain.knowledge.DocumentParseStatus;
+import com.sreehc.aiagent.domain.knowledge.IndexJob;
+import com.sreehc.aiagent.domain.knowledge.IndexJobStatus;
 import com.sreehc.aiagent.domain.knowledge.KnowledgeBase;
 import com.sreehc.aiagent.domain.knowledge.KnowledgeBaseStatus;
 import com.sreehc.aiagent.domain.knowledge.KnowledgeDocument;
@@ -132,10 +134,12 @@ public class KnowledgeRepository {
     ) {
         Long id = jdbcTemplate.queryForObject("""
                         insert into knowledge_document (
-                            knowledge_base_id, document_id, file_name, file_type, storage_uri, parse_status, text_content, created_at, updated_at
+                            knowledge_base_id, document_id, file_name, file_type, storage_uri, parse_status, text_content,
+                            content_hash, index_version, last_error, created_at, updated_at
                         )
                         values (
-                            :knowledgeBaseId, :documentId, :fileName, :fileType, :storageUri, :parseStatus, :textContent, now(), now()
+                            :knowledgeBaseId, :documentId, :fileName, :fileType, :storageUri, :parseStatus, :textContent,
+                            md5(coalesce(:textContent, '')), 0, null, now(), now()
                         )
                         returning id
                         """,
@@ -158,7 +162,8 @@ public class KnowledgeRepository {
     public List<KnowledgeDocument> listDocuments(long userId, String kbId) {
         return jdbcTemplate.query("""
                         select d.id, d.knowledge_base_id, d.document_id, d.file_name, d.file_type, d.storage_uri,
-                               d.parse_status, d.text_content, d.created_at, d.updated_at,
+                               d.parse_status, d.text_content, d.content_hash, d.index_version, d.last_error,
+                               d.created_at, d.updated_at,
                                coalesce(chunk_counts.chunk_count, 0) as chunk_count
                         from knowledge_document d
                         join knowledge_base kb on kb.id = d.knowledge_base_id
@@ -177,7 +182,8 @@ public class KnowledgeRepository {
     public Optional<KnowledgeDocument> findDocument(long userId, String kbId, String documentId) {
         return jdbcTemplate.query("""
                         select d.id, d.knowledge_base_id, d.document_id, d.file_name, d.file_type, d.storage_uri,
-                               d.parse_status, d.text_content, d.created_at, d.updated_at,
+                               d.parse_status, d.text_content, d.content_hash, d.index_version, d.last_error,
+                               d.created_at, d.updated_at,
                                coalesce(chunk_counts.chunk_count, 0) as chunk_count
                         from knowledge_document d
                         join knowledge_base kb on kb.id = d.knowledge_base_id
@@ -200,6 +206,159 @@ public class KnowledgeRepository {
                         where id = :documentId
                         """,
                 Map.of("documentId", documentInternalId, "status", status.name()));
+    }
+
+    public void updateDocumentFailure(long documentInternalId, String errorMessage) {
+        jdbcTemplate.update("""
+                        update knowledge_document
+                        set parse_status = :status,
+                            last_error = :errorMessage,
+                            updated_at = now()
+                        where id = :documentId
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("documentId", documentInternalId)
+                        .addValue("status", DocumentParseStatus.FAILED.name())
+                        .addValue("errorMessage", truncate(errorMessage)));
+    }
+
+    public void clearDocumentError(long documentInternalId) {
+        jdbcTemplate.update("""
+                        update knowledge_document
+                        set last_error = null,
+                            updated_at = now()
+                        where id = :documentId
+                        """,
+                Map.of("documentId", documentInternalId));
+    }
+
+    public void markDocumentIndexed(long documentInternalId) {
+        jdbcTemplate.update("""
+                        update knowledge_document
+                        set parse_status = :status,
+                            index_version = index_version + 1,
+                            last_error = null,
+                            updated_at = now()
+                        where id = :documentId
+                        """,
+                Map.of("documentId", documentInternalId, "status", DocumentParseStatus.INDEXED.name()));
+    }
+
+    public Optional<KnowledgeDocument> findDocumentByInternalId(long documentInternalId) {
+        return jdbcTemplate.query("""
+                        select d.id, d.knowledge_base_id, d.document_id, d.file_name, d.file_type, d.storage_uri,
+                               d.parse_status, d.text_content, d.content_hash, d.index_version, d.last_error,
+                               d.created_at, d.updated_at,
+                               coalesce(chunk_counts.chunk_count, 0) as chunk_count
+                        from knowledge_document d
+                        left join (
+                            select knowledge_document_id, count(*) as chunk_count
+                            from knowledge_chunk
+                            group by knowledge_document_id
+                        ) chunk_counts on chunk_counts.knowledge_document_id = d.id
+                        where d.id = :documentId
+                        """,
+                Map.of("documentId", documentInternalId),
+                rs -> rs.next() ? Optional.of(mapDocument(rs)) : Optional.empty());
+    }
+
+    public void createIndexJob(String jobId, long knowledgeDocumentId, String triggerType, String payloadJson) {
+        jdbcTemplate.update("""
+                        insert into index_job (
+                            job_id, knowledge_document_id, status, trigger_type, retry_count, max_retry_count, payload_json,
+                            created_at, updated_at
+                        )
+                        values (
+                            :jobId, :knowledgeDocumentId, :status, :triggerType, 0, 3, cast(:payloadJson as jsonb),
+                            now(), now()
+                        )
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("jobId", jobId)
+                        .addValue("knowledgeDocumentId", knowledgeDocumentId)
+                        .addValue("status", IndexJobStatus.PENDING.name())
+                        .addValue("triggerType", triggerType)
+                        .addValue("payloadJson", payloadJson));
+    }
+
+    public Optional<IndexJob> findActiveIndexJob(long knowledgeDocumentId) {
+        return jdbcTemplate.query("""
+                        select *
+                        from index_job
+                        where knowledge_document_id = :documentId
+                          and status in (:statuses)
+                        order by created_at desc
+                        limit 1
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("documentId", knowledgeDocumentId)
+                        .addValue("statuses", List.of(IndexJobStatus.PENDING.name(), IndexJobStatus.RUNNING.name())),
+                rs -> rs.next() ? Optional.of(mapIndexJob(rs)) : Optional.empty());
+    }
+
+    public Optional<IndexJob> findIndexJob(String jobId) {
+        return jdbcTemplate.query("""
+                        select *
+                        from index_job
+                        where job_id = :jobId
+                        """,
+                Map.of("jobId", jobId),
+                rs -> rs.next() ? Optional.of(mapIndexJob(rs)) : Optional.empty());
+    }
+
+    public void markIndexJobRunning(long jobInternalId) {
+        jdbcTemplate.update("""
+                        update index_job
+                        set status = :status,
+                            started_at = now(),
+                            updated_at = now()
+                        where id = :jobId
+                        """,
+                Map.of("jobId", jobInternalId, "status", IndexJobStatus.RUNNING.name()));
+    }
+
+    public void markIndexJobCompleted(long jobInternalId) {
+        jdbcTemplate.update("""
+                        update index_job
+                        set status = :status,
+                            completed_at = now(),
+                            error_message = null,
+                            updated_at = now()
+                        where id = :jobId
+                        """,
+                Map.of("jobId", jobInternalId, "status", IndexJobStatus.COMPLETED.name()));
+    }
+
+    public void requeueIndexJob(long jobInternalId, String errorMessage) {
+        jdbcTemplate.update("""
+                        update index_job
+                        set status = :status,
+                            retry_count = retry_count + 1,
+                            error_message = :errorMessage,
+                            started_at = null,
+                            updated_at = now()
+                        where id = :jobId
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("jobId", jobInternalId)
+                        .addValue("status", IndexJobStatus.PENDING.name())
+                        .addValue("errorMessage", truncate(errorMessage)));
+    }
+
+    public void markIndexJobFailed(long jobInternalId, String errorMessage) {
+        jdbcTemplate.update("""
+                        update index_job
+                        set status = :status,
+                            retry_count = retry_count + 1,
+                            error_message = :errorMessage,
+                            completed_at = now(),
+                            updated_at = now()
+                        where id = :jobId
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("jobId", jobInternalId)
+                        .addValue("status", IndexJobStatus.FAILED.name())
+                        .addValue("errorMessage", truncate(errorMessage)));
     }
 
     public void deleteChunksByDocument(long documentInternalId) {
@@ -369,6 +528,9 @@ public class KnowledgeRepository {
                 rs.getString("storage_uri"),
                 DocumentParseStatus.valueOf(rs.getString("parse_status")),
                 rs.getString("text_content"),
+                rs.getString("content_hash"),
+                rs.getInt("index_version"),
+                rs.getString("last_error"),
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant(),
                 rs.getInt("chunk_count")
@@ -394,5 +556,30 @@ public class KnowledgeRepository {
                 rs.getString("retrieval_strategy"),
                 rs.getDouble("score")
         );
+    }
+
+    private IndexJob mapIndexJob(ResultSet rs) throws SQLException {
+        return new IndexJob(
+                rs.getLong("id"),
+                rs.getString("job_id"),
+                rs.getLong("knowledge_document_id"),
+                IndexJobStatus.valueOf(rs.getString("status")),
+                rs.getString("trigger_type"),
+                rs.getInt("retry_count"),
+                rs.getInt("max_retry_count"),
+                rs.getString("payload_json"),
+                rs.getString("error_message"),
+                toInstant(rs.getTimestamp("created_at")),
+                toInstant(rs.getTimestamp("updated_at")),
+                toInstant(rs.getTimestamp("started_at")),
+                toInstant(rs.getTimestamp("completed_at"))
+        );
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.length() <= 500 ? value : value.substring(0, 500);
     }
 }

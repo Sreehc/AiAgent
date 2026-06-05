@@ -304,6 +304,8 @@ public class SessionService {
             for (SearchHit hit : evidenceHits) {
                 builder.append("- [").append(hit.kbId()).append("] ")
                         .append(hit.fileName()).append(" / chunk ").append(hit.chunkNo())
+                        .append(hit.sectionTitle() == null || hit.sectionTitle().isBlank() ? "" : " / section=" + hit.sectionTitle())
+                        .append(hit.headingPath() == null || hit.headingPath().isBlank() ? "" : " / path=" + hit.headingPath())
                         .append(" / score=").append(String.format("%.4f", hit.score()))
                         .append(" / ").append(hit.contentPreview()).append("\n");
             }

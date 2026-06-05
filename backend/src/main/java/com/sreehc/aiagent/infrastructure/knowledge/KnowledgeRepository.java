@@ -216,14 +216,20 @@ public class KnowledgeRepository {
             int chunkNo,
             String contentPreview,
             String contentText,
-            String embedding
+            String embedding,
+            String sectionTitle,
+            String headingPath,
+            int tokenCount,
+            String metadataJson
     ) {
         jdbcTemplate.update("""
                         insert into knowledge_chunk (
-                            knowledge_document_id, chunk_id, chunk_no, content_preview, content_text, embedding, created_at
+                            knowledge_document_id, chunk_id, chunk_no, content_preview, content_text, embedding,
+                            section_title, heading_path, token_count, metadata_json, created_at
                         )
                         values (
-                            :documentId, :chunkId, :chunkNo, :contentPreview, :contentText, cast(:embedding as vector), now()
+                            :documentId, :chunkId, :chunkNo, :contentPreview, :contentText, cast(:embedding as vector),
+                            :sectionTitle, :headingPath, :tokenCount, cast(:metadataJson as jsonb), now()
                         )
                         """,
                 new MapSqlParameterSource()
@@ -232,7 +238,11 @@ public class KnowledgeRepository {
                         .addValue("chunkNo", chunkNo)
                         .addValue("contentPreview", contentPreview)
                         .addValue("contentText", contentText)
-                        .addValue("embedding", embedding));
+                        .addValue("embedding", embedding)
+                        .addValue("sectionTitle", sectionTitle)
+                        .addValue("headingPath", headingPath)
+                        .addValue("tokenCount", tokenCount)
+                        .addValue("metadataJson", metadataJson));
     }
 
     public List<SearchHit> searchKnowledgeBases(long userId, List<String> kbIds, String embedding, int topK) {
@@ -241,6 +251,7 @@ public class KnowledgeRepository {
         }
         return jdbcTemplate.query("""
                         select kb.kb_id, d.document_id, d.file_name, c.chunk_id, c.chunk_no, c.content_preview,
+                               c.section_title, c.heading_path,
                                1 - (c.embedding <=> cast(:embedding as vector)) as score
                         from knowledge_chunk c
                         join knowledge_document d on d.id = c.knowledge_document_id
@@ -261,6 +272,8 @@ public class KnowledgeRepository {
                         rs.getString("chunk_id"),
                         rs.getInt("chunk_no"),
                         rs.getString("content_preview"),
+                        rs.getString("section_title"),
+                        rs.getString("heading_path"),
                         rs.getDouble("score")
                 ));
     }

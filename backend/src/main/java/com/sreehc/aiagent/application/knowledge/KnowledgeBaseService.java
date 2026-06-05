@@ -28,17 +28,20 @@ public class KnowledgeBaseService {
     private final SessionRepository sessionRepository;
     private final ObjectStorageService objectStorageService;
     private final EmbeddingProviderRouter embeddingProviderRouter;
+    private final DocumentChunker documentChunker;
 
     public KnowledgeBaseService(
             KnowledgeRepository knowledgeRepository,
             SessionRepository sessionRepository,
             ObjectStorageService objectStorageService,
-            EmbeddingProviderRouter embeddingProviderRouter
+            EmbeddingProviderRouter embeddingProviderRouter,
+            DocumentChunker documentChunker
     ) {
         this.knowledgeRepository = knowledgeRepository;
         this.sessionRepository = sessionRepository;
         this.objectStorageService = objectStorageService;
         this.embeddingProviderRouter = embeddingProviderRouter;
+        this.documentChunker = documentChunker;
     }
 
     @Transactional
@@ -114,17 +117,21 @@ public class KnowledgeBaseService {
         KnowledgeDocument document = loadDocument(currentUser, kbId, documentId);
         knowledgeRepository.deleteChunksByDocument(document.id());
 
-        List<String> chunks = splitIntoChunks(document.textContent());
+        List<ChunkSegment> chunks = documentChunker.chunk(document.fileName(), document.fileType(), document.textContent());
         int chunkNo = 1;
         try {
-            for (String chunk : chunks) {
+            for (ChunkSegment chunk : chunks) {
                 knowledgeRepository.createChunk(
                         document.id(),
                         nextCode("chunk"),
                         chunkNo,
-                        preview(chunk),
-                        chunk,
-                        embeddingProviderRouter.embed(chunk)
+                        chunk.contentPreview(),
+                        chunk.contentText(),
+                        embeddingProviderRouter.embed(chunk.contentText()),
+                        chunk.sectionTitle(),
+                        chunk.headingPath(),
+                        chunk.tokenCount(),
+                        chunk.metadataJson()
                 );
                 chunkNo += 1;
             }
@@ -192,33 +199,6 @@ public class KnowledgeBaseService {
     private KnowledgeDocument loadDocument(SessionUser currentUser, String kbId, String documentId) {
         return knowledgeRepository.findDocument(currentUser.id(), kbId, documentId)
                 .orElseThrow(() -> new AppException("DOCUMENT_NOT_FOUND", "Document not found", HttpStatus.NOT_FOUND));
-    }
-
-    private List<String> splitIntoChunks(String textContent) {
-        String source = textContent == null ? "" : textContent.trim();
-        if (source.isBlank()) {
-            return List.of("Empty document");
-        }
-        List<String> chunks = new ArrayList<>();
-        int chunkSize = 500;
-        int overlap = 80;
-        int start = 0;
-        while (start < source.length()) {
-            int end = Math.min(source.length(), start + chunkSize);
-            chunks.add(source.substring(start, end));
-            if (end == source.length()) {
-                break;
-            }
-            start = Math.max(end - overlap, start + 1);
-        }
-        return chunks;
-    }
-
-    private String preview(String chunk) {
-        if (chunk.length() <= 500) {
-            return chunk;
-        }
-        return chunk.substring(0, 500);
     }
 
     private String detectFileType(String fileName, String contentType) {

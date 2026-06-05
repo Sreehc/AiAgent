@@ -7,6 +7,8 @@ public record SearchHit(
         String chunkId,
         int chunkNo,
         String contentPreview,
+        String sectionTitle,
+        String headingPath,
         double score
 ) {
 }

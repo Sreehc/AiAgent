@@ -73,8 +73,11 @@ public class HybridSearchResultMerger {
                     representative.chunkId(),
                     representative.chunkNo(),
                     representative.contentPreview(),
+                    representative.contentText(),
                     representative.sectionTitle(),
                     representative.headingPath(),
+                    representative.tokenCount(),
+                    rawScores.size() > 1 ? "HYBRID" : representative.retrievalStrategy(),
                     displayScore
             );
         }

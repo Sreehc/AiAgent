@@ -46,8 +46,11 @@ class HybridSearchResultMergerTest {
                 chunkId,
                 1,
                 "preview",
+                "preview body",
                 sectionTitle,
                 headingPath,
+                32,
+                score > 0.5 ? "VECTOR" : "KEYWORD",
                 score
         );
     }

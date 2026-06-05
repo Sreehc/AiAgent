@@ -253,7 +253,8 @@ public class KnowledgeRepository {
         }
         return jdbcTemplate.query("""
                         select kb.kb_id, d.document_id, d.file_name, c.chunk_id, c.chunk_no, c.content_preview,
-                               c.section_title, c.heading_path,
+                               c.content_text, c.section_title, c.heading_path, c.token_count,
+                               'VECTOR' as retrieval_strategy,
                                1 - (c.embedding <=> cast(:embedding as vector)) as score
                         from knowledge_chunk c
                         join knowledge_document d on d.id = c.knowledge_document_id
@@ -276,7 +277,8 @@ public class KnowledgeRepository {
         }
         return jdbcTemplate.query("""
                         select kb.kb_id, d.document_id, d.file_name, c.chunk_id, c.chunk_no, c.content_preview,
-                               c.section_title, c.heading_path,
+                               c.content_text, c.section_title, c.heading_path, c.token_count,
+                               'KEYWORD' as retrieval_strategy,
                                greatest(
                                    ts_rank_cd(c.search_vector, websearch_to_tsquery('simple', :query)),
                                    case
@@ -385,8 +387,11 @@ public class KnowledgeRepository {
                 rs.getString("chunk_id"),
                 rs.getInt("chunk_no"),
                 rs.getString("content_preview"),
+                rs.getString("content_text"),
                 rs.getString("section_title"),
                 rs.getString("heading_path"),
+                rs.getInt("token_count"),
+                rs.getString("retrieval_strategy"),
                 rs.getDouble("score")
         );
     }

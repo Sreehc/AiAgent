@@ -30,6 +30,8 @@ public class KnowledgeBaseService {
     private final EmbeddingProviderRouter embeddingProviderRouter;
     private final DocumentChunker documentChunker;
     private final HybridSearchResultMerger hybridSearchResultMerger;
+    private final RetrievalReranker retrievalReranker;
+    private final ContextAssembler contextAssembler;
 
     public KnowledgeBaseService(
             KnowledgeRepository knowledgeRepository,
@@ -37,7 +39,9 @@ public class KnowledgeBaseService {
             ObjectStorageService objectStorageService,
             EmbeddingProviderRouter embeddingProviderRouter,
             DocumentChunker documentChunker,
-            HybridSearchResultMerger hybridSearchResultMerger
+            HybridSearchResultMerger hybridSearchResultMerger,
+            RetrievalReranker retrievalReranker,
+            ContextAssembler contextAssembler
     ) {
         this.knowledgeRepository = knowledgeRepository;
         this.sessionRepository = sessionRepository;
@@ -45,6 +49,8 @@ public class KnowledgeBaseService {
         this.embeddingProviderRouter = embeddingProviderRouter;
         this.documentChunker = documentChunker;
         this.hybridSearchResultMerger = hybridSearchResultMerger;
+        this.retrievalReranker = retrievalReranker;
+        this.contextAssembler = contextAssembler;
     }
 
     @Transactional
@@ -181,7 +187,9 @@ public class KnowledgeBaseService {
                 query,
                 recallSize
         );
-        return hybridSearchResultMerger.merge(vectorHits, keywordHits, Math.max(1, topK));
+        List<SearchHit> mergedHits = hybridSearchResultMerger.merge(vectorHits, keywordHits, recallSize);
+        List<SearchHit> rerankedHits = retrievalReranker.rerank(query, mergedHits, recallSize);
+        return contextAssembler.assemble(rerankedHits, Math.max(1, topK));
     }
 
     @Transactional

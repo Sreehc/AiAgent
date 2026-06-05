@@ -37,7 +37,8 @@ class EmbeddingProviderRouterTest {
                 new AppProperties.Auth(7200L),
                 new AppProperties.Storage("http://localhost:9000", "minioadmin", "minioadmin", "aiagent"),
                 new AppProperties.Embedding(provider, "text-embedding-3-small", "https://api.openai.com/v1", "secret", 1536, 5000L, 15000L),
-                new AppProperties.Kafka("localhost:9092", "aiagent.knowledge.index", "aiagent-backend")
+                new AppProperties.Kafka("localhost:9092", "aiagent.knowledge.index", "aiagent-backend"),
+                new AppProperties.Rag(3600L, 300L, 1500L)
         );
     }
 

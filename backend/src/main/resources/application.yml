@@ -51,3 +51,7 @@ app:
     dimension: ${APP_EMBEDDING_DIMENSION:1536}
     connect-timeout-millis: ${APP_EMBEDDING_CONNECT_TIMEOUT_MILLIS:5000}
     read-timeout-millis: ${APP_EMBEDDING_READ_TIMEOUT_MILLIS:15000}
+  rag:
+    embedding-cache-ttl-seconds: ${APP_RAG_EMBEDDING_CACHE_TTL_SECONDS:3600}
+    retrieval-cache-ttl-seconds: ${APP_RAG_RETRIEVAL_CACHE_TTL_SECONDS:300}
+    retrieval-timeout-millis: ${APP_RAG_RETRIEVAL_TIMEOUT_MILLIS:1500}

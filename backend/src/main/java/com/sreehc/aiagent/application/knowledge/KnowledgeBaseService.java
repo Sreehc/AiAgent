@@ -1,6 +1,7 @@
 package com.sreehc.aiagent.application.knowledge;
 
 import com.sreehc.aiagent.application.common.AppException;
+import com.sreehc.aiagent.app.AppProperties;
 import com.sreehc.aiagent.domain.auth.SessionUser;
 import com.sreehc.aiagent.domain.knowledge.DocumentParseStatus;
 import com.sreehc.aiagent.domain.knowledge.KnowledgeBase;
@@ -13,8 +14,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +34,8 @@ public class KnowledgeBaseService {
     private final QueryRewriteService queryRewriteService;
     private final KnowledgeIndexJobService knowledgeIndexJobService;
     private final QueryEmbeddingService queryEmbeddingService;
+    private final RagCacheService ragCacheService;
+    private final AppProperties appProperties;
 
     public KnowledgeBaseService(
             KnowledgeRepository knowledgeRepository,
@@ -41,7 +46,9 @@ public class KnowledgeBaseService {
             ContextAssembler contextAssembler,
             QueryRewriteService queryRewriteService,
             KnowledgeIndexJobService knowledgeIndexJobService,
-            QueryEmbeddingService queryEmbeddingService
+            QueryEmbeddingService queryEmbeddingService,
+            RagCacheService ragCacheService,
+            AppProperties appProperties
     ) {
         this.knowledgeRepository = knowledgeRepository;
         this.sessionRepository = sessionRepository;
@@ -52,6 +59,8 @@ public class KnowledgeBaseService {
         this.queryRewriteService = queryRewriteService;
         this.knowledgeIndexJobService = knowledgeIndexJobService;
         this.queryEmbeddingService = queryEmbeddingService;
+        this.ragCacheService = ragCacheService;
+        this.appProperties = appProperties;
     }
 
     @Transactional
@@ -158,8 +167,14 @@ public class KnowledgeBaseService {
             accessibleIds.add(knowledgeBase.kbId());
         }
         List<String> kbIdList = new ArrayList<>(accessibleIds);
+        String cacheKey = buildSearchCacheKey(currentUser.id(), kbIdList, query, topK);
+        Optional<KnowledgeBaseService.SearchResult> cached = ragCacheService.getSearchResult(cacheKey);
+        if (cached.isPresent()) {
+            return cached.get();
+        }
         int recallSize = Math.max(20, topK);
         QueryRewriteService.RewritePlan rewritePlan = queryRewriteService.rewrite(query);
+        long deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(resolveRetrievalTimeoutMillis());
         List<SearchHit> mergedHits;
         if (!rewritePlan.complex()) {
             mergedHits = retrieveSingleQuery(
@@ -171,6 +186,9 @@ public class KnowledgeBaseService {
         } else {
             List<SearchHit> multiQueryHits = new ArrayList<>();
             for (String rewrittenQuery : rewritePlan.queries()) {
+                if (System.nanoTime() > deadlineNanos && !multiQueryHits.isEmpty()) {
+                    break;
+                }
                 multiQueryHits.addAll(retrieveSingleQuery(
                         currentUser.id(),
                         kbIdList,
@@ -182,7 +200,9 @@ public class KnowledgeBaseService {
         }
         List<SearchHit> rerankedHits = retrievalReranker.rerank(rewritePlan.normalizedQuery(), mergedHits, recallSize);
         List<SearchHit> finalEvidenceHits = contextAssembler.assemble(rerankedHits, Math.max(1, topK));
-        return new SearchResult(rewritePlan.normalizedQuery(), mergedHits, finalEvidenceHits);
+        SearchResult searchResult = new SearchResult(rewritePlan.normalizedQuery(), mergedHits, finalEvidenceHits);
+        ragCacheService.putSearchResult(cacheKey, searchResult);
+        return searchResult;
     }
 
     @Transactional
@@ -244,6 +264,17 @@ public class KnowledgeBaseService {
                 recallSize
         );
         return hybridSearchResultMerger.merge(vectorHits, keywordHits, recallSize);
+    }
+
+    private String buildSearchCacheKey(long userId, List<String> kbIdList, String query, int topK) {
+        return userId + "|" + String.join(",", kbIdList) + "|" + query + "|" + topK;
+    }
+
+    private long resolveRetrievalTimeoutMillis() {
+        if (appProperties.rag() == null || appProperties.rag().retrievalTimeoutMillis() == null) {
+            return 1500L;
+        }
+        return appProperties.rag().retrievalTimeoutMillis();
     }
 
     public record CreateKnowledgeBaseCommand(

@@ -9,14 +9,23 @@ import org.springframework.stereotype.Service;
 @Service
 public class QueryEmbeddingService {
     private final EmbeddingProviderRouter embeddingProviderRouter;
+    private final RagCacheService ragCacheService;
 
-    public QueryEmbeddingService(EmbeddingProviderRouter embeddingProviderRouter) {
+    public QueryEmbeddingService(EmbeddingProviderRouter embeddingProviderRouter, RagCacheService ragCacheService) {
         this.embeddingProviderRouter = embeddingProviderRouter;
+        this.ragCacheService = ragCacheService;
     }
 
     public String embed(String query) {
+        return ragCacheService.getEmbedding(embeddingProviderRouter.providerCode(), query)
+                .orElseGet(() -> embedAndCache(query));
+    }
+
+    private String embedAndCache(String query) {
         try {
-            return embeddingProviderRouter.embed(query);
+            String embedding = embeddingProviderRouter.embed(query);
+            ragCacheService.putEmbedding(embeddingProviderRouter.providerCode(), query, embedding);
+            return embedding;
         } catch (EmbeddingProviderException exception) {
             throw new AppException("EMBEDDING_PROVIDER_FAILED", exception.getMessage(), HttpStatus.BAD_GATEWAY);
         }

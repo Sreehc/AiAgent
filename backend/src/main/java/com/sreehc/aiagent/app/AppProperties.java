@@ -7,7 +7,8 @@ public record AppProperties(
         Auth auth,
         Storage storage,
         Embedding embedding,
-        Kafka kafka
+        Kafka kafka,
+        Rag rag
 ) {
     public record Auth(
             long sessionTtlSeconds
@@ -37,6 +38,13 @@ public record AppProperties(
             String bootstrapServers,
             String knowledgeIndexTopic,
             String consumerGroup
+    ) {
+    }
+
+    public record Rag(
+            Long embeddingCacheTtlSeconds,
+            Long retrievalCacheTtlSeconds,
+            Long retrievalTimeoutMillis
     ) {
     }
 }

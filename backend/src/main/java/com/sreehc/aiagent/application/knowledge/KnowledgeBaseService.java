@@ -32,6 +32,7 @@ public class KnowledgeBaseService {
     private final HybridSearchResultMerger hybridSearchResultMerger;
     private final RetrievalReranker retrievalReranker;
     private final ContextAssembler contextAssembler;
+    private final QueryRewriteService queryRewriteService;
 
     public KnowledgeBaseService(
             KnowledgeRepository knowledgeRepository,
@@ -41,7 +42,8 @@ public class KnowledgeBaseService {
             DocumentChunker documentChunker,
             HybridSearchResultMerger hybridSearchResultMerger,
             RetrievalReranker retrievalReranker,
-            ContextAssembler contextAssembler
+            ContextAssembler contextAssembler,
+            QueryRewriteService queryRewriteService
     ) {
         this.knowledgeRepository = knowledgeRepository;
         this.sessionRepository = sessionRepository;
@@ -51,6 +53,7 @@ public class KnowledgeBaseService {
         this.hybridSearchResultMerger = hybridSearchResultMerger;
         this.retrievalReranker = retrievalReranker;
         this.contextAssembler = contextAssembler;
+        this.queryRewriteService = queryRewriteService;
     }
 
     @Transactional
@@ -175,20 +178,28 @@ public class KnowledgeBaseService {
         }
         List<String> kbIdList = new ArrayList<>(accessibleIds);
         int recallSize = Math.max(20, topK);
-        List<SearchHit> vectorHits = knowledgeRepository.vectorRecall(
-                currentUser.id(),
-                kbIdList,
-                embedQuery(query),
-                recallSize
-        );
-        List<SearchHit> keywordHits = knowledgeRepository.keywordRecall(
-                currentUser.id(),
-                kbIdList,
-                query,
-                recallSize
-        );
-        List<SearchHit> mergedHits = hybridSearchResultMerger.merge(vectorHits, keywordHits, recallSize);
-        List<SearchHit> rerankedHits = retrievalReranker.rerank(query, mergedHits, recallSize);
+        QueryRewriteService.RewritePlan rewritePlan = queryRewriteService.rewrite(query);
+        List<SearchHit> mergedHits;
+        if (!rewritePlan.complex()) {
+            mergedHits = retrieveSingleQuery(
+                    currentUser.id(),
+                    kbIdList,
+                    rewritePlan.normalizedQuery(),
+                    recallSize
+            );
+        } else {
+            List<SearchHit> multiQueryHits = new ArrayList<>();
+            for (String rewrittenQuery : rewritePlan.queries()) {
+                multiQueryHits.addAll(retrieveSingleQuery(
+                        currentUser.id(),
+                        kbIdList,
+                        rewrittenQuery,
+                        Math.max(10, recallSize / 2)
+                ));
+            }
+            mergedHits = hybridSearchResultMerger.merge(multiQueryHits, List.of(), recallSize);
+        }
+        List<SearchHit> rerankedHits = retrievalReranker.rerank(rewritePlan.normalizedQuery(), mergedHits, recallSize);
         return contextAssembler.assemble(rerankedHits, Math.max(1, topK));
     }
 
@@ -239,6 +250,22 @@ public class KnowledgeBaseService {
         } catch (EmbeddingProviderException exception) {
             throw new AppException("EMBEDDING_PROVIDER_FAILED", exception.getMessage(), HttpStatus.BAD_GATEWAY);
         }
+    }
+
+    private List<SearchHit> retrieveSingleQuery(long userId, List<String> kbIdList, String query, int recallSize) {
+        List<SearchHit> vectorHits = knowledgeRepository.vectorRecall(
+                userId,
+                kbIdList,
+                embedQuery(query),
+                recallSize
+        );
+        List<SearchHit> keywordHits = knowledgeRepository.keywordRecall(
+                userId,
+                kbIdList,
+                query,
+                recallSize
+        );
+        return hybridSearchResultMerger.merge(vectorHits, keywordHits, recallSize);
     }
 
     public record CreateKnowledgeBaseCommand(

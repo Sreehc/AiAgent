@@ -427,7 +427,7 @@ public class KnowledgeRepository {
                         .addValue("kbIds", kbIds)
                         .addValue("embedding", embedding)
                         .addValue("topK", topK),
-                (rs, rowNum) -> mapSearchHit(rs));
+                (rs, rowNum) -> mapSearchHit(rs, rowNum + 1));
     }
 
     public List<SearchHit> keywordRecall(long userId, List<String> kbIds, String query, int topK) {
@@ -462,7 +462,7 @@ public class KnowledgeRepository {
                         .addValue("kbIds", kbIds)
                         .addValue("query", query)
                         .addValue("topK", topK),
-                (rs, rowNum) -> mapSearchHit(rs));
+                (rs, rowNum) -> mapSearchHit(rs, rowNum + 1));
     }
 
     public void replaceSessionBindings(long sessionInternalId, List<Long> knowledgeBaseIds) {
@@ -541,13 +541,19 @@ public class KnowledgeRepository {
         return timestamp == null ? null : timestamp.toInstant();
     }
 
-    private SearchHit mapSearchHit(ResultSet rs) throws SQLException {
+    private SearchHit mapSearchHit(ResultSet rs, int rank) throws SQLException {
+        String kbId = rs.getString("kb_id");
+        String documentId = rs.getString("document_id");
+        String chunkId = rs.getString("chunk_id");
         return new SearchHit(
-                rs.getString("kb_id"),
-                rs.getString("document_id"),
+                kbId,
+                documentId,
                 rs.getString("file_name"),
-                rs.getString("chunk_id"),
+                chunkId,
+                kbId + ":" + documentId + ":" + chunkId,
                 rs.getInt("chunk_no"),
+                0,
+                rank,
                 rs.getString("content_preview"),
                 rs.getString("content_text"),
                 rs.getString("section_title"),

@@ -1,7 +1,10 @@
 package com.sreehc.aiagent.trigger.session;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sreehc.aiagent.application.session.SessionService;
 import com.sreehc.aiagent.domain.auth.SessionUser;
+import com.sreehc.aiagent.domain.knowledge.SearchHit;
 import com.sreehc.aiagent.domain.session.AgentMode;
 import com.sreehc.aiagent.domain.session.AgentSession;
 import com.sreehc.aiagent.infrastructure.storage.ObjectStorageService;
@@ -30,10 +33,12 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class SessionController {
     private final SessionService sessionService;
     private final ObjectStorageService objectStorageService;
+    private final ObjectMapper objectMapper;
 
-    public SessionController(SessionService sessionService, ObjectStorageService objectStorageService) {
+    public SessionController(SessionService sessionService, ObjectStorageService objectStorageService, ObjectMapper objectMapper) {
         this.sessionService = sessionService;
         this.objectStorageService = objectStorageService;
+        this.objectMapper = objectMapper;
     }
 
     @PostMapping
@@ -122,9 +127,12 @@ public class SessionController {
                 detail.runs().stream().map(run -> new RunResponse(
                         run.runCode(),
                         run.queryText(),
+                        run.retrievalQuery(),
                         run.executionMode().name(),
                         run.status().name(),
                         run.knowledgeBaseIds(),
+                        parseEvidenceSet(run.recallSetJson()),
+                        parseEvidenceSet(run.finalEvidenceSetJson()),
                         run.startedAt() == null ? null : run.startedAt().toString(),
                         run.completedAt() == null ? null : run.completedAt().toString(),
                         run.errorMessage()
@@ -212,9 +220,12 @@ public class SessionController {
     public record RunResponse(
             String runId,
             String query,
+            String retrievalQuery,
             String executionMode,
             String status,
             List<String> knowledgeBaseIds,
+            List<EvidenceResponse> recallSet,
+            List<EvidenceResponse> finalEvidenceSet,
             String startedAt,
             String completedAt,
             String errorMessage
@@ -278,5 +289,49 @@ public class SessionController {
             String sessionId,
             List<String> knowledgeBaseIds
     ) {
+    }
+
+    public record EvidenceResponse(
+            String citationId,
+            String kbId,
+            String documentId,
+            String fileName,
+            String chunkId,
+            int chunkNo,
+            int sourceOffset,
+            int rank,
+            String sectionTitle,
+            String headingPath,
+            String retrievalStrategy,
+            double score,
+            String contentPreview
+    ) {
+    }
+
+    private List<EvidenceResponse> parseEvidenceSet(String rawJson) {
+        if (rawJson == null || rawJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            List<SearchHit> hits = objectMapper.readValue(rawJson, new TypeReference<List<SearchHit>>() {
+            });
+            return hits.stream().map(hit -> new EvidenceResponse(
+                    hit.citationId(),
+                    hit.kbId(),
+                    hit.documentId(),
+                    hit.fileName(),
+                    hit.chunkId(),
+                    hit.chunkNo(),
+                    hit.sourceOffset(),
+                    hit.rank(),
+                    hit.sectionTitle(),
+                    hit.headingPath(),
+                    hit.retrievalStrategy(),
+                    hit.score(),
+                    hit.contentPreview()
+            )).toList();
+        } catch (Exception exception) {
+            throw new IllegalStateException("Failed to parse retrieval evidence", exception);
+        }
     }
 }

@@ -101,11 +101,13 @@ public class SessionRepository {
         Long id = jdbcTemplate.queryForObject("""
                         insert into execution_run (
                             run_code, session_id, user_id, query_text, execution_mode,
-                            knowledge_base_ids, status, created_at, updated_at
+                            knowledge_base_ids, retrieval_query, recall_set, final_evidence_set,
+                            status, created_at, updated_at
                         )
                         values (
                             :runCode, :sessionId, :userId, :queryText, :executionMode,
-                            cast(:knowledgeBaseIds as jsonb), :status, now(), now()
+                            cast(:knowledgeBaseIds as jsonb), null, '[]'::jsonb, '[]'::jsonb,
+                            :status, now(), now()
                         )
                         returning id
                         """,
@@ -128,7 +130,8 @@ public class SessionRepository {
     public Optional<ExecutionRun> findRunByCode(long sessionId, String runCode) {
         return jdbcTemplate.query("""
                         select id, run_code, session_id, user_id, query_text, execution_mode,
-                               knowledge_base_ids, status, error_message, started_at,
+                               knowledge_base_ids, retrieval_query, recall_set, final_evidence_set,
+                               status, error_message, started_at,
                                completed_at, created_at, updated_at
                         from execution_run
                         where session_id = :sessionId and run_code = :runCode
@@ -140,7 +143,8 @@ public class SessionRepository {
     public Optional<ExecutionRun> findRunById(long sessionId, long runId) {
         return jdbcTemplate.query("""
                         select id, run_code, session_id, user_id, query_text, execution_mode,
-                               knowledge_base_ids, status, error_message, started_at,
+                               knowledge_base_ids, retrieval_query, recall_set, final_evidence_set,
+                               status, error_message, started_at,
                                completed_at, created_at, updated_at
                         from execution_run
                         where session_id = :sessionId and id = :runId
@@ -152,7 +156,8 @@ public class SessionRepository {
     public Optional<ExecutionRun> findLatestRun(long sessionId) {
         return jdbcTemplate.query("""
                         select id, run_code, session_id, user_id, query_text, execution_mode,
-                               knowledge_base_ids, status, error_message, started_at,
+                               knowledge_base_ids, retrieval_query, recall_set, final_evidence_set,
+                               status, error_message, started_at,
                                completed_at, created_at, updated_at
                         from execution_run
                         where session_id = :sessionId
@@ -166,7 +171,8 @@ public class SessionRepository {
     public Optional<ExecutionRun> findLatestPendingRun(long sessionId) {
         return jdbcTemplate.query("""
                         select id, run_code, session_id, user_id, query_text, execution_mode,
-                               knowledge_base_ids, status, error_message, started_at,
+                               knowledge_base_ids, retrieval_query, recall_set, final_evidence_set,
+                               status, error_message, started_at,
                                completed_at, created_at, updated_at
                         from execution_run
                         where session_id = :sessionId and status = :status
@@ -180,7 +186,8 @@ public class SessionRepository {
     public List<ExecutionRun> listRuns(long sessionId) {
         return jdbcTemplate.query("""
                         select id, run_code, session_id, user_id, query_text, execution_mode,
-                               knowledge_base_ids, status, error_message, started_at,
+                               knowledge_base_ids, retrieval_query, recall_set, final_evidence_set,
+                               status, error_message, started_at,
                                completed_at, created_at, updated_at
                         from execution_run
                         where session_id = :sessionId
@@ -234,6 +241,9 @@ public class SessionRepository {
                         set query_text = :queryText,
                             execution_mode = :executionMode,
                             knowledge_base_ids = cast(:knowledgeBaseIds as jsonb),
+                            retrieval_query = null,
+                            recall_set = '[]'::jsonb,
+                            final_evidence_set = '[]'::jsonb,
                             updated_at = now()
                         where id = :runId and status = :status
                         """,
@@ -243,6 +253,22 @@ public class SessionRepository {
                         .addValue("executionMode", executionMode.name())
                         .addValue("knowledgeBaseIds", toJson(knowledgeBaseIds))
                         .addValue("status", RunStatus.PENDING.name()));
+    }
+
+    public void updateRunRetrievalAudit(long runId, String retrievalQuery, String recallSetJson, String finalEvidenceSetJson) {
+        jdbcTemplate.update("""
+                        update execution_run
+                        set retrieval_query = :retrievalQuery,
+                            recall_set = cast(:recallSetJson as jsonb),
+                            final_evidence_set = cast(:finalEvidenceSetJson as jsonb),
+                            updated_at = now()
+                        where id = :runId
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("runId", runId)
+                        .addValue("retrievalQuery", retrievalQuery)
+                        .addValue("recallSetJson", recallSetJson)
+                        .addValue("finalEvidenceSetJson", finalEvidenceSetJson));
     }
 
     public void markRunCompleted(long runId) {
@@ -445,10 +471,13 @@ public class SessionRepository {
                 rs.getLong("session_id"),
                 rs.getLong("user_id"),
                 rs.getString("query_text"),
+                rs.getString("retrieval_query"),
                 AgentMode.valueOf(rs.getString("execution_mode")),
                 fromJson(rs.getString("knowledge_base_ids")),
                 RunStatus.valueOf(rs.getString("status")),
                 rs.getString("error_message"),
+                rs.getString("recall_set"),
+                rs.getString("final_evidence_set"),
                 toInstant(rs.getTimestamp("started_at")),
                 toInstant(rs.getTimestamp("completed_at")),
                 rs.getTimestamp("created_at").toInstant(),

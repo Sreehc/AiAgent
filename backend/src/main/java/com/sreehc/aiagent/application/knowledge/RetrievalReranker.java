@@ -13,15 +13,19 @@ public class RetrievalReranker {
 
     public List<SearchHit> rerank(String query, List<SearchHit> hits, int topK) {
         Set<String> queryTerms = tokenize(query);
-        return hits.stream()
+        List<ScoredHit> reranked = hits.stream()
                 .map(hit -> new ScoredHit(hit, score(queryTerms, hit)))
                 .sorted(Comparator
                         .comparingDouble(ScoredHit::score).reversed()
                         .thenComparing(scoredHit -> scoredHit.hit().documentId())
                         .thenComparingInt(scoredHit -> scoredHit.hit().chunkNo()))
                 .limit(Math.max(1, topK))
-                .map(ScoredHit::toSearchHit)
                 .toList();
+        List<SearchHit> result = new java.util.ArrayList<>();
+        for (int index = 0; index < reranked.size(); index++) {
+            result.add(reranked.get(index).toSearchHit(index + 1));
+        }
+        return result;
     }
 
     private double score(Set<String> queryTerms, SearchHit hit) {
@@ -76,13 +80,16 @@ public class RetrievalReranker {
             SearchHit hit,
             double score
     ) {
-        private SearchHit toSearchHit() {
+        private SearchHit toSearchHit(int rank) {
             return new SearchHit(
                     hit.kbId(),
                     hit.documentId(),
                     hit.fileName(),
                     hit.chunkId(),
+                    hit.citationId(),
                     hit.chunkNo(),
+                    hit.sourceOffset(),
+                    rank,
                     hit.contentPreview(),
                     hit.contentText(),
                     hit.sectionTitle(),

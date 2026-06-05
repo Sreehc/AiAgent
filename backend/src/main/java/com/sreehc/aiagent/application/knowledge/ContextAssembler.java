@@ -34,7 +34,7 @@ public class ContextAssembler {
                 break;
             }
         }
-        return assembled;
+        return applyFinalRanks(assembled);
     }
 
     private SearchHit tryMerge(SearchHit previous, SearchHit current, int consumedTokens) {
@@ -58,7 +58,10 @@ public class ContextAssembler {
                 previous.documentId(),
                 previous.fileName(),
                 previous.chunkId() + "+" + current.chunkId(),
+                previous.citationId(),
                 previous.chunkNo(),
+                previous.sourceOffset(),
+                previous.rank(),
                 mergedPreview,
                 mergedText,
                 previous.sectionTitle() != null ? previous.sectionTitle() : current.sectionTitle(),
@@ -67,6 +70,31 @@ public class ContextAssembler {
                 mergeStrategy(previous.retrievalStrategy(), current.retrievalStrategy()),
                 Math.max(previous.score(), current.score())
         );
+    }
+
+    private List<SearchHit> applyFinalRanks(List<SearchHit> hits) {
+        List<SearchHit> ranked = new ArrayList<>();
+        for (int index = 0; index < hits.size(); index++) {
+            SearchHit hit = hits.get(index);
+            ranked.add(new SearchHit(
+                    hit.kbId(),
+                    hit.documentId(),
+                    hit.fileName(),
+                    hit.chunkId(),
+                    hit.citationId(),
+                    hit.chunkNo(),
+                    hit.sourceOffset(),
+                    index + 1,
+                    hit.contentPreview(),
+                    hit.contentText(),
+                    hit.sectionTitle(),
+                    hit.headingPath(),
+                    hit.tokenCount(),
+                    hit.retrievalStrategy(),
+                    hit.score()
+            ));
+        }
+        return ranked;
     }
 
     private String mergeStrategy(String left, String right) {

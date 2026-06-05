@@ -138,16 +138,20 @@ public class KnowledgeBaseService {
 
     public List<SearchHit> searchKnowledgeBase(SessionUser currentUser, String kbId, SearchCommand command) {
         loadKnowledgeBase(currentUser, kbId);
-        return searchAcrossKnowledgeBases(currentUser, List.of(kbId), command.query(), command.topK());
+        return searchAcrossKnowledgeBasesWithAudit(currentUser, List.of(kbId), command.query(), command.topK()).finalEvidenceHits();
     }
 
     public List<SearchHit> searchAcrossKnowledgeBases(SessionUser currentUser, List<String> kbIds, String query, int topK) {
+        return searchAcrossKnowledgeBasesWithAudit(currentUser, kbIds, query, topK).finalEvidenceHits();
+    }
+
+    public SearchResult searchAcrossKnowledgeBasesWithAudit(SessionUser currentUser, List<String> kbIds, String query, int topK) {
         if (kbIds.isEmpty()) {
-            return List.of();
+            return new SearchResult(query, List.of(), List.of());
         }
         List<KnowledgeBase> accessible = knowledgeRepository.findKnowledgeBases(currentUser.id(), kbIds);
         if (accessible.isEmpty()) {
-            return List.of();
+            return new SearchResult(query, List.of(), List.of());
         }
         Set<String> accessibleIds = new LinkedHashSet<>();
         for (KnowledgeBase knowledgeBase : accessible) {
@@ -177,7 +181,8 @@ public class KnowledgeBaseService {
             mergedHits = hybridSearchResultMerger.merge(multiQueryHits, List.of(), recallSize);
         }
         List<SearchHit> rerankedHits = retrievalReranker.rerank(rewritePlan.normalizedQuery(), mergedHits, recallSize);
-        return contextAssembler.assemble(rerankedHits, Math.max(1, topK));
+        List<SearchHit> finalEvidenceHits = contextAssembler.assemble(rerankedHits, Math.max(1, topK));
+        return new SearchResult(rewritePlan.normalizedQuery(), mergedHits, finalEvidenceHits);
     }
 
     @Transactional
@@ -256,6 +261,13 @@ public class KnowledgeBaseService {
     public record SearchCommand(
             String query,
             int topK
+    ) {
+    }
+
+    public record SearchResult(
+            String retrievalQuery,
+            List<SearchHit> recallHits,
+            List<SearchHit> finalEvidenceHits
     ) {
     }
 }

@@ -2,6 +2,8 @@ package com.sreehc.aiagent.application.session;
 
 import com.sreehc.aiagent.application.common.AppException;
 import com.sreehc.aiagent.application.knowledge.KnowledgeBaseService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sreehc.aiagent.application.mcp.McpExecutionService;
 import com.sreehc.aiagent.domain.auth.SessionUser;
 import com.sreehc.aiagent.domain.knowledge.SearchHit;
@@ -29,15 +31,18 @@ public class SessionService {
     private final SessionRepository sessionRepository;
     private final KnowledgeBaseService knowledgeBaseService;
     private final McpExecutionService mcpExecutionService;
+    private final ObjectMapper objectMapper;
 
     public SessionService(
             SessionRepository sessionRepository,
             KnowledgeBaseService knowledgeBaseService,
-            McpExecutionService mcpExecutionService
+            McpExecutionService mcpExecutionService,
+            ObjectMapper objectMapper
     ) {
         this.sessionRepository = sessionRepository;
         this.knowledgeBaseService = knowledgeBaseService;
         this.mcpExecutionService = mcpExecutionService;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -118,12 +123,19 @@ public class SessionService {
                     "startedAt", Instant.now().toString()
             ));
 
-            List<SearchHit> evidenceHits = knowledgeBaseService.searchAcrossKnowledgeBases(
+            KnowledgeBaseService.SearchResult searchResult = knowledgeBaseService.searchAcrossKnowledgeBasesWithAudit(
                     currentUser,
                     effectiveKnowledgeBaseIds,
                     effectiveCommand.query(),
                     3
             );
+            sessionRepository.updateRunRetrievalAudit(
+                    run.id(),
+                    searchResult.retrievalQuery(),
+                    toJson(searchResult.recallHits()),
+                    toJson(searchResult.finalEvidenceHits())
+            );
+            List<SearchHit> evidenceHits = searchResult.finalEvidenceHits();
             List<PlanSeed> plan = buildPlan(effectiveCommand, evidenceHits);
             for (PlanSeed step : plan) {
                 sessionRepository.createPlanStep(run.id(), nextCode("step"), step.stepNo(), step.title(), PlanStepStatus.PENDING);
@@ -303,6 +315,8 @@ public class SessionService {
         } else {
             for (SearchHit hit : evidenceHits) {
                 builder.append("- [").append(hit.kbId()).append("] ")
+                        .append(hit.citationId()).append(" / rank ").append(hit.rank())
+                        .append(" / strategy=").append(hit.retrievalStrategy()).append(" / ")
                         .append(hit.fileName()).append(" / chunk ").append(hit.chunkNo())
                         .append(hit.sectionTitle() == null || hit.sectionTitle().isBlank() ? "" : " / section=" + hit.sectionTitle())
                         .append(hit.headingPath() == null || hit.headingPath().isBlank() ? "" : " / path=" + hit.headingPath())
@@ -334,6 +348,14 @@ public class SessionService {
 
     private String nextCode(String prefix) {
         return prefix + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+    }
+
+    private String toJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalStateException("Failed to serialize retrieval audit", exception);
+        }
     }
 
     public record CreateSessionCommand(

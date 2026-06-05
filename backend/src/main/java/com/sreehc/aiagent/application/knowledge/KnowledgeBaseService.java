@@ -6,7 +6,8 @@ import com.sreehc.aiagent.domain.knowledge.DocumentParseStatus;
 import com.sreehc.aiagent.domain.knowledge.KnowledgeBase;
 import com.sreehc.aiagent.domain.knowledge.KnowledgeDocument;
 import com.sreehc.aiagent.domain.knowledge.SearchHit;
-import com.sreehc.aiagent.infrastructure.knowledge.EmbeddingVectorizer;
+import com.sreehc.aiagent.infrastructure.knowledge.EmbeddingProviderException;
+import com.sreehc.aiagent.infrastructure.knowledge.EmbeddingProviderRouter;
 import com.sreehc.aiagent.infrastructure.knowledge.KnowledgeRepository;
 import com.sreehc.aiagent.infrastructure.session.SessionRepository;
 import com.sreehc.aiagent.infrastructure.storage.ObjectStorageService;
@@ -26,18 +27,18 @@ public class KnowledgeBaseService {
     private final KnowledgeRepository knowledgeRepository;
     private final SessionRepository sessionRepository;
     private final ObjectStorageService objectStorageService;
-    private final EmbeddingVectorizer embeddingVectorizer;
+    private final EmbeddingProviderRouter embeddingProviderRouter;
 
     public KnowledgeBaseService(
             KnowledgeRepository knowledgeRepository,
             SessionRepository sessionRepository,
             ObjectStorageService objectStorageService,
-            EmbeddingVectorizer embeddingVectorizer
+            EmbeddingProviderRouter embeddingProviderRouter
     ) {
         this.knowledgeRepository = knowledgeRepository;
         this.sessionRepository = sessionRepository;
         this.objectStorageService = objectStorageService;
-        this.embeddingVectorizer = embeddingVectorizer;
+        this.embeddingProviderRouter = embeddingProviderRouter;
     }
 
     @Transactional
@@ -123,11 +124,14 @@ public class KnowledgeBaseService {
                         chunkNo,
                         preview(chunk),
                         chunk,
-                        embeddingVectorizer.embed(chunk)
+                        embeddingProviderRouter.embed(chunk)
                 );
                 chunkNo += 1;
             }
             knowledgeRepository.updateDocumentStatus(document.id(), DocumentParseStatus.INDEXED);
+        } catch (EmbeddingProviderException exception) {
+            knowledgeRepository.updateDocumentStatus(document.id(), DocumentParseStatus.FAILED);
+            throw new AppException("EMBEDDING_PROVIDER_FAILED", exception.getMessage(), HttpStatus.BAD_GATEWAY);
         } catch (Exception exception) {
             knowledgeRepository.updateDocumentStatus(document.id(), DocumentParseStatus.FAILED);
             throw new AppException("DOCUMENT_INDEX_FAILED", "Document indexing failed", HttpStatus.INTERNAL_SERVER_ERROR);
@@ -156,7 +160,7 @@ public class KnowledgeBaseService {
         return knowledgeRepository.searchKnowledgeBases(
                 currentUser.id(),
                 new ArrayList<>(accessibleIds),
-                embeddingVectorizer.embed(query),
+                embedQuery(query),
                 Math.max(1, topK)
         );
     }
@@ -227,6 +231,14 @@ public class KnowledgeBaseService {
 
     private String nextCode(String prefix) {
         return prefix + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+    }
+
+    private String embedQuery(String query) {
+        try {
+            return embeddingProviderRouter.embed(query);
+        } catch (EmbeddingProviderException exception) {
+            throw new AppException("EMBEDDING_PROVIDER_FAILED", exception.getMessage(), HttpStatus.BAD_GATEWAY);
+        }
     }
 
     public record CreateKnowledgeBaseCommand(

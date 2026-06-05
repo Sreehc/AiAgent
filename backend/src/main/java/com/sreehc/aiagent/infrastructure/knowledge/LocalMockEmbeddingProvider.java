@@ -1,14 +1,27 @@
 package com.sreehc.aiagent.infrastructure.knowledge;
 
+import com.sreehc.aiagent.app.AppProperties;
 import java.util.Arrays;
 import org.springframework.stereotype.Component;
 
 @Component
-public class EmbeddingVectorizer {
-    private static final int DIMENSION = 1536;
+public class LocalMockEmbeddingProvider implements EmbeddingProvider {
+    private final int dimension;
 
+    public LocalMockEmbeddingProvider(AppProperties appProperties) {
+        this.dimension = appProperties.embedding() != null && appProperties.embedding().dimension() != null
+                ? appProperties.embedding().dimension()
+                : 1536;
+    }
+
+    @Override
+    public String providerCode() {
+        return "local-mock";
+    }
+
+    @Override
     public String embed(String content) {
-        double[] vector = new double[DIMENSION];
+        double[] vector = new double[dimension];
         String normalized = content == null ? "" : content.toLowerCase();
         String[] tokens = normalized.split("[^\\p{IsAlphabetic}\\p{IsDigit}]+");
 
@@ -17,7 +30,7 @@ public class EmbeddingVectorizer {
                 continue;
             }
             int hash = Math.abs(token.hashCode());
-            int index = hash % DIMENSION;
+            int index = hash % dimension;
             vector[index] += 1.0;
         }
 
@@ -27,7 +40,7 @@ public class EmbeddingVectorizer {
 
         double norm = Math.sqrt(Arrays.stream(vector).map(value -> value * value).sum());
         StringBuilder builder = new StringBuilder("[");
-        for (int index = 0; index < DIMENSION; index++) {
+        for (int index = 0; index < dimension; index++) {
             double value = vector[index] / norm;
             if (index > 0) {
                 builder.append(',');

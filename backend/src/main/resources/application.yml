@@ -34,3 +34,11 @@ app:
     access-key: ${APP_MINIO_ACCESS_KEY:minioadmin}
     secret-key: ${APP_MINIO_SECRET_KEY:minioadmin}
     bucket: ${APP_MINIO_BUCKET:aiagent}
+  embedding:
+    provider: ${APP_EMBEDDING_PROVIDER:local-mock}
+    model-code: ${APP_EMBEDDING_MODEL_CODE:text-embedding-3-small}
+    base-url: ${APP_EMBEDDING_BASE_URL:https://api.openai.com/v1}
+    api-key: ${APP_EMBEDDING_API_KEY:}
+    dimension: ${APP_EMBEDDING_DIMENSION:1536}
+    connect-timeout-millis: ${APP_EMBEDDING_CONNECT_TIMEOUT_MILLIS:5000}
+    read-timeout-millis: ${APP_EMBEDDING_READ_TIMEOUT_MILLIS:15000}

@@ -1,0 +1,17 @@
+[
+  {
+    "query": "OpenAI pricing comparison",
+    "expectedCitationIds": ["kb_1:doc_openai:chunk_1"],
+    "retrievedCitationIds": ["kb_1:doc_openai:chunk_1", "kb_1:doc_pricing:chunk_2", "kb_1:doc_misc:chunk_8"]
+  },
+  {
+    "query": "Anthropic context window enterprise",
+    "expectedCitationIds": ["kb_1:doc_anthropic:chunk_3"],
+    "retrievedCitationIds": ["kb_1:doc_anthropic:chunk_3", "kb_1:doc_openai:chunk_5"]
+  },
+  {
+    "query": "Nonexistent source",
+    "expectedCitationIds": ["kb_1:doc_missing:chunk_9"],
+    "retrievedCitationIds": []
+  }
+]

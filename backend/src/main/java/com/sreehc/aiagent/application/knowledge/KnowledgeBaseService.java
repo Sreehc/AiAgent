@@ -29,19 +29,22 @@ public class KnowledgeBaseService {
     private final ObjectStorageService objectStorageService;
     private final EmbeddingProviderRouter embeddingProviderRouter;
     private final DocumentChunker documentChunker;
+    private final HybridSearchResultMerger hybridSearchResultMerger;
 
     public KnowledgeBaseService(
             KnowledgeRepository knowledgeRepository,
             SessionRepository sessionRepository,
             ObjectStorageService objectStorageService,
             EmbeddingProviderRouter embeddingProviderRouter,
-            DocumentChunker documentChunker
+            DocumentChunker documentChunker,
+            HybridSearchResultMerger hybridSearchResultMerger
     ) {
         this.knowledgeRepository = knowledgeRepository;
         this.sessionRepository = sessionRepository;
         this.objectStorageService = objectStorageService;
         this.embeddingProviderRouter = embeddingProviderRouter;
         this.documentChunker = documentChunker;
+        this.hybridSearchResultMerger = hybridSearchResultMerger;
     }
 
     @Transactional
@@ -164,12 +167,21 @@ public class KnowledgeBaseService {
         for (KnowledgeBase knowledgeBase : accessible) {
             accessibleIds.add(knowledgeBase.kbId());
         }
-        return knowledgeRepository.searchKnowledgeBases(
+        List<String> kbIdList = new ArrayList<>(accessibleIds);
+        int recallSize = Math.max(20, topK);
+        List<SearchHit> vectorHits = knowledgeRepository.vectorRecall(
                 currentUser.id(),
-                new ArrayList<>(accessibleIds),
+                kbIdList,
                 embedQuery(query),
-                Math.max(1, topK)
+                recallSize
         );
+        List<SearchHit> keywordHits = knowledgeRepository.keywordRecall(
+                currentUser.id(),
+                kbIdList,
+                query,
+                recallSize
+        );
+        return hybridSearchResultMerger.merge(vectorHits, keywordHits, Math.max(1, topK));
     }
 
     @Transactional

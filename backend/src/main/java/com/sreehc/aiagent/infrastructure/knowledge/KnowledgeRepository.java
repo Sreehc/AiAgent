@@ -225,11 +225,13 @@ public class KnowledgeRepository {
         jdbcTemplate.update("""
                         insert into knowledge_chunk (
                             knowledge_document_id, chunk_id, chunk_no, content_preview, content_text, embedding,
-                            section_title, heading_path, token_count, metadata_json, created_at
+                            section_title, heading_path, token_count, metadata_json, search_vector, created_at
                         )
                         values (
                             :documentId, :chunkId, :chunkNo, :contentPreview, :contentText, cast(:embedding as vector),
-                            :sectionTitle, :headingPath, :tokenCount, cast(:metadataJson as jsonb), now()
+                            :sectionTitle, :headingPath, :tokenCount, cast(:metadataJson as jsonb),
+                            to_tsvector('simple', concat_ws(' ', coalesce(:sectionTitle, ''), coalesce(:headingPath, ''), coalesce(:contentText, ''))),
+                            now()
                         )
                         """,
                 new MapSqlParameterSource()
@@ -245,7 +247,7 @@ public class KnowledgeRepository {
                         .addValue("metadataJson", metadataJson));
     }
 
-    public List<SearchHit> searchKnowledgeBases(long userId, List<String> kbIds, String embedding, int topK) {
+    public List<SearchHit> vectorRecall(long userId, List<String> kbIds, String embedding, int topK) {
         if (kbIds.isEmpty()) {
             return List.of();
         }
@@ -265,17 +267,41 @@ public class KnowledgeRepository {
                         .addValue("kbIds", kbIds)
                         .addValue("embedding", embedding)
                         .addValue("topK", topK),
-                (rs, rowNum) -> new SearchHit(
-                        rs.getString("kb_id"),
-                        rs.getString("document_id"),
-                        rs.getString("file_name"),
-                        rs.getString("chunk_id"),
-                        rs.getInt("chunk_no"),
-                        rs.getString("content_preview"),
-                        rs.getString("section_title"),
-                        rs.getString("heading_path"),
-                        rs.getDouble("score")
-                ));
+                (rs, rowNum) -> mapSearchHit(rs));
+    }
+
+    public List<SearchHit> keywordRecall(long userId, List<String> kbIds, String query, int topK) {
+        if (kbIds.isEmpty() || query == null || query.isBlank()) {
+            return List.of();
+        }
+        return jdbcTemplate.query("""
+                        select kb.kb_id, d.document_id, d.file_name, c.chunk_id, c.chunk_no, c.content_preview,
+                               c.section_title, c.heading_path,
+                               greatest(
+                                   ts_rank_cd(c.search_vector, websearch_to_tsquery('simple', :query)),
+                                   case
+                                       when lower(c.content_text) like '%' || lower(:query) || '%' then 0.15
+                                       else 0
+                                   end
+                               ) as score
+                        from knowledge_chunk c
+                        join knowledge_document d on d.id = c.knowledge_document_id
+                        join knowledge_base kb on kb.id = d.knowledge_base_id
+                        where kb.user_id = :userId
+                          and kb.kb_id in (:kbIds)
+                          and (
+                                c.search_vector @@ websearch_to_tsquery('simple', :query)
+                                or lower(c.content_text) like '%' || lower(:query) || '%'
+                              )
+                        order by score desc, c.chunk_no asc
+                        limit :topK
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("userId", userId)
+                        .addValue("kbIds", kbIds)
+                        .addValue("query", query)
+                        .addValue("topK", topK),
+                (rs, rowNum) -> mapSearchHit(rs));
     }
 
     public void replaceSessionBindings(long sessionInternalId, List<Long> knowledgeBaseIds) {
@@ -349,5 +375,19 @@ public class KnowledgeRepository {
 
     private Instant toInstant(Timestamp timestamp) {
         return timestamp == null ? null : timestamp.toInstant();
+    }
+
+    private SearchHit mapSearchHit(ResultSet rs) throws SQLException {
+        return new SearchHit(
+                rs.getString("kb_id"),
+                rs.getString("document_id"),
+                rs.getString("file_name"),
+                rs.getString("chunk_id"),
+                rs.getInt("chunk_no"),
+                rs.getString("content_preview"),
+                rs.getString("section_title"),
+                rs.getString("heading_path"),
+                rs.getDouble("score")
+        );
     }
 }

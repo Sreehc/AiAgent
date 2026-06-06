@@ -245,10 +245,10 @@ export function KnowledgeBasesPage() {
     <section className="workspace">
       <header className="workspace__header">
         <div>
-          <p className="eyebrow">Knowledge Workspace</p>
+          <p className="eyebrow">知识工作区</p>
           <h2>知识库工作区</h2>
         </div>
-        <span className="badge">{selectedKnowledgeBase ? selectedKnowledgeBase.status : "ACTIVE"}</span>
+        <span className="badge">{selectedKnowledgeBase ? selectedKnowledgeBase.status === "ACTIVE" ? "活跃" : selectedKnowledgeBase.status === "INACTIVE" ? "未激活" : selectedKnowledgeBase.status : "ACTIVE"}</span>
       </header>
 
       <div className="workspace-layout">
@@ -317,7 +317,7 @@ export function KnowledgeBasesPage() {
           <section className="workspace__panel workspace-main__section">
             <div className="workspace-main__section-header">
               <div>
-                <p className="eyebrow">Documents</p>
+                <p className="eyebrow">文档</p>
                 <h3>{selectedKnowledgeBase?.name ?? "选择一个知识库"}</h3>
               </div>
               <div className="workspace-inline-actions">
@@ -346,10 +346,10 @@ export function KnowledgeBasesPage() {
                 <article key={document.documentId} className="plan-card">
                   <div className="plan-card__header">
                     <strong>{document.fileName}</strong>
-                    <span>{document.parseStatus}</span>
+                    <span>{document.parseStatus === "PENDING" ? "待处理" : document.parseStatus === "PROCESSING" ? "处理中" : document.parseStatus === "COMPLETED" ? "已完成" : document.parseStatus === "FAILED" ? "失败" : document.parseStatus}</span>
                   </div>
                   <p className="muted">
-                    {document.fileType} · {document.chunkCount} chunks
+                    {document.fileType} · {document.chunkCount} 个块
                   </p>
                   <div className="workspace-inline-actions">
                     <button
@@ -374,10 +374,10 @@ export function KnowledgeBasesPage() {
           <section className="workspace__panel workspace-main__section">
             <div className="workspace-main__section-header">
               <div>
-                <p className="eyebrow">Search</p>
+                <p className="eyebrow">检索</p>
                 <h3>检索测试</h3>
               </div>
-              <span className="muted">{searchHits.length} hits</span>
+              <span className="muted">{searchHits.length} 条命中</span>
             </div>
 
             <form className="workspace-form" onSubmit={onSearchTest}>

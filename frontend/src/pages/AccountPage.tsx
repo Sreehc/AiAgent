@@ -131,7 +131,7 @@ export function AccountPage() {
     <section className="account-page">
       <header className="workspace__header">
         <div>
-          <p className="eyebrow">Account Center</p>
+          <p className="eyebrow">账户中心</p>
           <h2>账号中心</h2>
         </div>
         <span className="badge">登录态受保护</span>

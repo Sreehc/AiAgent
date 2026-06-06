@@ -212,10 +212,10 @@ export function McpServersPage() {
     <section className="workspace">
       <header className="workspace__header">
         <div>
-          <p className="eyebrow">Admin Console</p>
+          <p className="eyebrow">管理控制台</p>
           <h2>MCP 配置页</h2>
         </div>
-        <span className="badge">{servers.length} servers</span>
+        <span className="badge">{servers.length} 个服务</span>
       </header>
 
       <div className="workspace-layout">
@@ -228,7 +228,7 @@ export function McpServersPage() {
                 <input value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
               </label>
               <label>
-                Server Code
+                服务代码
                 <input value={form.serverCode} onChange={(event) => setForm((current) => ({ ...current, serverCode: event.target.value }))} disabled={selectedServer !== null} />
               </label>
               <label>
@@ -240,11 +240,11 @@ export function McpServersPage() {
                 </select>
               </label>
               <label>
-                Endpoint
+                服务端点
                 <input value={form.endpoint} onChange={(event) => setForm((current) => ({ ...current, endpoint: event.target.value }))} />
               </label>
               <label>
-                Command Line
+                启动命令
                 <input value={form.commandLine} onChange={(event) => setForm((current) => ({ ...current, commandLine: event.target.value }))} placeholder="仅 STDIO 可选" />
               </label>
               {error ? <p className="form-message form-message--error">{error}</p> : null}
@@ -290,10 +290,10 @@ export function McpServersPage() {
           <section className="workspace__panel workspace-main__section">
             <div className="workspace-main__section-header">
               <div>
-                <p className="eyebrow">Config</p>
+                <p className="eyebrow">配置</p>
                 <h3>{selectedServer?.name ?? "选择一个服务"}</h3>
               </div>
-              {selectedServer ? <span className="badge badge--soft">{selectedServer.status}</span> : null}
+              <span className="badge badge--soft">{selectedServer.status === "ACTIVE" ? "活跃" : selectedServer.status === "INACTIVE" ? "未激活" : selectedServer.status}</span>
             </div>
 
             {selectedServer ? (
@@ -311,11 +311,11 @@ export function McpServersPage() {
                   </select>
                 </label>
                 <label>
-                  Endpoint
+                  服务端点
                   <input value={form.endpoint} onChange={(event) => setForm((current) => ({ ...current, endpoint: event.target.value }))} />
                 </label>
                 <label>
-                  Command Line
+                  启动命令
                   <input value={form.commandLine} onChange={(event) => setForm((current) => ({ ...current, commandLine: event.target.value }))} />
                 </label>
                 <label className="workspace-checkbox">
@@ -342,7 +342,7 @@ export function McpServersPage() {
             <div className="workspace__panel workspace-main__section">
               <div className="workspace-main__section-header">
                 <div>
-                  <p className="eyebrow">Discovery</p>
+                  <p className="eyebrow">工具发现</p>
                   <h3>工具发现</h3>
                 </div>
                 {selectedServer ? (
@@ -356,7 +356,7 @@ export function McpServersPage() {
                   <article key={tool.toolName} className="event-card">
                     <div className="event-card__header">
                       <strong>{tool.toolName}</strong>
-                      <small>{tool.toolType}</small>
+                      <small>{tool.toolType === "MCP" ? "MCP 工具" : tool.toolType}</small>
                     </div>
                     <p>{tool.description}</p>
                   </article>
@@ -372,7 +372,7 @@ export function McpServersPage() {
             <div className="workspace__panel workspace-main__section">
               <div className="workspace-main__section-header">
                 <div>
-                  <p className="eyebrow">Health</p>
+                  <p className="eyebrow">健康检查</p>
                   <h3>健康检查</h3>
                 </div>
                 {selectedServer ? (
@@ -385,7 +385,7 @@ export function McpServersPage() {
                 <div className="report-card">
                   <div className="report-card__header">
                     <strong>{healthChecks[selectedServer.serverCode].serverCode}</strong>
-                    <span className="badge badge--soft">{healthChecks[selectedServer.serverCode].status}</span>
+                    <span className="badge badge--soft">{healthChecks[selectedServer.serverCode].status === "HEALTHY" ? "健康" : healthChecks[selectedServer.serverCode].status === "UNHEALTHY" ? "异常" : healthChecks[selectedServer.serverCode].status}</span>
                   </div>
                   <p>{healthChecks[selectedServer.serverCode].message}</p>
                 </div>

@@ -122,10 +122,10 @@ export function AdminSettingsPage() {
     <section className="workspace">
       <header className="workspace__header">
         <div>
-          <p className="eyebrow">Admin Console</p>
+          <p className="eyebrow">管理控制台</p>
           <h2>基础配置页</h2>
         </div>
-        <span className="badge">{loading ? "加载中" : `${models.length} models / ${invites.length} invites`}</span>
+        <span className="badge">{loading ? "加载中" : `${models.length} 个模型 / ${invites.length} 个邀请码`}</span>
       </header>
 
       <div className="workspace-layout">
@@ -134,7 +134,7 @@ export function AdminSettingsPage() {
             <h3>新增模型配置</h3>
             <form className="workspace-form" onSubmit={onCreateModel}>
               <label>
-                Model Code
+                模型代码
                 <input
                   value={modelForm.modelCode}
                   onChange={(event) => setModelForm((current) => ({ ...current, modelCode: event.target.value }))}
@@ -148,7 +148,7 @@ export function AdminSettingsPage() {
                 />
               </label>
               <label>
-                Provider
+                服务商
                 <input
                   value={modelForm.provider}
                   onChange={(event) => setModelForm((current) => ({ ...current, provider: event.target.value }))}
@@ -182,7 +182,7 @@ export function AdminSettingsPage() {
                 </label>
               </div>
               <label>
-                Base URL
+                API 地址
                 <input
                   value={modelForm.baseUrl}
                   onChange={(event) => setModelForm((current) => ({ ...current, baseUrl: event.target.value }))}
@@ -228,7 +228,7 @@ export function AdminSettingsPage() {
           <section className="workspace__panel workspace-main__section">
             <div className="workspace-main__section-header">
               <div>
-                <p className="eyebrow">Models</p>
+                <p className="eyebrow">模型</p>
                 <h3>模型配置列表</h3>
               </div>
               <button type="button" className="ghost-button ghost-button--inline" onClick={() => void loadData()}>
@@ -240,9 +240,9 @@ export function AdminSettingsPage() {
                 <article key={model.id ?? `${model.modelType}-${model.modelCode}`} className="plan-card">
                   <div className="plan-card__header">
                     <strong>{model.name}</strong>
-                    <span>{model.enabled ? "ENABLED" : "DISABLED"}</span>
+                    <span>{model.enabled ? "已启用" : "已停用"}</span>
                   </div>
-                  <p>{model.modelCode} · {model.modelType} · {model.provider}</p>
+                  <p>{model.modelCode} · {model.modelType === "CHAT" ? "聊天" : model.modelType === "EMBEDDING" ? "嵌入" : model.modelType === "IMAGE" ? "图像" : model.modelType} · {model.provider}</p>
                   <p className="muted">{model.baseUrl}</p>
                   <p className="muted">API Key: {model.apiKeyMasked ?? "未设置"}</p>
                 </article>
@@ -258,17 +258,17 @@ export function AdminSettingsPage() {
           <section className="workspace__panel workspace-main__section">
             <div className="workspace-main__section-header">
               <div>
-                <p className="eyebrow">Invites</p>
+                <p className="eyebrow">邀请码</p>
                 <h3>最近邀请码</h3>
               </div>
-              <span className="muted">{invites.length} items</span>
+              <span className="muted">{invites.length} 条</span>
             </div>
             <div className="event-list">
               {invites.map((invite) => (
                 <article key={`${invite.inviteToken}-${invite.createdAt}`} className="event-card">
                   <div className="event-card__header">
                     <strong>{invite.inviteToken}</strong>
-                    <small>{invite.status}</small>
+                    <small>{invite.status === "ACTIVE" ? "可用" : invite.status === "USED" ? "已使用" : invite.status === "EXPIRED" ? "已过期" : invite.status}</small>
                   </div>
                   <p className="muted">创建时间：{formatDateTime(invite.createdAt)}</p>
                   <p className="muted">过期时间：{formatDateTime(invite.expiresAt)}</p>
@@ -285,7 +285,7 @@ export function AdminSettingsPage() {
           <section className="workspace__panel workspace-main__section">
             <div className="workspace-main__section-header">
               <div>
-                <p className="eyebrow">Related Admin Workspaces</p>
+                <p className="eyebrow">关联管理入口</p>
                 <h3>联动入口</h3>
               </div>
             </div>

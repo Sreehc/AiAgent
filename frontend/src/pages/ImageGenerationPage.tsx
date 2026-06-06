@@ -134,7 +134,7 @@ export function ImageGenerationPage() {
     <section className="workspace">
       <header className="workspace__header">
         <div>
-          <p className="eyebrow">Visual Workspace</p>
+          <p className="eyebrow">视觉工作区</p>
           <h2>图片生成工作区</h2>
         </div>
         <span className="badge">{form.mode === "IMAGES" ? "文本生图" : "参考图编辑"}</span>
@@ -238,7 +238,7 @@ export function ImageGenerationPage() {
           <section className="workspace__panel workspace-main__section">
             <div className="workspace-main__section-header">
               <div>
-                <p className="eyebrow">Latest Output</p>
+                <p className="eyebrow">最新输出</p>
                 <h3>结果画廊</h3>
               </div>
               <button type="button" className="ghost-button ghost-button--inline" onClick={() => void loadHistory(historyPageNo)}>
@@ -280,10 +280,10 @@ export function ImageGenerationPage() {
           <section className="workspace__panel workspace-main__section">
             <div className="workspace-main__section-header">
               <div>
-                <p className="eyebrow">History</p>
+                <p className="eyebrow">历史记录</p>
                 <h3>历史记录</h3>
               </div>
-              <span className="muted">第 {historyPageNo} 页 · {history.length} items</span>
+              <span className="muted">第 {historyPageNo} 页 · {history.length} 条</span>
             </div>
 
             <div className="workspace-inline-actions">
@@ -301,12 +301,12 @@ export function ImageGenerationPage() {
                   {item.resultUrl ? (
                     <img className="image-card__preview" src={item.resultUrl} alt={item.prompt} />
                   ) : (
-                    <div className="image-card__placeholder">No Preview</div>
+                    <div className="image-card__placeholder">暂无预览</div>
                   )}
                   <div className="image-card__body">
                     <div className="image-card__meta">
-                      <strong>{item.mode}</strong>
-                      <span>{item.status}</span>
+                      <strong>{item.mode === "IMAGES" ? "文本生图" : "参考图编辑"}</strong>
+                      <span>{item.status === "COMPLETED" ? "已完成" : item.status === "FAILED" ? "失败" : "处理中"}</span>
                     </div>
                     <p>{item.prompt}</p>
                     <small>

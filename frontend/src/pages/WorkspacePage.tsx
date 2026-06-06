@@ -240,7 +240,7 @@ export function WorkspacePage() {
     <section className="workspace">
       <header className="workspace__header">
         <div>
-          <p className="eyebrow">Research Workspace</p>
+          <p className="eyebrow">研究工作区</p>
           <h2>聊天研究工作台</h2>
         </div>
         <span className="badge">{runningTask ? "执行进行中" : "会话执行已接入"}</span>
@@ -272,8 +272,8 @@ export function WorkspacePage() {
                     }))
                   }
                 >
-                  <option value="REACT">REACT</option>
-                  <option value="PLAN_EXECUTE">PLAN_EXECUTE</option>
+                  <option value="REACT">React 模式</option>
+                  <option value="PLAN_EXECUTE">计划执行模式</option>
                 </select>
               </label>
               <button type="submit" disabled={creatingSession}>
@@ -299,7 +299,7 @@ export function WorkspacePage() {
                   onClick={() => setSelectedSessionId(item.sessionId)}
                 >
                   <strong>{item.title}</strong>
-                  <span>{item.agentMode}</span>
+                  <span>{item.agentMode === "REACT" ? "React" : "计划执行"}</span>
                   <small>
                     {item.status} · {formatDateTime(item.createdAt)}
                   </small>
@@ -318,12 +318,10 @@ export function WorkspacePage() {
           <section className="workspace__panel workspace-main__section">
             <div className="workspace-main__section-header">
               <div>
-                <p className="eyebrow">Execution</p>
+                <p className="eyebrow">执行</p>
                 <h3>{sessionDetail?.session.title ?? "选择会话后开始研究"}</h3>
               </div>
-              <span className="badge badge--soft">
-                {sessionDetail?.session.status ?? "IDLE"}
-              </span>
+              <span>{sessionDetail?.session.status === "IDLE" ? "空闲" : sessionDetail?.session.status === "RUNNING" ? "执行中" : sessionDetail?.session.status}</span>
             </div>
 
             <form className="workspace-form" onSubmit={onRunTask}>
@@ -391,7 +389,7 @@ export function WorkspacePage() {
                             }}
                           />
                           <span>{item.name}</span>
-                          <small>{item.documentCount} docs</small>
+                          <small>{item.documentCount} 份文档</small>
                         </label>
                       );
                     })}
@@ -428,10 +426,10 @@ export function WorkspacePage() {
             <div className="workspace__panel workspace-main__section">
               <div className="workspace-main__section-header">
                 <div>
-                  <p className="eyebrow">Timeline</p>
+                  <p className="eyebrow">时间线</p>
                   <h3>实时事件流</h3>
                 </div>
-                <span className="muted">{streamLogs.length} events</span>
+                <span className="muted">{streamLogs.length} 个事件</span>
               </div>
               <div className="event-list">
                 {streamLogs.map((log) => (
@@ -454,7 +452,7 @@ export function WorkspacePage() {
             <div className="workspace__panel workspace-main__section">
               <div className="workspace-main__section-header">
                 <div>
-                  <p className="eyebrow">Result</p>
+                  <p className="eyebrow">结果</p>
                   <h3>报告与执行步骤</h3>
                 </div>
                 <button
@@ -474,7 +472,7 @@ export function WorkspacePage() {
                 </div>
                 <div>
                   <span className="muted">模式</span>
-                  <strong>{sessionDetail?.runs[0]?.executionMode ?? "-"}</strong>
+                  <strong>{sessionDetail?.runs[0]?.executionMode === "REACT" ? "React" : sessionDetail?.runs[0]?.executionMode === "PLAN_EXECUTE" ? "计划执行" : "-"}</strong>
                 </div>
                 <div>
                   <span className="muted">产物数</span>
@@ -489,7 +487,7 @@ export function WorkspacePage() {
                       <strong>
                         {step.stepNo}. {step.title}
                       </strong>
-                      <span>{step.status}</span>
+                      <span>{step.status === "PENDING" ? "待执行" : step.status === "RUNNING" ? "执行中" : step.status === "COMPLETED" ? "已完成" : step.status === "FAILED" ? "失败" : step.status}</span>
                     </div>
                     <p className="muted">{step.toolName ?? "未执行工具"}</p>
                     {step.toolOutput ? <p>{step.toolOutput}</p> : null}
@@ -523,7 +521,7 @@ export function WorkspacePage() {
                       </a>
                     ) : null}
                     {artifact.artifactType === "REPORT" ? <p className="muted">结构化研究报告</p> : null}
-                    {artifact.artifactType !== "REPORT" ? <p className="muted">{artifact.mimeType ?? "binary artifact"}</p> : null}
+                    {artifact.artifactType !== "REPORT" ? <p className="muted">{artifact.mimeType ?? "二进制产物"}</p> : null}
                   </article>
                 ))}
               </div>
@@ -532,20 +530,20 @@ export function WorkspacePage() {
             <div className="workspace__panel workspace-main__section">
               <div className="workspace-main__section-header">
                 <div>
-                  <p className="eyebrow">Ledger</p>
+                  <p className="eyebrow">账本</p>
                   <h3>工具调用账本</h3>
                 </div>
-                <span className="muted">{latestToolInvocations.length} calls</span>
+                <span className="muted">{latestToolInvocations.length} 次调用</span>
               </div>
               <div className="event-list">
                 {latestToolInvocations.map((toolInvocation) => (
                   <article key={toolInvocation.toolCallId} className="event-card">
                     <div className="event-card__header">
                       <strong>{toolInvocation.toolName}</strong>
-                      <small>{toolInvocation.status}</small>
+                      <small>{toolInvocation.status === "PENDING" ? "待执行" : toolInvocation.status === "RUNNING" ? "执行中" : toolInvocation.status === "COMPLETED" ? "已完成" : toolInvocation.status === "FAILED" ? "失败" : toolInvocation.status}</small>
                     </div>
                     <p className="muted">
-                      {toolInvocation.toolType} · {formatDateTime(toolInvocation.startedAt)}
+                      {toolInvocation.toolType === "MCP" ? "MCP 工具" : toolInvocation.toolType} · {formatDateTime(toolInvocation.startedAt)}
                     </p>
                     <pre>{toolInvocation.responsePayload ?? toolInvocation.requestPayload}</pre>
                   </article>

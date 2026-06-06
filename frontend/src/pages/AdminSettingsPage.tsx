@@ -24,6 +24,14 @@ export function AdminSettingsPage() {
   const [submittingModel, setSubmittingModel] = useState(false);
   const [submittingInvite, setSubmittingInvite] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+  function copyInviteToken(token: string) {
+    void navigator.clipboard.writeText(token).then(() => {
+      setCopiedToken(token);
+      window.setTimeout(() => setCopiedToken(null), 2000);
+    });
+  }
 
   useEffect(() => {
     if (!session?.accessToken) {
@@ -265,10 +273,19 @@ export function AdminSettingsPage() {
             </div>
             <div className="event-list">
               {invites.map((invite) => (
-                <article key={`${invite.inviteToken}-${invite.createdAt}`} className="event-card">
+                <article key={`${invite.inviteToken}-${invite.createdAt}`} className="event-card invite-card">
                   <div className="event-card__header">
                     <strong>{invite.inviteToken}</strong>
-                    <small>{invite.status === "ACTIVE" ? "可用" : invite.status === "USED" ? "已使用" : invite.status === "EXPIRED" ? "已过期" : invite.status}</small>
+                    <div className="invite-card__actions">
+                      <button
+                        type="button"
+                        className="ghost-button ghost-button--inline invite-copy-btn"
+                        onClick={() => copyInviteToken(invite.inviteToken)}
+                      >
+                        {copiedToken === invite.inviteToken ? "已复制" : "复制"}
+                      </button>
+                      <small>{invite.status === "ACTIVE" ? "可用" : invite.status === "USED" ? "已使用" : invite.status === "EXPIRED" ? "已过期" : invite.status}</small>
+                    </div>
                   </div>
                   <p className="muted">创建时间：{formatDateTime(invite.createdAt)}</p>
                   <p className="muted">过期时间：{formatDateTime(invite.expiresAt)}</p>

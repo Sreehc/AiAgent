@@ -344,6 +344,23 @@ code {
   border-color: rgba(61, 53, 36, 0.3);
 }
 
+/* Form validation styling */
+.workspace-form input:invalid:not(:placeholder-shown),
+.workspace-form textarea:invalid:not(:placeholder-shown),
+.auth-form input:invalid:not(:placeholder-shown),
+.account-panel input:invalid:not(:placeholder-shown) {
+  border-color: rgba(154, 44, 30, 0.5);
+}
+
+/* Placeholder styling */
+.workspace-form input::placeholder,
+.workspace-form textarea::placeholder,
+.auth-form input::placeholder,
+.account-panel input::placeholder {
+  color: #9a9080;
+  opacity: 1;
+}
+
 .workspace-form button {
   border: none;
   background: #1f4d42;
@@ -730,6 +747,28 @@ code {
 
 .workspace-skeleton--block {
   min-height: 120px;
+}
+
+/* Invite card specific styles */
+.invite-card {
+  position: relative;
+}
+
+.invite-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.invite-copy-btn {
+  min-height: 32px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.invite-copy-btn--copied {
+  color: #1f6d45;
+  border-color: rgba(31, 109, 69, 0.3);
 }
 
 @keyframes workspace-shimmer {

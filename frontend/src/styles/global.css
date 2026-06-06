@@ -106,6 +106,15 @@ code {
   border: none;
   background: #1f4d42;
   color: #f7f3eb;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.auth-form button:hover:not(:disabled) {
+  background: #163d33;
+}
+
+.auth-form button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .auth-form button:disabled {
@@ -169,6 +178,16 @@ code {
   background: transparent;
   color: #1f4d42;
   cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.ghost-button:hover:not(:disabled) {
+  background: rgba(31, 77, 66, 0.08);
+  border-color: rgba(31, 77, 66, 0.35);
+}
+
+.ghost-button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .shell__content {
@@ -272,9 +291,57 @@ code {
   background: rgba(255, 255, 255, 0.92);
 }
 
+/* Select dropdown custom arrow */
+.workspace-form select,
+.auth-form select,
+.account-panel select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235d5648' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  padding-right: 2.5rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Select focus state */
+.workspace-form select:focus,
+.auth-form select:focus,
+.account-panel select:focus {
+  outline: none;
+  border-color: rgba(31, 77, 66, 0.5);
+  box-shadow: 0 0 0 3px rgba(31, 77, 66, 0.12);
+}
+
+/* Select hover state */
+.workspace-form select:hover:not(:focus),
+.auth-form select:hover:not(:focus),
+.account-panel select:hover:not(:focus) {
+  border-color: rgba(61, 53, 36, 0.3);
+}
+
 .workspace-form textarea {
   min-height: 120px;
   resize: vertical;
+}
+
+/* Input focus state */
+.workspace-form input:focus,
+.workspace-form textarea:focus,
+.auth-form input:focus,
+.account-panel input:focus {
+  outline: none;
+  border-color: rgba(31, 77, 66, 0.5);
+  box-shadow: 0 0 0 3px rgba(31, 77, 66, 0.12);
+}
+
+/* Input hover state */
+.workspace-form input:hover:not(:focus),
+.workspace-form textarea:hover:not(:focus),
+.auth-form input:hover:not(:focus),
+.account-panel input:hover:not(:focus) {
+  border-color: rgba(61, 53, 36, 0.3);
 }
 
 .workspace-form button {
@@ -282,6 +349,15 @@ code {
   background: #1f4d42;
   color: #f7f3eb;
   cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.workspace-form button:hover:not(:disabled) {
+  background: #163d33;
+}
+
+.workspace-form button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .workspace-form button:disabled {
@@ -537,6 +613,15 @@ code {
   background: #1f4d42;
   color: #f7f3eb;
   cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.account-panel button:hover:not(:disabled) {
+  background: #163d33;
+}
+
+.account-panel button:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
 .account-panel--logs {

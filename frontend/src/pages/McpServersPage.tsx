@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useAuthSession } from "../hooks/useAuthSession";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import {
   apiRequest,
   ApiError,
@@ -29,6 +30,7 @@ export function McpServersPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [serverToDelete, setServerToDelete] = useState<McpServerItem | null>(null);
 
   useEffect(() => {
     if (!session?.accessToken) {
@@ -131,14 +133,21 @@ export function McpServersPage() {
   }
 
   async function onDelete() {
-    if (!session?.accessToken || !selectedServerCode) {
+    if (!selectedServer) {
+      return;
+    }
+    setServerToDelete(selectedServer);
+  }
+
+  async function onConfirmDelete() {
+    if (!session?.accessToken || !serverToDelete) {
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
       await apiRequest<void>(
-        `/admin/mcp-servers/${selectedServerCode}`,
+        `/admin/mcp-servers/${serverToDelete.serverCode}`,
         {
           method: "DELETE"
         },
@@ -148,6 +157,7 @@ export function McpServersPage() {
       setDiscoveries({});
       setHealthChecks({});
       setForm(DEFAULT_FORM);
+      setServerToDelete(null);
       await loadServers();
     } catch (requestError) {
       setError((requestError as ApiError).message);
@@ -398,6 +408,21 @@ export function McpServersPage() {
           </section>
         </div>
       </div>
+      <ConfirmDialog
+        isOpen={serverToDelete !== null}
+        title="确认删除服务配置"
+        message={
+          <>
+            确定要删除 MCP 服务「<strong>{serverToDelete?.name}</strong>」的配置吗？<br />
+            此操作不可恢复，服务将无法再被使用。
+          </>
+        }
+        confirmText="删除配置"
+        cancelText="取消"
+        onConfirm={onConfirmDelete}
+        onCancel={() => setServerToDelete(null)}
+        danger
+      />
     </section>
   );
 }

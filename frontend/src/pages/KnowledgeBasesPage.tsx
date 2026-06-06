@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useAuthSession } from "../hooks/useAuthSession";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import {
   apiRequest,
   ApiError,
@@ -26,6 +27,7 @@ export function KnowledgeBasesPage() {
   const [uploading, setUploading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [kbToDelete, setKbToDelete] = useState<KnowledgeBaseItem | null>(null);
   const selectedKnowledgeBase = useMemo(
     () => knowledgeBases.find((item) => item.kbId === selectedKbId) ?? null,
     [knowledgeBases, selectedKbId]
@@ -127,20 +129,29 @@ export function KnowledgeBasesPage() {
   }
 
   async function onDeleteKnowledgeBase() {
-    if (!session?.accessToken || !selectedKbId) {
+    if (!selectedKnowledgeBase) {
+      return;
+    }
+    setKbToDelete(selectedKnowledgeBase);
+  }
+
+  async function onConfirmDeleteKb() {
+    if (!session?.accessToken || !kbToDelete) {
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
       await apiRequest<void>(
-        `/knowledge-bases/${selectedKbId}`,
+        `/knowledge-bases/${kbToDelete.kbId}`,
         {
           method: "DELETE"
         },
         session.accessToken
       );
       setSearchHits([]);
+      setSelectedKbId(null);
+      setKbToDelete(null);
       await loadKnowledgeBases();
     } catch (requestError) {
       setError((requestError as ApiError).message);
@@ -417,6 +428,21 @@ export function KnowledgeBasesPage() {
           </section>
         </div>
       </div>
+      <ConfirmDialog
+        isOpen={kbToDelete !== null}
+        title="确认删除知识库"
+        message={
+          <>
+            确定要删除知识库「<strong>{kbToDelete?.name}</strong>」吗？<br />
+            此操作不可恢复，所有文档和检索历史都将被删除。
+          </>
+        }
+        confirmText="删除知识库"
+        cancelText="取消"
+        onConfirm={onConfirmDeleteKb}
+        onCancel={() => setKbToDelete(null)}
+        danger
+      />
     </section>
   );
 }

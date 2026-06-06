@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useAuthSession } from "../hooks/useAuthSession";
+import { ConfirmDialog } from "../components/ConfirmDialog";
 import {
   apiRequest,
   ApiError,
@@ -49,6 +50,8 @@ export function WorkspacePage() {
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseItem[]>([]);
   const [streamDisconnected, setStreamDisconnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deletingSession, setDeletingSession] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<SessionItem | null>(null);
 
   const latestArtifact = useMemo<ArtifactItem | null>(() => {
     return sessionDetail?.artifacts.find((artifact) => artifact.artifactType === "REPORT") ?? null;
@@ -129,6 +132,31 @@ export function WorkspacePage() {
       setKnowledgeBases(result);
     } catch (requestError) {
       setError((requestError as ApiError).message);
+    }
+  }
+
+  async function onDeleteSession() {
+    if (!session?.accessToken || !sessionToDelete) {
+      return;
+    }
+    setDeletingSession(true);
+    setError(null);
+    try {
+      await apiRequest<void>(
+        `/sessions/${sessionToDelete.sessionId}`,
+        { method: "DELETE" },
+        session.accessToken
+      );
+      if (selectedSessionId === sessionToDelete.sessionId) {
+        setSelectedSessionId(null);
+        setSessionDetail(null);
+      }
+      setSessionToDelete(null);
+      await loadSessions();
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
+    } finally {
+      setDeletingSession(false);
     }
   }
 
@@ -292,18 +320,30 @@ export function WorkspacePage() {
             {loadingSessions ? <p className="muted">正在加载会话...</p> : null}
             <div className="session-list">
               {sessions.map((item) => (
-                <button
+                <div
                   key={item.sessionId}
-                  type="button"
                   className={`session-card ${selectedSessionId === item.sessionId ? "session-card--active" : ""}`}
-                  onClick={() => setSelectedSessionId(item.sessionId)}
                 >
-                  <strong>{item.title}</strong>
-                  <span>{item.agentMode === "REACT" ? "React" : "计划执行"}</span>
-                  <small>
-                    {item.status} · {formatDateTime(item.createdAt)}
-                  </small>
-                </button>
+                  <button
+                    type="button"
+                    className="session-card__select"
+                    onClick={() => setSelectedSessionId(item.sessionId)}
+                  >
+                    <strong>{item.title}</strong>
+                    <span>{item.agentMode === "REACT" ? "React" : "计划执行"}</span>
+                    <small>
+                      {item.status} · {formatDateTime(item.createdAt)}
+                    </small>
+                  </button>
+                  <button
+                    type="button"
+                    className="session-card__delete"
+                    onClick={() => setSessionToDelete(item)}
+                    title="删除会话"
+                  >
+                    ✕
+                  </button>
+                </div>
               ))}
               {!loadingSessions && sessions.length === 0 ? (
                 <div className="workspace-empty-block">
@@ -558,6 +598,21 @@ export function WorkspacePage() {
           </section>
         </div>
       </div>
+      <ConfirmDialog
+        isOpen={sessionToDelete !== null}
+        title="确认删除会话"
+        message={
+          <>
+            确定要删除会话「<strong>{sessionToDelete?.title}</strong>」吗？<br />
+            此操作不可恢复，该会话的所有产物和执行历史都将被删除。
+          </>
+        }
+        confirmText="删除会话"
+        cancelText="取消"
+        onConfirm={onDeleteSession}
+        onCancel={() => setSessionToDelete(null)}
+        danger
+      />
     </section>
   );
 }

@@ -30,11 +30,16 @@ class LocalMockEmbeddingProviderTest {
 
     private static AppProperties appProperties(int dimension) {
         return new AppProperties(
-                new AppProperties.Auth(7200L),
-                new AppProperties.Storage("http://localhost:9000", "minioadmin", "minioadmin", "aiagent"),
+                new AppProperties.Auth(7200L, 5, 600L),
+                new AppProperties.Storage("http://localhost:9000", "minioadmin", "minioadmin", "aiagent", 900L),
                 new AppProperties.Embedding("local-mock", "text-embedding-3-small", "https://api.openai.com/v1", "", dimension, 5000L, 15000L),
                 new AppProperties.Kafka("localhost:9092", "aiagent.knowledge.index", "aiagent-backend"),
-                new AppProperties.Rag(3600L, 300L, 1500L)
+                new AppProperties.Rag(3600L, 300L, 1500L),
+                new AppProperties.Chat("local-mock", "claude-sonnet-4-6", "", ""),
+                new AppProperties.Image("local-mock", "image-generation-default", "", ""),
+                new AppProperties.Mcp("localhost", false, ""),
+                new AppProperties.Bootstrap(true),
+                new AppProperties.Secret("")
         );
     }
 }

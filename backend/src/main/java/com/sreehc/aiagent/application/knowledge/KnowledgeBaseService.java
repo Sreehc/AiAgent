@@ -1,6 +1,7 @@
 package com.sreehc.aiagent.application.knowledge;
 
 import com.sreehc.aiagent.application.common.AppException;
+import com.sreehc.aiagent.application.common.UploadValidationService;
 import com.sreehc.aiagent.app.AppProperties;
 import com.sreehc.aiagent.domain.auth.SessionUser;
 import com.sreehc.aiagent.domain.knowledge.DocumentParseStatus;
@@ -35,6 +36,7 @@ public class KnowledgeBaseService {
     private final KnowledgeIndexJobService knowledgeIndexJobService;
     private final QueryEmbeddingService queryEmbeddingService;
     private final RagCacheService ragCacheService;
+    private final UploadValidationService uploadValidationService;
     private final AppProperties appProperties;
 
     public KnowledgeBaseService(
@@ -48,6 +50,7 @@ public class KnowledgeBaseService {
             KnowledgeIndexJobService knowledgeIndexJobService,
             QueryEmbeddingService queryEmbeddingService,
             RagCacheService ragCacheService,
+            UploadValidationService uploadValidationService,
             AppProperties appProperties
     ) {
         this.knowledgeRepository = knowledgeRepository;
@@ -60,6 +63,7 @@ public class KnowledgeBaseService {
         this.knowledgeIndexJobService = knowledgeIndexJobService;
         this.queryEmbeddingService = queryEmbeddingService;
         this.ragCacheService = ragCacheService;
+        this.uploadValidationService = uploadValidationService;
         this.appProperties = appProperties;
     }
 
@@ -101,13 +105,12 @@ public class KnowledgeBaseService {
     public KnowledgeDocument uploadDocument(SessionUser currentUser, String kbId, MultipartFile file) {
         KnowledgeBase knowledgeBase = loadKnowledgeBase(currentUser, kbId);
         try {
+            UploadValidationService.ValidatedUpload upload = uploadValidationService.validateDocument(file);
             byte[] content = file.getBytes();
-            String fileName = file.getOriginalFilename() == null || file.getOriginalFilename().isBlank()
-                    ? "document.txt"
-                    : file.getOriginalFilename();
-            String fileType = detectFileType(fileName, file.getContentType());
+            String fileName = upload.fileName();
+            String fileType = upload.contentType();
             String storageObjectName = knowledgeBase.kbId() + "/" + nextCode("doc-file") + "-" + fileName;
-            String storageUri = objectStorageService.upload(storageObjectName, content, file.getContentType() == null ? "application/octet-stream" : file.getContentType());
+            String storageUri = objectStorageService.upload(storageObjectName, content, fileType);
             String textContent = new String(content, StandardCharsets.UTF_8);
             long documentInternalId = knowledgeRepository.createDocument(
                     knowledgeBase.id(),
@@ -117,10 +120,14 @@ public class KnowledgeBaseService {
                     storageUri,
                     textContent
             );
-            return knowledgeRepository.listDocuments(currentUser.id(), kbId).stream()
+            KnowledgeDocument created = knowledgeRepository.listDocuments(currentUser.id(), kbId).stream()
                     .filter(item -> item.id() == documentInternalId)
                     .findFirst()
                     .orElseThrow(() -> new IllegalStateException("Failed to load created document"));
+            knowledgeIndexJobService.enqueue(created, "UPLOAD");
+            return created;
+        } catch (AppException exception) {
+            throw exception;
         } catch (Exception exception) {
             throw new AppException("DOCUMENT_UPLOAD_FAILED", "Document upload failed", HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -267,7 +274,12 @@ public class KnowledgeBaseService {
     }
 
     private String buildSearchCacheKey(long userId, List<String> kbIdList, String query, int topK) {
-        return userId + "|" + String.join(",", kbIdList) + "|" + query + "|" + topK;
+        return userId
+                + "|" + String.join(",", kbIdList)
+                + "|" + query
+                + "|" + topK
+                + "|embedding=" + appProperties.embedding().provider() + ":" + appProperties.embedding().modelCode() + ":" + appProperties.embedding().dimension()
+                + "|pipeline=v2";
     }
 
     private long resolveRetrievalTimeoutMillis() {

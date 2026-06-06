@@ -54,7 +54,9 @@ public class KnowledgeIndexJobService {
             return;
         }
 
-        knowledgeRepository.markIndexJobRunning(job.id());
+        if (!knowledgeRepository.markIndexJobRunning(job.id())) {
+            return;
+        }
         knowledgeRepository.updateDocumentStatus(job.knowledgeDocumentId(), DocumentParseStatus.PROCESSING);
 
         try {
@@ -76,7 +78,7 @@ public class KnowledgeIndexJobService {
             knowledgeIndexPublisher.publish(job.jobId());
             return;
         }
-        knowledgeRepository.markIndexJobFailed(job.id(), message);
+        knowledgeRepository.markIndexJobDeadLetter(job.id(), message);
     }
 
     private String toPayloadJson(KnowledgeDocument document, String triggerType) {

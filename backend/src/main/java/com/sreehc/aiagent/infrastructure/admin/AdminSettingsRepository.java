@@ -26,17 +26,21 @@ public class AdminSettingsRepository {
             String provider,
             ModelType modelType,
             String baseUrl,
-            String apiKey,
+            String apiKeyCiphertext,
+            String apiKeyHint,
+            String apiKeyKeyVersion,
             boolean enabled,
             long createdBy
     ) {
         Long id = jdbcTemplate.queryForObject("""
                         insert into model_config (
-                            model_code, name, provider, model_type, base_url, api_key,
+                            model_code, name, provider, model_type, base_url,
+                            api_key_ciphertext, api_key_hint, api_key_key_version,
                             enabled, created_by, created_at, updated_at
                         )
                         values (
-                            :modelCode, :name, :provider, :modelType, :baseUrl, :apiKey,
+                            :modelCode, :name, :provider, :modelType, :baseUrl,
+                            :apiKeyCiphertext, :apiKeyHint, :apiKeyKeyVersion,
                             :enabled, :createdBy, now(), now()
                         )
                         returning id
@@ -47,7 +51,9 @@ public class AdminSettingsRepository {
                         .addValue("provider", provider)
                         .addValue("modelType", modelType.name())
                         .addValue("baseUrl", baseUrl)
-                        .addValue("apiKey", apiKey)
+                        .addValue("apiKeyCiphertext", apiKeyCiphertext)
+                        .addValue("apiKeyHint", apiKeyHint)
+                        .addValue("apiKeyKeyVersion", apiKeyKeyVersion)
                         .addValue("enabled", enabled)
                         .addValue("createdBy", createdBy),
                 Long.class
@@ -60,7 +66,8 @@ public class AdminSettingsRepository {
 
     public List<ModelConfig> listModelConfigs() {
         return jdbcTemplate.query("""
-                        select id, model_code, name, provider, model_type, base_url, api_key,
+                        select id, model_code, name, provider, model_type, base_url,
+                               api_key_hint,
                                enabled, created_at, updated_at
                         from model_config
                         order by created_at desc
@@ -70,7 +77,8 @@ public class AdminSettingsRepository {
 
     public Optional<ModelConfig> findModelConfigById(long id) {
         return jdbcTemplate.query("""
-                        select id, model_code, name, provider, model_type, base_url, api_key,
+                        select id, model_code, name, provider, model_type, base_url,
+                               api_key_hint,
                                enabled, created_at, updated_at
                         from model_config
                         where id = :id
@@ -110,6 +118,49 @@ public class AdminSettingsRepository {
                 ));
     }
 
+    public Optional<RuntimeModelConfig> findRuntimeModelConfig(ModelType modelType, String modelCode) {
+        return jdbcTemplate.query("""
+                        select model_code, provider, model_type, base_url,
+                               api_key_ciphertext,
+                               api_key_key_version, enabled
+                        from model_config
+                        where model_type = :modelType
+                          and model_code = :modelCode
+                          and enabled = true
+                        """,
+                Map.of("modelType", modelType.name(), "modelCode", modelCode),
+                rs -> rs.next() ? Optional.of(new RuntimeModelConfig(
+                        rs.getString("model_code"),
+                        rs.getString("provider"),
+                        ModelType.valueOf(rs.getString("model_type")),
+                        rs.getString("base_url"),
+                        rs.getString("api_key_ciphertext"),
+                        rs.getString("api_key_key_version")
+                )) : Optional.empty());
+    }
+
+    public Optional<RuntimeModelConfig> findDefaultRuntimeModelConfig(ModelType modelType) {
+        return jdbcTemplate.query("""
+                        select model_code, provider, model_type, base_url,
+                               api_key_ciphertext,
+                               api_key_key_version, enabled
+                        from model_config
+                        where model_type = :modelType
+                          and enabled = true
+                        order by updated_at desc
+                        limit 1
+                        """,
+                Map.of("modelType", modelType.name()),
+                rs -> rs.next() ? Optional.of(new RuntimeModelConfig(
+                        rs.getString("model_code"),
+                        rs.getString("provider"),
+                        ModelType.valueOf(rs.getString("model_type")),
+                        rs.getString("base_url"),
+                        rs.getString("api_key_ciphertext"),
+                        rs.getString("api_key_key_version")
+                )) : Optional.empty());
+    }
+
     private ModelConfig mapModelConfig(ResultSet rs) throws SQLException {
         return new ModelConfig(
                 rs.getLong("id"),
@@ -118,20 +169,20 @@ public class AdminSettingsRepository {
                 rs.getString("provider"),
                 ModelType.valueOf(rs.getString("model_type")),
                 rs.getString("base_url"),
-                maskApiKey(rs.getString("api_key")),
+                rs.getString("api_key_hint"),
                 rs.getBoolean("enabled"),
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant()
         );
     }
 
-    private String maskApiKey(String apiKey) {
-        if (apiKey == null || apiKey.isBlank()) {
-            return null;
-        }
-        if (apiKey.length() <= 8) {
-            return "****";
-        }
-        return apiKey.substring(0, 4) + "****" + apiKey.substring(apiKey.length() - 4);
+    public record RuntimeModelConfig(
+            String modelCode,
+            String provider,
+            ModelType modelType,
+            String baseUrl,
+            String apiKeyCiphertext,
+            String keyVersion
+    ) {
     }
 }

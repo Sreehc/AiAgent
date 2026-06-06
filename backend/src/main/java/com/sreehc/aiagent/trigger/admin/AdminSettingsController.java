@@ -84,6 +84,7 @@ public class AdminSettingsController {
 
     private ModelConfigResponse toModelConfigResponse(ModelConfig modelConfig) {
         return new ModelConfigResponse(
+                modelConfig.id(),
                 modelConfig.modelCode(),
                 modelConfig.name(),
                 modelConfig.provider(),
@@ -110,7 +111,7 @@ public class AdminSettingsController {
             @NotBlank @Size(max = 128) String name,
             @NotBlank @Size(max = 64) String provider,
             @NotNull ModelType modelType,
-            @NotBlank @Size(max = 512) String baseUrl,
+            @Size(max = 512) String baseUrl,
             @Size(max = 255) String apiKey,
             boolean enabled
     ) {
@@ -122,6 +123,7 @@ public class AdminSettingsController {
     }
 
     public record ModelConfigResponse(
+            long id,
             String modelCode,
             String name,
             String provider,

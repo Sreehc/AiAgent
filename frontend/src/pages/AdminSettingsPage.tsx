@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useAuthSession } from "../hooks/useAuthSession";
 import { apiRequest, ApiError, InviteItem, ModelConfigItem } from "../services/api";
 
-type ModelType = "CHAT" | "EMBEDDING";
+type ModelType = "CHAT" | "EMBEDDING" | "IMAGE";
 
 const DEFAULT_MODEL_FORM = {
   modelCode: "gpt-4o-mini",
@@ -165,6 +165,7 @@ export function AdminSettingsPage() {
                   >
                     <option value="CHAT">CHAT</option>
                     <option value="EMBEDDING">EMBEDDING</option>
+                    <option value="IMAGE">IMAGE</option>
                   </select>
                 </label>
                 <label>
@@ -193,7 +194,7 @@ export function AdminSettingsPage() {
                   type="password"
                   value={modelForm.apiKey}
                   onChange={(event) => setModelForm((current) => ({ ...current, apiKey: event.target.value }))}
-                  placeholder="可为空，仅做配置记录"
+                  placeholder="仅创建/轮换时填写，列表只展示脱敏值"
                 />
               </label>
               {error ? <p className="form-message form-message--error">{error}</p> : null}
@@ -236,7 +237,7 @@ export function AdminSettingsPage() {
             </div>
             <div className="plan-list">
               {models.map((model) => (
-                <article key={model.modelCode} className="plan-card">
+                <article key={model.id ?? `${model.modelType}-${model.modelCode}`} className="plan-card">
                   <div className="plan-card__header">
                     <strong>{model.name}</strong>
                     <span>{model.enabled ? "ENABLED" : "DISABLED"}</span>

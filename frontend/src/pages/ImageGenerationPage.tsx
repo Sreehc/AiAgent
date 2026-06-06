@@ -24,6 +24,8 @@ export function ImageGenerationPage() {
   const [form, setForm] = useState(DEFAULT_FORM);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [history, setHistory] = useState<ImageHistoryItem[]>([]);
+  const [historyPageNo, setHistoryPageNo] = useState(1);
+  const [hasMoreHistory, setHasMoreHistory] = useState(false);
   const [latestResult, setLatestResult] = useState<ImageGenerationItem | null>(null);
   const [referenceFile, setReferenceFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,7 +41,7 @@ export function ImageGenerationPage() {
     if (!session?.accessToken) {
       return;
     }
-    void Promise.all([loadSessions(), loadHistory()]);
+    void Promise.all([loadSessions(), loadHistory(1)]);
   }, [session?.accessToken]);
 
   async function loadSessions() {
@@ -58,14 +60,16 @@ export function ImageGenerationPage() {
     }
   }
 
-  async function loadHistory() {
+  async function loadHistory(pageNo = historyPageNo) {
     if (!session?.accessToken) {
       return;
     }
     setLoading(true);
     try {
-      const result = await apiRequest<ImageHistoryResponse>("/images/history?pageNo=1&pageSize=24", {}, session.accessToken);
+      const result = await apiRequest<ImageHistoryResponse>(`/images/history?pageNo=${pageNo}&pageSize=12`, {}, session.accessToken);
       setHistory(result.items);
+      setHistoryPageNo(result.pageNo);
+      setHasMoreHistory(result.items.length === result.pageSize);
     } catch (requestError) {
       setError((requestError as ApiError).message);
     } finally {
@@ -118,7 +122,7 @@ export function ImageGenerationPage() {
         );
         setLatestResult(edited);
       }
-      await loadHistory();
+      await loadHistory(1);
     } catch (requestError) {
       setError((requestError as ApiError).message);
     } finally {
@@ -237,7 +241,7 @@ export function ImageGenerationPage() {
                 <p className="eyebrow">Latest Output</p>
                 <h3>结果画廊</h3>
               </div>
-              <button type="button" className="ghost-button ghost-button--inline" onClick={() => void loadHistory()}>
+              <button type="button" className="ghost-button ghost-button--inline" onClick={() => void loadHistory(historyPageNo)}>
                 刷新历史
               </button>
             </div>
@@ -263,6 +267,7 @@ export function ImageGenerationPage() {
                   <a className="ghost-button ghost-button--link" href={latestResult.resultUrl} target="_blank" rel="noreferrer">
                     打开原图
                   </a>
+                  <span className="muted">下载链接为短期有效，如失效请刷新历史重新获取。</span>
                 </div>
               </div>
             ) : (
@@ -278,7 +283,16 @@ export function ImageGenerationPage() {
                 <p className="eyebrow">History</p>
                 <h3>历史记录</h3>
               </div>
-              <span className="muted">{history.length} items</span>
+              <span className="muted">第 {historyPageNo} 页 · {history.length} items</span>
+            </div>
+
+            <div className="workspace-inline-actions">
+              <button type="button" className="ghost-button ghost-button--inline" disabled={historyPageNo <= 1 || loading} onClick={() => void loadHistory(historyPageNo - 1)}>
+                上一页
+              </button>
+              <button type="button" className="ghost-button ghost-button--inline" disabled={!hasMoreHistory || loading} onClick={() => void loadHistory(historyPageNo + 1)}>
+                下一页
+              </button>
             </div>
 
             <div className="image-gallery">
@@ -299,6 +313,7 @@ export function ImageGenerationPage() {
                       {item.size} · {formatDateTime(item.createdAt)}
                     </small>
                     <small>会话：{item.sessionId ?? "未挂接"}</small>
+                    {item.errorMessage ? <small>失败原因：{item.errorMessage}</small> : null}
                     {item.resultUrl ? (
                       <a href={item.resultUrl} target="_blank" rel="noreferrer">
                         打开结果

@@ -7,17 +7,20 @@ type RegisterForm = {
   username: string;
   displayName: string;
   password: string;
+  confirmPassword: string;
 };
 
 export function RegisterPage() {
   const navigate = useNavigate();
   const [form, setForm] = useState<RegisterForm>({
-    inviteToken: "INVITE-ABC",
+    inviteToken: "",
     username: "",
     displayName: "",
-    password: ""
+    password: "",
+    confirmPassword: ""
   });
   const [error, setError] = useState<string | null>(null);
+  const [inviteInvalid, setInviteInvalid] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,7 +28,19 @@ export function RegisterPage() {
     event.preventDefault();
     setSubmitting(true);
     setError(null);
+    setInviteInvalid(false);
     setSuccess(null);
+
+    if (form.password.length < 8) {
+      setError("密码至少需要 8 位。");
+      setSubmitting(false);
+      return;
+    }
+    if (form.password !== form.confirmPassword) {
+      setError("两次输入的密码不一致。");
+      setSubmitting(false);
+      return;
+    }
 
     try {
       await apiRequest<void>("/auth/register-by-invite", {
@@ -36,7 +51,8 @@ export function RegisterPage() {
       window.setTimeout(() => navigate("/login"), 2000);
     } catch (requestError) {
       const apiError = requestError as ApiError;
-      setError(apiError.message);
+      setInviteInvalid(apiError.code === "INVITE_INVALID" || apiError.code === "INVITE_EXPIRED");
+      setError(apiError.message || "注册失败，请稍后重试。");
     } finally {
       setSubmitting(false);
     }
@@ -48,8 +64,13 @@ export function RegisterPage() {
         <p className="eyebrow">Invite Register</p>
         <h1>邀请注册</h1>
         <p className="muted">
-          默认预置邀请码是 <code>INVITE-ABC</code>，后续管理员可以在配置页生成新邀请码。
+          请输入管理员发放的邀请码完成注册。生产环境不会展示默认演示邀请码。
         </p>
+        {inviteInvalid ? (
+          <div className="workspace-empty-block">
+            <p>当前邀请码无效、已过期或已被使用，请联系管理员重新生成邀请码。</p>
+          </div>
+        ) : null}
         <form className="auth-form" onSubmit={onSubmit}>
           <label>
             邀请码
@@ -93,6 +114,17 @@ export function RegisterPage() {
               }
               type="password"
               placeholder="至少 8 位"
+            />
+          </label>
+          <label>
+            确认密码
+            <input
+              value={form.confirmPassword}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, confirmPassword: event.target.value }))
+              }
+              type="password"
+              placeholder="再次输入密码"
             />
           </label>
           {error ? <p className="form-message form-message--error">{error}</p> : null}

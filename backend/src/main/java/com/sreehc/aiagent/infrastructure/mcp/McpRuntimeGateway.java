@@ -1,19 +1,16 @@
 package com.sreehc.aiagent.infrastructure.mcp;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sreehc.aiagent.app.AppProperties;
 import com.sreehc.aiagent.domain.mcp.McpServerConfig;
 import com.sreehc.aiagent.domain.mcp.McpToolDescriptor;
 import com.sreehc.aiagent.domain.mcp.McpTransportType;
-import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,14 +20,13 @@ import org.springframework.stereotype.Component;
 public class McpRuntimeGateway {
     private static final Duration CACHE_TTL = Duration.ofMinutes(10);
 
-    private final ObjectMapper objectMapper;
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(2))
-            .build();
+    private final AppProperties appProperties;
+    private final List<McpTransportClient> transportClients;
     private final Map<String, CachedToolSet> cache = new ConcurrentHashMap<>();
 
-    public McpRuntimeGateway(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
+    public McpRuntimeGateway(AppProperties appProperties, List<McpTransportClient> transportClients) {
+        this.appProperties = appProperties;
+        this.transportClients = transportClients;
     }
 
     public List<McpToolDescriptor> discoverTools(McpServerConfig server) {
@@ -38,7 +34,8 @@ public class McpRuntimeGateway {
         if (cached != null && cached.expiresAt().isAfter(Instant.now())) {
             return cached.tools();
         }
-        List<McpToolDescriptor> discovered = synthesizeTools(server);
+        McpTransportClient client = resolveClient(server);
+        List<McpToolDescriptor> discovered = client.discoverTools(server);
         cache.put(server.serverCode(), new CachedToolSet(discovered, Instant.now().plus(CACHE_TTL)));
         return discovered;
     }
@@ -53,10 +50,17 @@ public class McpRuntimeGateway {
     }
 
     public HealthCheckResult health(McpServerConfig server) {
-        return switch (server.transportType()) {
-            case SSE, STREAMABLE_HTTP -> httpHealth(server.endpoint());
-            case STDIO -> stdioHealth(server.commandLine());
-        };
+        try {
+            validateServer(server);
+            return switch (server.transportType()) {
+                case SSE, STREAMABLE_HTTP -> new HealthCheckResult("UP", "HTTP MCP endpoint allowed");
+                case STDIO -> isAllowedStdioExecutable(server.commandLine() == null ? null : server.commandLine().trim().split("\\s+")[0])
+                        ? new HealthCheckResult("UP", "STDIO executable allowlisted")
+                        : new HealthCheckResult("DOWN", "STDIO executable is not allowlisted");
+            };
+        } catch (Exception exception) {
+            return new HealthCheckResult("DOWN", exception.getMessage());
+        }
     }
 
     public ToolExecutionResult invoke(
@@ -65,31 +69,8 @@ public class McpRuntimeGateway {
             String stepTitle,
             String input
     ) {
-        Map<String, Object> request = new LinkedHashMap<>();
-        request.put("serverCode", server.serverCode());
-        request.put("toolName", tool.toolName());
-        request.put("toolType", tool.toolType());
-        request.put("stepTitle", stepTitle);
-        request.put("input", input);
-
-        Map<String, Object> response = new LinkedHashMap<>();
-        response.put("serverCode", server.serverCode());
-        response.put("toolName", tool.toolName());
-        response.put("toolType", tool.toolType());
-        response.put("transport", server.transportType().name());
-        response.put("result", switch (tool.toolType()) {
-            case "SEARCH" -> "通过 " + server.name() + " 返回相关公开资料摘要";
-            case "RETRIEVAL" -> "通过 " + server.name() + " 返回知识库证据摘要";
-            case "ANALYSIS" -> "通过 " + server.name() + " 返回竞争格局分析提示";
-            case "SYNTHESIS" -> "通过 " + server.name() + " 返回报告合成结果";
-            default -> "通过 " + server.name() + " 完成工具调用";
-        });
-
-        return new ToolExecutionResult(
-                toJson(request),
-                toJson(response),
-                String.valueOf(response.get("result"))
-        );
+        validateServer(server);
+        return resolveClient(server).invoke(server, tool, stepTitle, input);
     }
 
     public McpToolDescriptor pickToolForStep(List<McpToolDescriptor> tools, String stepToolName) {
@@ -101,72 +82,106 @@ public class McpRuntimeGateway {
             default -> "GENERIC";
         };
 
+        return pickByDesiredType(tools, desiredType);
+    }
+
+    private McpToolDescriptor pickByDesiredType(List<McpToolDescriptor> tools, String desiredType) {
         return tools.stream()
                 .filter(tool -> desiredType.equals(tool.toolType()))
                 .findFirst()
                 .orElseGet(() -> tools.isEmpty() ? null : tools.get(0));
     }
 
-    private List<McpToolDescriptor> synthesizeTools(McpServerConfig server) {
-        List<McpToolDescriptor> tools = new ArrayList<>();
-        if (server.transportType() == McpTransportType.STDIO) {
-            tools.add(new McpToolDescriptor("local-search", "SEARCH", "Local CLI based search helper"));
-            tools.add(new McpToolDescriptor("local-analysis", "ANALYSIS", "Local CLI based analysis helper"));
-            tools.add(new McpToolDescriptor("local-report", "SYNTHESIS", "Local CLI based report helper"));
-            return tools;
+    private URI validateHttpEndpoint(String endpoint) throws Exception {
+        if (endpoint == null || endpoint.isBlank()) {
+            throw new IllegalArgumentException("endpoint is required");
         }
-        if (server.serverCode().contains("knowledge")) {
-            tools.add(new McpToolDescriptor("kb-retrieval", "RETRIEVAL", "Knowledge retrieval helper"));
+        URI uri = URI.create(endpoint);
+        if (!"http".equalsIgnoreCase(uri.getScheme()) && !"https".equalsIgnoreCase(uri.getScheme())) {
+            throw new IllegalArgumentException("Only HTTP(S) MCP endpoints are allowed");
         }
-        if (server.serverCode().contains("web") || server.transportType() == McpTransportType.SSE) {
-            tools.add(new McpToolDescriptor("web-search", "SEARCH", "Web search helper"));
+        String host = uri.getHost();
+        if (host == null || host.isBlank()) {
+            throw new IllegalArgumentException("MCP endpoint host is required");
         }
-        if (server.serverCode().contains("analysis") || server.transportType() == McpTransportType.STREAMABLE_HTTP) {
-            tools.add(new McpToolDescriptor("analysis-helper", "ANALYSIS", "Analysis helper"));
+        if (!isAllowedHost(host)) {
+            throw new IllegalArgumentException("MCP endpoint host is not allowlisted");
         }
-        tools.add(new McpToolDescriptor("report-writer", "SYNTHESIS", "Report synthesis helper"));
-        return tools;
+        for (InetAddress address : InetAddress.getAllByName(host)) {
+            if (isBlockedAddress(address)) {
+                throw new IllegalArgumentException("MCP endpoint resolves to a blocked network address");
+            }
+        }
+        return uri;
     }
 
-    private HealthCheckResult httpHealth(String endpoint) {
+    private McpTransportClient resolveClient(McpServerConfig server) {
+        return transportClients.stream()
+                .filter(client -> client.supports(server))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Unsupported MCP transport: " + server.transportType()));
+    }
+
+    private void validateServer(McpServerConfig server) {
+        if (server.transportType() == com.sreehc.aiagent.domain.mcp.McpTransportType.STDIO) {
+            String executable = server.commandLine() == null ? null : server.commandLine().trim().split("\\s+")[0];
+            if (!isAllowedStdioExecutable(executable)) {
+                throw new IllegalArgumentException("STDIO executable is not allowlisted");
+            }
+            return;
+        }
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(endpoint))
-                    .timeout(Duration.ofSeconds(2))
-                    .GET()
-                    .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            boolean ok = response.statusCode() >= 200 && response.statusCode() < 500;
-            return new HealthCheckResult(ok ? "UP" : "DOWN", "HTTP " + response.statusCode());
-        } catch (IOException | InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            return new HealthCheckResult("DOWN", exception.getMessage());
+            validateHttpEndpoint(server.endpoint());
         } catch (Exception exception) {
-            return new HealthCheckResult("DOWN", exception.getMessage());
+            throw new IllegalArgumentException(exception.getMessage(), exception);
         }
     }
 
-    private HealthCheckResult stdioHealth(String commandLine) {
-        if (commandLine == null || commandLine.isBlank()) {
-            return new HealthCheckResult("DOWN", "commandLine is required for STDIO");
+    private boolean isAllowedHost(String host) {
+        String allowedHosts = appProperties.mcp() == null ? null : appProperties.mcp().allowedHosts();
+        if (allowedHosts == null || allowedHosts.isBlank()) {
+            return false;
         }
-        String executable = commandLine.trim().split("\\s+")[0];
-        try {
-            Process process = new ProcessBuilder("sh", "-lc", "command -v " + executable).start();
-            int exitCode = process.waitFor();
-            return exitCode == 0
-                    ? new HealthCheckResult("UP", "Executable found")
-                    : new HealthCheckResult("DOWN", "Executable not found");
-        } catch (Exception exception) {
-            return new HealthCheckResult("DOWN", exception.getMessage());
-        }
+        return Arrays.stream(allowedHosts.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .anyMatch(allowed -> "*".equals(allowed) || host.equalsIgnoreCase(allowed) || host.endsWith("." + allowed));
     }
 
-    private String toJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Failed to serialize MCP payload", exception);
+    private boolean isBlockedAddress(InetAddress address) {
+        if (Boolean.TRUE.equals(appProperties.mcp() == null ? null : appProperties.mcp().allowPrivateNetwork())) {
+            return false;
         }
+        return address.isAnyLocalAddress()
+                || address.isLoopbackAddress()
+                || address.isLinkLocalAddress()
+                || address.isSiteLocalAddress()
+                || address.isMulticastAddress()
+                || "169.254.169.254".equals(address.getHostAddress());
+    }
+
+    private boolean isAllowedStdioExecutable(String executable) {
+        if (executable == null || executable.isBlank() || executable.contains("/") || executable.contains("\\")) {
+            return false;
+        }
+        String allowed = appProperties.mcp() == null ? null : appProperties.mcp().allowedStdioExecutables();
+        if (allowed == null || allowed.isBlank()) {
+            return false;
+        }
+        boolean allowlisted = Arrays.stream(allowed.split(","))
+                .map(String::trim)
+                .anyMatch(executable::equals);
+        if (!allowlisted) {
+            return false;
+        }
+        String path = System.getenv("PATH");
+        if (path == null || path.isBlank()) {
+            return false;
+        }
+        return Arrays.stream(path.split(java.io.File.pathSeparator))
+                .map(Path::of)
+                .map(directory -> directory.resolve(executable))
+                .anyMatch(Files::isExecutable);
     }
 
     public record ToolExecutionResult(

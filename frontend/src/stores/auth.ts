@@ -8,6 +8,7 @@ export type AuthUser = {
 export type AuthSession = {
   accessToken: string;
   expiresIn: number;
+  expiresAt?: number;
   user: AuthUser;
 };
 
@@ -20,7 +21,12 @@ export function readSession(): AuthSession | null {
   }
 
   try {
-    return JSON.parse(raw) as AuthSession;
+    const session = JSON.parse(raw) as AuthSession;
+    if (session.expiresAt && Date.now() >= session.expiresAt) {
+      window.localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return session;
   } catch {
     window.localStorage.removeItem(STORAGE_KEY);
     return null;
@@ -28,7 +34,8 @@ export function readSession(): AuthSession | null {
 }
 
 export function writeSession(session: AuthSession) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  const expiresAt = session.expiresAt ?? Date.now() + session.expiresIn * 1000;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...session, expiresAt }));
 }
 
 export function clearSession() {

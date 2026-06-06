@@ -130,10 +130,11 @@ export type McpHealthResponse = {
 };
 
 export type ModelConfigItem = {
+  id: number;
   modelCode: string;
   name: string;
   provider: string;
-  modelType: "CHAT" | "EMBEDDING";
+  modelType: "CHAT" | "EMBEDDING" | "IMAGE";
   baseUrl: string;
   apiKeyMasked: string | null;
   enabled: boolean;
@@ -195,6 +196,33 @@ type ApiResponse<T> = {
 
 const API_PREFIX = "/api/v1";
 
+function isApiError(value: unknown): value is ApiError {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "code" in value &&
+    "message" in value &&
+    typeof (value as ApiError).code === "string" &&
+    typeof (value as ApiError).message === "string"
+  );
+}
+
+function toApiError(value: unknown, fallback: ApiError): ApiError {
+  return isApiError(value) ? value : fallback;
+}
+
+function isApiResponse<T>(value: unknown): value is ApiResponse<T> {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "code" in value &&
+    "message" in value &&
+    "data" in value &&
+    typeof (value as ApiResponse<T>).code === "string" &&
+    typeof (value as ApiResponse<T>).message === "string"
+  );
+}
+
 export async function apiRequest<T>(
   path: string,
   init: RequestInit = {},
@@ -211,14 +239,26 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
-    const error = (await response.json().catch(() => null)) as ApiError | null;
-    throw error ?? {
+    const errorPayload = await response.json().catch(() => null);
+    throw toApiError(errorPayload, {
       code: "NETWORK_ERROR",
       message: `Request failed with status ${response.status}`
-    };
+    });
   }
 
-  const payload = (await response.json()) as ApiResponse<T>;
+  const payload = (await response.json().catch(() => null)) as unknown;
+  if (!isApiResponse<T>(payload)) {
+    throw {
+      code: "RESPONSE_INVALID",
+      message: "Response body does not match the API contract"
+    } satisfies ApiError;
+  }
+  if (payload.code !== "SUCCESS") {
+    throw {
+      code: payload.code,
+      message: payload.message || "Request failed"
+    } satisfies ApiError;
+  }
   return payload.data;
 }
 
@@ -239,11 +279,11 @@ export async function streamRequest(
   });
 
   if (!response.ok) {
-    const error = (await response.json().catch(() => null)) as ApiError | null;
-    throw error ?? {
+    const errorPayload = await response.json().catch(() => null);
+    throw toApiError(errorPayload, {
       code: "NETWORK_ERROR",
       message: `Request failed with status ${response.status}`
-    };
+    });
   }
 
   if (!response.body) {

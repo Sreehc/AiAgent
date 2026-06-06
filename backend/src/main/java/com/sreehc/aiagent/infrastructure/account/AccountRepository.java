@@ -177,6 +177,56 @@ public class AccountRepository {
                 : Optional.empty());
     }
 
+    public void createPasswordResetToken(String tokenHash, long userId, String requestIp, Instant expiresAt) {
+        jdbcTemplate.update("""
+                        insert into password_reset_token (token_hash, user_id, request_ip, expires_at, created_at)
+                        values (:tokenHash, :userId, :requestIp, :expiresAt, now())
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("tokenHash", tokenHash)
+                        .addValue("userId", userId)
+                        .addValue("requestIp", requestIp)
+                        .addValue("expiresAt", Timestamp.from(expiresAt)));
+    }
+
+    public Optional<PasswordResetTokenRecord> findPasswordResetToken(String tokenHash) {
+        return jdbcTemplate.query("""
+                        select id, token_hash, user_id, request_ip, expires_at, used_at, created_at
+                        from password_reset_token
+                        where token_hash = :tokenHash
+                        """,
+                Map.of("tokenHash", tokenHash),
+                rs -> rs.next() ? Optional.of(new PasswordResetTokenRecord(
+                        rs.getLong("id"),
+                        rs.getString("token_hash"),
+                        rs.getLong("user_id"),
+                        rs.getString("request_ip"),
+                        rs.getTimestamp("expires_at").toInstant(),
+                        rs.getTimestamp("used_at") == null ? null : rs.getTimestamp("used_at").toInstant(),
+                        rs.getTimestamp("created_at").toInstant()
+                )) : Optional.empty());
+    }
+
+    public void markPasswordResetTokenUsed(long tokenId) {
+        jdbcTemplate.update("""
+                        update password_reset_token
+                        set used_at = now()
+                        where id = :tokenId
+                        """,
+                Map.of("tokenId", tokenId));
+    }
+
+    public record PasswordResetTokenRecord(
+            long id,
+            String tokenHash,
+            long userId,
+            String requestIp,
+            Instant expiresAt,
+            Instant usedAt,
+            Instant createdAt
+    ) {
+    }
+
     private UserAccount mapUser(ResultSet rs, List<UserRole> roles) throws SQLException {
         return new UserAccount(
                 rs.getLong("id"),

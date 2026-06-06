@@ -19,7 +19,7 @@ export function ForgotPasswordPage() {
         method: "POST",
         body: JSON.stringify({ usernameOrEmail })
       });
-      setMessage("找回密码请求已登记。V1 先返回统一成功结果，后续再接入真实重置流程。");
+      setMessage("如果账号存在，系统已生成重置流程。开发环境可直接使用重置令牌页面完成新密码设置。");
     } catch (requestError) {
       const apiError = requestError as ApiError;
       setError(apiError.message);
@@ -46,6 +46,10 @@ export function ForgotPasswordPage() {
           </label>
           {error ? <p className="form-message form-message--error">{error}</p> : null}
           {message ? <p className="form-message form-message--success">{message}</p> : null}
+          <div className="workspace-empty-block">
+            <p>如果你已经拿到重置令牌，可以直接前往重置密码页提交新密码。</p>
+            <p><Link to="/reset-password">前往重置密码</Link></p>
+          </div>
           <button type="submit" disabled={submitting}>
             {submitting ? "提交中..." : "发起找回"}
           </button>

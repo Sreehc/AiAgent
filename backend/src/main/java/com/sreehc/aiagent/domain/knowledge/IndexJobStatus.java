@@ -4,5 +4,6 @@ public enum IndexJobStatus {
     PENDING,
     RUNNING,
     COMPLETED,
-    FAILED
+    FAILED,
+    DEAD_LETTER
 }

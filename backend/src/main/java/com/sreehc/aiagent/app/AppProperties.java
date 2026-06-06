@@ -8,10 +8,17 @@ public record AppProperties(
         Storage storage,
         Embedding embedding,
         Kafka kafka,
-        Rag rag
+        Rag rag,
+        Chat chat,
+        Image image,
+        Mcp mcp,
+        Bootstrap bootstrap,
+        Secret secret
 ) {
     public record Auth(
-            long sessionTtlSeconds
+            long sessionTtlSeconds,
+            Integer loginFailureLimit,
+            Long loginFailureWindowSeconds
     ) {
     }
 
@@ -19,7 +26,8 @@ public record AppProperties(
             String endpoint,
             String accessKey,
             String secretKey,
-            String bucket
+            String bucket,
+            Long presignedUrlTtlSeconds
     ) {
     }
 
@@ -45,6 +53,39 @@ public record AppProperties(
             Long embeddingCacheTtlSeconds,
             Long retrievalCacheTtlSeconds,
             Long retrievalTimeoutMillis
+    ) {
+    }
+
+    public record Chat(
+            String provider,
+            String modelCode,
+            String baseUrl,
+            String apiKey
+    ) {
+    }
+
+    public record Image(
+            String provider,
+            String modelCode,
+            String baseUrl,
+            String apiKey
+    ) {
+    }
+
+    public record Mcp(
+            String allowedHosts,
+            Boolean allowPrivateNetwork,
+            String allowedStdioExecutables
+    ) {
+    }
+
+    public record Bootstrap(
+            Boolean demoDataEnabled
+    ) {
+    }
+
+    public record Secret(
+            String encryptionKey
     ) {
     }
 }

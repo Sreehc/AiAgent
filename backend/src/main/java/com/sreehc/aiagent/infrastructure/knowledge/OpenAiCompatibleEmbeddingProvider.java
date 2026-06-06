@@ -58,6 +58,10 @@ public class OpenAiCompatibleEmbeddingProvider implements EmbeddingProvider {
             if (vector == null || vector.isEmpty()) {
                 throw new EmbeddingProviderException("Embedding vector is empty");
             }
+            if (embeddingProperties.dimension() != null && vector.size() != embeddingProperties.dimension()) {
+                throw new EmbeddingProviderException("Embedding vector dimension " + vector.size()
+                        + " does not match configured dimension " + embeddingProperties.dimension());
+            }
             return toVectorLiteral(vector);
         } catch (EmbeddingProviderException exception) {
             throw exception;

@@ -219,15 +219,21 @@ public class SessionRepository {
                 Map.of("sessionId", sessionId, "status", status.name()));
     }
 
-    public void markRunStarted(long runId) {
-        jdbcTemplate.update("""
+    public boolean markRunStarted(long runId) {
+        int updated = jdbcTemplate.update("""
                         update execution_run
-                        set status = :status,
+                        set status = :toStatus,
                             started_at = now(),
                             updated_at = now()
                         where id = :runId
+                          and status = :fromStatus
                         """,
-                Map.of("runId", runId, "status", RunStatus.RUNNING.name()));
+                Map.of(
+                        "runId", runId,
+                        "fromStatus", RunStatus.PENDING.name(),
+                        "toStatus", RunStatus.RUNNING.name()
+                ));
+        return updated == 1;
     }
 
     public void refreshPendingRun(

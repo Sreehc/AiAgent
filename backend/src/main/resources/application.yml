@@ -4,7 +4,7 @@ spring:
   datasource:
     url: jdbc:postgresql://${APP_DB_HOST:localhost}:${APP_DB_PORT:5432}/${APP_DB_NAME:postgres}
     username: ${APP_DB_USERNAME:postgres}
-    password: ${APP_DB_PASSWORD:root}
+    password: ${APP_DB_PASSWORD:postgres}
   data:
     redis:
       host: ${APP_REDIS_HOST:localhost}
@@ -34,6 +34,8 @@ app:
     jwt-secret: ${APP_JWT_SECRET:change-me}
   auth:
     session-ttl-seconds: ${APP_SESSION_TTL_SECONDS:7200}
+    login-failure-limit: ${APP_LOGIN_FAILURE_LIMIT:5}
+    login-failure-window-seconds: ${APP_LOGIN_FAILURE_WINDOW_SECONDS:600}
   kafka:
     bootstrap-servers: ${APP_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     knowledge-index-topic: ${APP_KAFKA_KNOWLEDGE_INDEX_TOPIC:aiagent.knowledge.index}
@@ -43,6 +45,7 @@ app:
     access-key: ${APP_MINIO_ACCESS_KEY:minioadmin}
     secret-key: ${APP_MINIO_SECRET_KEY:minioadmin}
     bucket: ${APP_MINIO_BUCKET:aiagent}
+    presigned-url-ttl-seconds: ${APP_STORAGE_PRESIGNED_URL_TTL_SECONDS:900}
   embedding:
     provider: ${APP_EMBEDDING_PROVIDER:local-mock}
     model-code: ${APP_EMBEDDING_MODEL_CODE:text-embedding-3-small}
@@ -55,3 +58,21 @@ app:
     embedding-cache-ttl-seconds: ${APP_RAG_EMBEDDING_CACHE_TTL_SECONDS:3600}
     retrieval-cache-ttl-seconds: ${APP_RAG_RETRIEVAL_CACHE_TTL_SECONDS:300}
     retrieval-timeout-millis: ${APP_RAG_RETRIEVAL_TIMEOUT_MILLIS:1500}
+  chat:
+    provider: ${APP_CHAT_PROVIDER:local-mock}
+    model-code: ${APP_CHAT_MODEL_CODE:claude-sonnet-4-6}
+    base-url: ${APP_CHAT_BASE_URL:}
+    api-key: ${APP_CHAT_API_KEY:}
+  image:
+    provider: ${APP_IMAGE_PROVIDER:local-mock}
+    model-code: ${APP_IMAGE_MODEL_CODE:image-generation-default}
+    base-url: ${APP_IMAGE_BASE_URL:}
+    api-key: ${APP_IMAGE_API_KEY:}
+  mcp:
+    allowed-hosts: ${APP_MCP_ALLOWED_HOSTS:localhost}
+    allow-private-network: ${APP_MCP_ALLOW_PRIVATE_NETWORK:true}
+    allowed-stdio-executables: ${APP_MCP_ALLOWED_STDIO_EXECUTABLES:}
+  bootstrap:
+    demo-data-enabled: ${APP_BOOTSTRAP_DEMO_DATA_ENABLED:true}
+  secret:
+    encryption-key: ${APP_SECRET_ENCRYPTION_KEY:}

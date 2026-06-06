@@ -306,15 +306,20 @@ public class KnowledgeRepository {
                 rs -> rs.next() ? Optional.of(mapIndexJob(rs)) : Optional.empty());
     }
 
-    public void markIndexJobRunning(long jobInternalId) {
-        jdbcTemplate.update("""
+    public boolean markIndexJobRunning(long jobInternalId) {
+        int updated = jdbcTemplate.update("""
                         update index_job
-                        set status = :status,
+                        set status = :runningStatus,
                             started_at = now(),
                             updated_at = now()
                         where id = :jobId
+                          and status in (:claimableStatuses)
                         """,
-                Map.of("jobId", jobInternalId, "status", IndexJobStatus.RUNNING.name()));
+                new MapSqlParameterSource()
+                        .addValue("jobId", jobInternalId)
+                        .addValue("runningStatus", IndexJobStatus.RUNNING.name())
+                        .addValue("claimableStatuses", List.of(IndexJobStatus.PENDING.name(), IndexJobStatus.FAILED.name())));
+        return updated == 1;
     }
 
     public void markIndexJobCompleted(long jobInternalId) {
@@ -342,6 +347,22 @@ public class KnowledgeRepository {
                 new MapSqlParameterSource()
                         .addValue("jobId", jobInternalId)
                         .addValue("status", IndexJobStatus.PENDING.name())
+                        .addValue("errorMessage", truncate(errorMessage)));
+    }
+
+    public void markIndexJobDeadLetter(long jobInternalId, String errorMessage) {
+        jdbcTemplate.update("""
+                        update index_job
+                        set status = :status,
+                            retry_count = retry_count + 1,
+                            error_message = :errorMessage,
+                            completed_at = now(),
+                            updated_at = now()
+                        where id = :jobId
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("jobId", jobInternalId)
+                        .addValue("status", IndexJobStatus.DEAD_LETTER.name())
                         .addValue("errorMessage", truncate(errorMessage)));
     }
 
@@ -384,11 +405,11 @@ public class KnowledgeRepository {
         jdbcTemplate.update("""
                         insert into knowledge_chunk (
                             knowledge_document_id, chunk_id, chunk_no, content_preview, content_text, embedding,
-                            section_title, heading_path, token_count, metadata_json, search_vector, created_at
+                            section_title, heading_path, token_count, metadata_json, source_offset, search_vector, created_at
                         )
                         values (
                             :documentId, :chunkId, :chunkNo, :contentPreview, :contentText, cast(:embedding as vector),
-                            :sectionTitle, :headingPath, :tokenCount, cast(:metadataJson as jsonb),
+                            :sectionTitle, :headingPath, :tokenCount, cast(:metadataJson as jsonb), :sourceOffset,
                             to_tsvector('simple', concat_ws(' ', coalesce(:sectionTitle, ''), coalesce(:headingPath, ''), coalesce(:contentText, ''))),
                             now()
                         )
@@ -403,7 +424,8 @@ public class KnowledgeRepository {
                         .addValue("sectionTitle", sectionTitle)
                         .addValue("headingPath", headingPath)
                         .addValue("tokenCount", tokenCount)
-                        .addValue("metadataJson", metadataJson));
+                        .addValue("metadataJson", metadataJson)
+                        .addValue("sourceOffset", Math.max(0, chunkNo - 1)));
     }
 
     public List<SearchHit> vectorRecall(long userId, List<String> kbIds, String embedding, int topK) {
@@ -412,7 +434,7 @@ public class KnowledgeRepository {
         }
         return jdbcTemplate.query("""
                         select kb.kb_id, d.document_id, d.file_name, c.chunk_id, c.chunk_no, c.content_preview,
-                               c.content_text, c.section_title, c.heading_path, c.token_count,
+                               c.content_text, c.section_title, c.heading_path, c.token_count, c.source_offset,
                                'VECTOR' as retrieval_strategy,
                                1 - (c.embedding <=> cast(:embedding as vector)) as score
                         from knowledge_chunk c
@@ -436,7 +458,7 @@ public class KnowledgeRepository {
         }
         return jdbcTemplate.query("""
                         select kb.kb_id, d.document_id, d.file_name, c.chunk_id, c.chunk_no, c.content_preview,
-                               c.content_text, c.section_title, c.heading_path, c.token_count,
+                               c.content_text, c.section_title, c.heading_path, c.token_count, c.source_offset,
                                'KEYWORD' as retrieval_strategy,
                                greatest(
                                    ts_rank_cd(c.search_vector, websearch_to_tsquery('simple', :query)),
@@ -552,7 +574,7 @@ public class KnowledgeRepository {
                 chunkId,
                 kbId + ":" + documentId + ":" + chunkId,
                 rs.getInt("chunk_no"),
-                0,
+                rs.getInt("source_offset"),
                 rank,
                 rs.getString("content_preview"),
                 rs.getString("content_text"),

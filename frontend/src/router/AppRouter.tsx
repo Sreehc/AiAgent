@@ -10,6 +10,7 @@ import { LoginPage } from "../pages/LoginPage";
 import { McpServersPage } from "../pages/McpServersPage";
 import { ImageGenerationPage } from "../pages/ImageGenerationPage";
 import { RegisterPage } from "../pages/RegisterPage";
+import { ResetPasswordPage } from "../pages/ResetPasswordPage";
 import { WorkspacePage } from "../pages/WorkspacePage";
 
 export function AppRouter() {
@@ -18,6 +19,7 @@ export function AppRouter() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register/invite" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route path="/workspace/chat" element={<WorkspacePage />} />

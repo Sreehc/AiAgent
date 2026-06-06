@@ -4,6 +4,7 @@ import com.sreehc.aiagent.domain.mcp.McpServerConfig;
 import com.sreehc.aiagent.domain.mcp.McpToolDescriptor;
 import com.sreehc.aiagent.domain.mcp.ToolInvocationRecord;
 import com.sreehc.aiagent.infrastructure.mcp.McpRuntimeGateway;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sreehc.aiagent.infrastructure.mcp.McpServerRepository;
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -16,10 +17,12 @@ import org.springframework.stereotype.Service;
 public class McpExecutionService {
     private final McpServerRepository mcpServerRepository;
     private final McpRuntimeGateway mcpRuntimeGateway;
+    private final ObjectMapper objectMapper;
 
-    public McpExecutionService(McpServerRepository mcpServerRepository, McpRuntimeGateway mcpRuntimeGateway) {
+    public McpExecutionService(McpServerRepository mcpServerRepository, McpRuntimeGateway mcpRuntimeGateway, ObjectMapper objectMapper) {
         this.mcpServerRepository = mcpServerRepository;
         this.mcpRuntimeGateway = mcpRuntimeGateway;
+        this.objectMapper = objectMapper;
     }
 
     public InvocationResult invokeForStep(long runId, String stepToolName, String stepTitle, String input) {
@@ -35,7 +38,7 @@ public class McpExecutionService {
                     toolCallId,
                     tool.toolName(),
                     tool.toolType(),
-                    "{\"stepToolName\":\"" + stepToolName + "\"}"
+                    writeRequestPayload(stepToolName, stepTitle, input)
             );
             try {
                 McpRuntimeGateway.ToolExecutionResult result = mcpRuntimeGateway.invoke(server, tool, stepTitle, input);
@@ -81,6 +84,18 @@ public class McpExecutionService {
                 record.startedAt(),
                 record.endedAt()
         );
+    }
+
+    private String writeRequestPayload(String stepToolName, String stepTitle, String input) {
+        try {
+            return objectMapper.writeValueAsString(Map.of(
+                    "stepToolName", stepToolName,
+                    "stepTitle", stepTitle,
+                    "input", input
+            ));
+        } catch (Exception exception) {
+            throw new IllegalStateException("Failed to serialize MCP request payload", exception);
+        }
     }
 
     private String sanitize(String message) {

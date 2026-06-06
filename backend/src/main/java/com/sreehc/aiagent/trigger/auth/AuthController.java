@@ -32,7 +32,8 @@ public class AuthController {
                 request.inviteToken(),
                 request.username(),
                 request.displayName(),
-                request.password()
+                request.password(),
+                request.confirmPassword()
         ));
         return ApiResponse.success(null);
     }
@@ -63,8 +64,18 @@ public class AuthController {
     }
 
     @PostMapping("/forgot-password")
-    public ApiResponse<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        authService.forgotPassword(request.usernameOrEmail());
+    public ApiResponse<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request, HttpServletRequest servletRequest) {
+        authService.forgotPassword(request.usernameOrEmail(), servletRequest.getRemoteAddr());
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(new AuthService.ResetPasswordCommand(
+                request.resetToken(),
+                request.newPassword(),
+                request.confirmPassword()
+        ));
         return ApiResponse.success(null);
     }
 
@@ -72,7 +83,8 @@ public class AuthController {
             @NotBlank String inviteToken,
             @NotBlank @Size(min = 3, max = 64) String username,
             @NotBlank @Size(max = 64) String displayName,
-            @NotBlank @Size(min = 8, max = 64) String password
+            @NotBlank @Size(min = 8, max = 64) String password,
+            @NotBlank @Size(min = 8, max = 64) String confirmPassword
     ) {
     }
 
@@ -84,6 +96,13 @@ public class AuthController {
 
     public record ForgotPasswordRequest(
             @NotBlank String usernameOrEmail
+    ) {
+    }
+
+    public record ResetPasswordRequest(
+            @NotBlank String resetToken,
+            @NotBlank @Size(min = 8, max = 64) String newPassword,
+            @NotBlank @Size(min = 8, max = 64) String confirmPassword
     ) {
     }
 

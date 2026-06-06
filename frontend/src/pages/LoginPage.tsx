@@ -6,6 +6,7 @@ import { apiRequest, ApiError } from "../services/api";
 type LoginResponse = {
   accessToken: string;
   expiresIn: number;
+  expiresAt?: number;
   user: {
     userId: string;
     username: string;
@@ -50,7 +51,7 @@ export function LoginPage() {
         <p className="eyebrow">AiAgent</p>
         <h1>登录工作台</h1>
         <p className="muted">
-          使用邀请注册创建的账号登录。默认预置邀请码是 <code>INVITE-ABC</code>。
+          使用邀请注册创建的账号登录。生产环境的邀请码由管理员单独发放，不在登录页展示。
         </p>
         <form className="auth-form" onSubmit={onSubmit}>
           <label>

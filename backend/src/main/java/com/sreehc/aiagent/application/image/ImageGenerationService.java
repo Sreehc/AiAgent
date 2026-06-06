@@ -1,7 +1,11 @@
 package com.sreehc.aiagent.application.image;
 
+import com.sreehc.aiagent.app.AppProperties;
+import com.sreehc.aiagent.application.admin.ModelRuntimeResolver;
 import com.sreehc.aiagent.application.common.AppException;
+import com.sreehc.aiagent.application.common.UploadValidationService;
 import com.sreehc.aiagent.domain.auth.SessionUser;
+import com.sreehc.aiagent.domain.admin.ModelType;
 import com.sreehc.aiagent.domain.image.ImageGenerationJob;
 import com.sreehc.aiagent.domain.image.ImageGenerationMode;
 import com.sreehc.aiagent.domain.image.ImageGenerationStatus;
@@ -11,6 +15,8 @@ import com.sreehc.aiagent.domain.session.ArtifactType;
 import com.sreehc.aiagent.infrastructure.image.ImageRepository;
 import com.sreehc.aiagent.infrastructure.session.SessionRepository;
 import com.sreehc.aiagent.infrastructure.storage.ObjectStorageService;
+import com.sreehc.aiagent.infrastructure.model.ImageGenerationProvider;
+import com.sreehc.aiagent.infrastructure.model.ImageGenerationProviderRouter;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
@@ -27,15 +33,27 @@ public class ImageGenerationService {
     private final ImageRepository imageRepository;
     private final SessionRepository sessionRepository;
     private final ObjectStorageService objectStorageService;
+    private final UploadValidationService uploadValidationService;
+    private final ImageGenerationProviderRouter imageGenerationProviderRouter;
+    private final ModelRuntimeResolver modelRuntimeResolver;
+    private final AppProperties appProperties;
 
     public ImageGenerationService(
             ImageRepository imageRepository,
             SessionRepository sessionRepository,
-            ObjectStorageService objectStorageService
+            ObjectStorageService objectStorageService,
+            UploadValidationService uploadValidationService,
+            ImageGenerationProviderRouter imageGenerationProviderRouter,
+            ModelRuntimeResolver modelRuntimeResolver,
+            AppProperties appProperties
     ) {
         this.imageRepository = imageRepository;
         this.sessionRepository = sessionRepository;
         this.objectStorageService = objectStorageService;
+        this.uploadValidationService = uploadValidationService;
+        this.imageGenerationProviderRouter = imageGenerationProviderRouter;
+        this.modelRuntimeResolver = modelRuntimeResolver;
+        this.appProperties = appProperties;
     }
 
     @Transactional
@@ -44,11 +62,11 @@ public class ImageGenerationService {
         String prompt = normalizePrompt(command.prompt());
         String size = normalizeSize(command.size());
         String artifactCode = nextCode("art");
-        String svg = renderSvg(prompt, size, null);
+        ImageGenerationProvider.GeneratedImage generated = generateImage(prompt, size, null, null);
         String storageUri = objectStorageService.upload(
-                "images/" + currentUser.externalUserId() + "/" + artifactCode + ".svg",
-                svg.getBytes(StandardCharsets.UTF_8),
-                SVG_MIME_TYPE
+                "images/" + currentUser.externalUserId() + "/" + artifactCode + "." + generated.fileExtension(),
+                generated.content(),
+                generated.contentType()
         );
         sessionRepository.createArtifact(
                 artifactCode,
@@ -59,7 +77,7 @@ public class ImageGenerationService {
                 buildTitle(prompt),
                 prompt,
                 storageUri,
-                SVG_MIME_TYPE
+                generated.contentType()
         );
         String jobId = nextCode("imgjob");
         imageRepository.createJob(
@@ -95,16 +113,17 @@ public class ImageGenerationService {
         AgentSession session = loadOptionalSession(currentUser, command.sessionId());
         String prompt = normalizePrompt(command.prompt());
         String size = normalizeSize(command.size());
+        UploadValidationService.ValidatedUpload upload = uploadValidationService.validateImage(referenceFile);
         String sourceArtifactCode = nextCode("art");
-        String referenceFileName = sanitizeFileName(referenceFile.getOriginalFilename());
-        String referenceMimeType = referenceFile.getContentType() == null || referenceFile.getContentType().isBlank()
-                ? "application/octet-stream"
-                : referenceFile.getContentType();
+        String referenceFileName = upload.fileName();
+        String referenceMimeType = upload.contentType();
 
+        byte[] referenceBytes;
         try {
+            referenceBytes = referenceFile.getBytes();
             String referenceStorageUri = objectStorageService.upload(
                     "images/" + currentUser.externalUserId() + "/" + sourceArtifactCode + "-" + referenceFileName,
-                    referenceFile.getBytes(),
+                    referenceBytes,
                     referenceMimeType
             );
             sessionRepository.createArtifact(
@@ -123,11 +142,11 @@ public class ImageGenerationService {
         }
 
         String resultArtifactCode = nextCode("art");
-        String svg = renderSvg(prompt, size, referenceFileName);
+        ImageGenerationProvider.GeneratedImage generated = generateImage(prompt, size, referenceBytes, referenceMimeType);
         String resultStorageUri = objectStorageService.upload(
-                "images/" + currentUser.externalUserId() + "/" + resultArtifactCode + ".svg",
-                svg.getBytes(StandardCharsets.UTF_8),
-                SVG_MIME_TYPE
+                "images/" + currentUser.externalUserId() + "/" + resultArtifactCode + "." + generated.fileExtension(),
+                generated.content(),
+                generated.contentType()
         );
         sessionRepository.createArtifact(
                 resultArtifactCode,
@@ -138,7 +157,7 @@ public class ImageGenerationService {
                 buildTitle(prompt),
                 prompt,
                 resultStorageUri,
-                SVG_MIME_TYPE
+                generated.contentType()
         );
         String jobId = nextCode("imgjob");
         imageRepository.createJob(
@@ -209,6 +228,37 @@ public class ImageGenerationService {
             return DEFAULT_SIZE;
         }
         return size.trim();
+    }
+
+    private ImageGenerationProvider.GeneratedImage generateImage(
+            String prompt,
+            String size,
+            byte[] referenceImage,
+            String referenceMimeType
+    ) {
+        try {
+            AppProperties.Image image = appProperties.image();
+            ModelRuntimeResolver.RuntimeModel runtimeModel = modelRuntimeResolver.find(ModelType.IMAGE, null)
+                    .orElseGet(() -> new ModelRuntimeResolver.RuntimeModel(
+                            image.modelCode(),
+                            image.provider(),
+                            ModelType.IMAGE,
+                            image.baseUrl(),
+                            image.apiKey()
+                    ));
+            ImageGenerationProvider provider = imageGenerationProviderRouter.route(runtimeModel.provider());
+            return provider.generate(new ImageGenerationProvider.ImageRequest(
+                    prompt,
+                    size,
+                    runtimeModel.modelCode(),
+                    runtimeModel.baseUrl(),
+                    runtimeModel.apiKey(),
+                    referenceImage,
+                    referenceMimeType
+            ));
+        } catch (Exception exception) {
+            throw new AppException("IMAGE_GENERATION_FAILED", "Image provider failed", HttpStatus.BAD_GATEWAY);
+        }
     }
 
     private String buildTitle(String prompt) {

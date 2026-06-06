@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { apiRequest, ApiError } from "../services/api";
-import { readSession } from "../stores/auth";
+import { useAuthSession } from "../hooks/useAuthSession";
 
 type Profile = {
   userId: string;
@@ -25,19 +25,25 @@ type LoginLogResponse = {
 };
 
 export function AccountPage() {
-  const session = readSession();
+  const { session } = useAuthSession();
   const accessToken = session?.accessToken ?? null;
   const [profile, setProfile] = useState<Profile | null>(null);
   const [logs, setLogs] = useState<LoginLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!accessToken) {
+      setLoading(false);
       return;
     }
 
+    setLoading(true);
     void Promise.all([
       apiRequest<Profile>("/account/profile", {}, accessToken),
       apiRequest<LoginLogResponse>("/account/login-logs?pageNo=1&pageSize=5", {}, accessToken)
@@ -45,9 +51,13 @@ export function AccountPage() {
       .then(([profileResult, logResult]) => {
         setProfile(profileResult);
         setLogs(logResult.items);
+        setProfileError(null);
       })
       .catch((requestError: ApiError) => {
         setProfileError(requestError.message);
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, [accessToken]);
 
@@ -56,6 +66,10 @@ export function AccountPage() {
     if (!profile || !accessToken) {
       return;
     }
+
+    setSavingProfile(true);
+    setProfileError(null);
+    setProfileSuccess(null);
 
     try {
       const updated = await apiRequest<Profile>(
@@ -71,10 +85,12 @@ export function AccountPage() {
         accessToken
       );
       setProfile(updated);
-      setProfileError("资料已更新。");
+      setProfileSuccess("资料已更新。");
     } catch (requestError) {
       const apiError = requestError as ApiError;
-      setProfileError(apiError.message);
+      setProfileError(apiError.message || "资料更新失败。");
+    } finally {
+      setSavingProfile(false);
     }
   }
 
@@ -85,6 +101,7 @@ export function AccountPage() {
     }
 
     const form = new FormData(event.currentTarget);
+    setSavingPassword(true);
     setPasswordError(null);
     setPasswordMessage(null);
 
@@ -104,7 +121,9 @@ export function AccountPage() {
       setPasswordMessage("密码已更新。");
     } catch (requestError) {
       const apiError = requestError as ApiError;
-      setPasswordError(apiError.message);
+      setPasswordError(apiError.message || "密码更新失败。");
+    } finally {
+      setSavingPassword(false);
     }
   }
 
@@ -119,8 +138,15 @@ export function AccountPage() {
       </header>
 
       {profileError ? <p className="form-message form-message--error">{profileError}</p> : null}
+      {profileSuccess ? <p className="form-message form-message--success">{profileSuccess}</p> : null}
 
-      {profile ? (
+      {loading ? (
+        <div className="workspace__panel workspace-empty-block">
+          <p>账号信息加载中...</p>
+        </div>
+      ) : null}
+
+      {!loading && profile ? (
         <div className="account-grid">
           <form className="workspace__panel account-panel" onSubmit={submitProfile}>
             <h3>个人资料</h3>
@@ -161,7 +187,7 @@ export function AccountPage() {
                 }
               />
             </label>
-            <button type="submit">保存资料</button>
+            <button type="submit" disabled={savingProfile}>{savingProfile ? "保存中..." : "保存资料"}</button>
           </form>
 
           <form className="workspace__panel account-panel" onSubmit={submitPassword}>
@@ -180,11 +206,12 @@ export function AccountPage() {
             {passwordMessage ? (
               <p className="form-message form-message--success">{passwordMessage}</p>
             ) : null}
-            <button type="submit">更新密码</button>
+            <button type="submit" disabled={savingPassword}>{savingPassword ? "更新中..." : "更新密码"}</button>
           </form>
 
           <section className="workspace__panel account-panel account-panel--logs">
             <h3>最近登录日志</h3>
+            <p className="muted">仅展示当前登录用户最近的访问记录。</p>
             <div className="log-list">
               {logs.map((log) => (
                 <article key={`${log.loginAt}-${log.loginIp}`} className="log-item">
@@ -194,6 +221,11 @@ export function AccountPage() {
                   <small>{log.userAgent}</small>
                 </article>
               ))}
+              {logs.length === 0 ? (
+                <div className="workspace-empty-block">
+                  <p>暂无登录记录。</p>
+                </div>
+              ) : null}
             </div>
           </section>
         </div>

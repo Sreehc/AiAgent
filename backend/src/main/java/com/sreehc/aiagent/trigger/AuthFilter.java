@@ -58,8 +58,10 @@ public class AuthFilter extends OncePerRequestFilter {
         return requestUri.startsWith("/api/v1/auth/login")
                 || requestUri.startsWith("/api/v1/auth/register-by-invite")
                 || requestUri.startsWith("/api/v1/auth/forgot-password")
+                || requestUri.startsWith("/api/v1/auth/reset-password")
                 || requestUri.startsWith("/api/v1/health")
-                || requestUri.startsWith("/actuator");
+                || requestUri.equals("/actuator/health")
+                || requestUri.startsWith("/actuator/health/");
     }
 
     private String extractAccessToken(HttpServletRequest request) {

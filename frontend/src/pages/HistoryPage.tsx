@@ -168,28 +168,38 @@ export function HistoryPage() {
 
             {error ? <p className="form-message form-message--error">{error}</p> : null}
 
-            <div className="result-meta">
-              <div>
-                <span className="muted">最近执行</span>
-                <strong>{sessionDetail?.runs[0]?.runId ?? "-"}</strong>
+            {replaying ? (
+              <div className="workspace-skeleton-grid">
+                <div className="workspace-skeleton workspace-skeleton--headline" />
+                <div className="workspace-skeleton workspace-skeleton--block" />
+                <div className="workspace-skeleton workspace-skeleton--block" />
               </div>
-              <div>
-                <span className="muted">模式</span>
-                <strong>{sessionDetail?.runs[0]?.executionMode ?? "-"}</strong>
-              </div>
-              <div>
-                <span className="muted">产物数</span>
-                <strong>{sessionDetail?.artifacts.length ?? 0}</strong>
-              </div>
-            </div>
+            ) : (
+              <>
+                <div className="result-meta">
+                  <div>
+                    <span className="muted">最近执行</span>
+                    <strong>{sessionDetail?.runs[0]?.runId ?? "-"}</strong>
+                  </div>
+                  <div>
+                    <span className="muted">模式</span>
+                    <strong>{sessionDetail?.runs[0]?.executionMode ?? "-"}</strong>
+                  </div>
+                  <div>
+                    <span className="muted">产物数</span>
+                    <strong>{sessionDetail?.artifacts.length ?? 0}</strong>
+                  </div>
+                </div>
 
-            <div className="report-card">
-              <div className="report-card__header">
-                <strong>{reportArtifact?.title ?? "暂无报告产物"}</strong>
-                {reportArtifact ? <span className="badge badge--soft">REPORT</span> : null}
-              </div>
-              <pre>{sessionDetail?.summary ?? reportArtifact?.content ?? "这里会显示总结结果与报告正文。"}</pre>
-            </div>
+                <div className="report-card">
+                  <div className="report-card__header">
+                    <strong>{reportArtifact?.title ?? "暂无报告产物"}</strong>
+                    {reportArtifact ? <span className="badge badge--soft">REPORT</span> : null}
+                  </div>
+                  <pre>{sessionDetail?.summary ?? reportArtifact?.content ?? "这里会显示总结结果与报告正文。"}</pre>
+                </div>
+              </>
+            )}
           </section>
 
           <section className="workspace-grid workspace-grid--three">

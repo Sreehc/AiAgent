@@ -72,11 +72,19 @@ public class ObjectStorageService {
                     .method(Method.GET)
                     .bucket(appProperties.storage().bucket())
                     .object(storageUri.substring(prefix.length()))
-                    .expiry(7, TimeUnit.DAYS)
+                    .expiry(resolvePresignedUrlTtlSeconds(), TimeUnit.SECONDS)
                     .build());
         } catch (Exception exception) {
             throw new IllegalStateException("Failed to create download url", exception);
         }
+    }
+
+    private int resolvePresignedUrlTtlSeconds() {
+        Long configured = appProperties.storage().presignedUrlTtlSeconds();
+        if (configured == null || configured <= 0) {
+            return 900;
+        }
+        return Math.toIntExact(Math.min(configured, 604800L));
     }
 
     private void ensureBucket() throws Exception {

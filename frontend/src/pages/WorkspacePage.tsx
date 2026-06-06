@@ -30,7 +30,7 @@ const DEFAULT_SESSION_FORM = {
 
 const DEFAULT_RUN_FORM = {
   query: "分析 2026 年储能行业竞争格局，并输出结构化报告",
-  executionMode: "PLAN_EXECUTE" as AgentMode,
+  executionMode: "REACT" as AgentMode,
   knowledgeBaseIds: ""
 };
 
@@ -47,6 +47,7 @@ export function WorkspacePage() {
   const [runningTask, setRunningTask] = useState(false);
   const [bindingKnowledgeBases, setBindingKnowledgeBases] = useState(false);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseItem[]>([]);
+  const [streamDisconnected, setStreamDisconnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const latestArtifact = useMemo<ArtifactItem | null>(() => {
@@ -79,6 +80,7 @@ export function WorkspacePage() {
     }
     setRunForm((current) => ({
       ...current,
+      executionMode: sessionDetail.session.agentMode,
       knowledgeBaseIds: sessionDetail.knowledgeBaseIds.join(",")
     }));
   }, [sessionDetail?.session.sessionId, sessionDetail?.knowledgeBaseIds]);
@@ -162,6 +164,7 @@ export function WorkspacePage() {
     }
     setRunningTask(true);
     setError(null);
+    setStreamDisconnected(false);
     setStreamLogs([]);
 
     const requestBody = {
@@ -175,7 +178,8 @@ export function WorkspacePage() {
       await loadSessions();
       await loadSessionDetail(selectedSessionId);
     } catch (requestError) {
-      setError((requestError as ApiError).message);
+      setStreamDisconnected(true);
+      setError((requestError as ApiError).message || "实时连接已中断，可通过历史回放恢复结果。");
       await loadSessionDetail(selectedSessionId);
     } finally {
       setRunningTask(false);
@@ -324,7 +328,7 @@ export function WorkspacePage() {
 
             <form className="workspace-form" onSubmit={onRunTask}>
               <div className="workspace-kb-strip">
-                <span className="muted">当前会话知识库</span>
+                <span className="muted">当前会话知识库（仅本人可见，可在会话间复用）</span>
                 <div className="workspace-kb-chips">
                   {sessionDetail?.knowledgeBaseIds?.map((kbId) => (
                     <span key={kbId} className="badge badge--soft">
@@ -364,17 +368,35 @@ export function WorkspacePage() {
                   </select>
                 </label>
                 <label>
-                  知识库 IDs
-                  <input
-                    value={runForm.knowledgeBaseIds}
-                    onChange={(event) =>
-                      setRunForm((current) => ({
-                        ...current,
-                        knowledgeBaseIds: event.target.value
-                      }))
-                    }
-                    placeholder="kb_001,kb_002"
-                  />
+                  知识库选择
+                  <div className="workspace-kb-selector">
+                    {knowledgeBases.map((item) => {
+                      const selected = parseKnowledgeBaseIds(runForm.knowledgeBaseIds).includes(item.kbId);
+                      return (
+                        <label key={item.kbId} className={`workspace-kb-option ${selected ? "workspace-kb-option--selected" : ""}`}>
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={(event) => {
+                              const selectedIds = new Set(parseKnowledgeBaseIds(runForm.knowledgeBaseIds));
+                              if (event.target.checked) {
+                                selectedIds.add(item.kbId);
+                              } else {
+                                selectedIds.delete(item.kbId);
+                              }
+                              setRunForm((current) => ({
+                                ...current,
+                                knowledgeBaseIds: Array.from(selectedIds).join(",")
+                              }));
+                            }}
+                          />
+                          <span>{item.name}</span>
+                          <small>{item.documentCount} docs</small>
+                        </label>
+                      );
+                    })}
+                    {knowledgeBases.length === 0 ? <span className="muted">暂无可用知识库。</span> : null}
+                  </div>
                 </label>
               </div>
               <div className="workspace-inline-actions">
@@ -388,6 +410,11 @@ export function WorkspacePage() {
               {knowledgeBases.length > 0 ? (
                 <div className="workspace-empty-block">
                   <p>可用知识库：{knowledgeBases.map((item) => `${item.name}(${item.kbId})`).join("、")}</p>
+                </div>
+              ) : null}
+              {streamDisconnected ? (
+                <div className="workspace-empty-block">
+                  <p>实时连接已中断，你仍然可以通过“恢复历史”重新加载最新执行结果。</p>
                 </div>
               ) : null}
               {error ? <p className="form-message form-message--error">{error}</p> : null}

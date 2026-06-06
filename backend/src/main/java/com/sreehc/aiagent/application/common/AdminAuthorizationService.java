@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 public class AdminAuthorizationService {
     public void ensureAdmin(SessionUser currentUser) {
         if (!currentUser.roles().contains(UserRole.ADMIN)) {
-            throw new AppException("FORBIDDEN", "Admin permission required", HttpStatus.FORBIDDEN);
+            throw new AppException("AUTH_FORBIDDEN", "Admin permission required", HttpStatus.FORBIDDEN);
         }
     }
 }

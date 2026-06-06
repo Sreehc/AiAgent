@@ -15,11 +15,16 @@ export function useAuthSession() {
 
   function setSession(next: AuthSession | null) {
     if (next) {
-      writeSession(next);
+      const normalized = {
+        ...next,
+        expiresAt: next.expiresAt ?? Date.now() + next.expiresIn * 1000
+      };
+      writeSession(normalized);
+      setSessionState(normalized);
     } else {
       clearSession();
+      setSessionState(null);
     }
-    setSessionState(next);
   }
 
   return {

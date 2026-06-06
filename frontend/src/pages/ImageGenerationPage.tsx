@@ -296,7 +296,21 @@ export function ImageGenerationPage() {
             </div>
 
             <div className="image-gallery">
-              {history.map((item) => (
+              {loading
+                ? Array.from({ length: 4 }).map((_, i) => (
+                    <div key={`skeleton-${i}`} className="image-card image-card--skeleton">
+                      <div className="image-card__preview image-card__preview--skeleton" />
+                      <div className="image-card__body">
+                        <div className="image-card__meta">
+                          <div className="skeleton skeleton--text" style={{ width: "60px" }} />
+                          <div className="skeleton skeleton--text" style={{ width: "40px" }} />
+                        </div>
+                        <div className="skeleton skeleton--text" style={{ width: "100%" }} />
+                        <div className="skeleton skeleton--text" style={{ width: "70%" }} />
+                      </div>
+                    </div>
+                  ))
+                : history.map((item) => (
                 <article key={item.jobId} className="image-card">
                   {item.resultUrl ? (
                     <img className="image-card__preview" src={item.resultUrl} alt={item.prompt} />
@@ -321,7 +335,7 @@ export function ImageGenerationPage() {
                     ) : null}
                   </div>
                 </article>
-              ))}
+              )))}
               {!loading && history.length === 0 ? (
                 <div className="workspace-empty-block">
                   <p>还没有图片任务，先生成一张研究封面图或插图。</p>

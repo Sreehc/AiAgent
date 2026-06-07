@@ -173,6 +173,15 @@ reload_host_nginx() {
   run_root systemctl reload nginx || run_root systemctl restart nginx
 }
 
+curl_health() {
+  curl --fail --silent --show-error \
+    --retry 30 \
+    --retry-delay 2 \
+    --retry-connrefused \
+    --retry-all-errors \
+    "$@" >/dev/null
+}
+
 ensure_layout() {
   run_root mkdir -p "${APP_ROOT}/releases" "${APP_SHARED_DIR}" "${APP_LOG_DIR}"
   run_root cp "${APP_ENV_SOURCE}" "${APP_SHARED_DIR}/app.env"
@@ -276,8 +285,7 @@ deploy_native() {
   run_root systemctl enable "${APP_NAME}.service" >/dev/null
   run_root systemctl restart "${APP_NAME}.service"
   reload_host_nginx
-  curl --fail --silent --show-error --retry 10 --retry-connrefused \
-    "http://127.0.0.1:${APP_BACKEND_PORT}/api/v1/health" >/dev/null
+  curl_health "http://127.0.0.1:${APP_BACKEND_PORT}/api/v1/health"
   cleanup_releases
 }
 
@@ -373,15 +381,13 @@ deploy_shared_runtime() {
   fi
 
   if host_nginx_available; then
-    curl --fail --silent --show-error --retry 10 --retry-connrefused \
-      "http://127.0.0.1:${APP_BACKEND_PORT}/api/v1/health" >/dev/null
+    curl_health "http://127.0.0.1:${APP_BACKEND_PORT}/api/v1/health"
   elif [[ "${PRIMARY_SERVER_NAME}" == "_" ]]; then
-    curl --fail --silent --show-error --retry 10 --retry-connrefused \
-      "http://127.0.0.1:${SHARED_RUNTIME_HTTP_PORT}/api/v1/health" >/dev/null
+    curl_health "http://127.0.0.1:${SHARED_RUNTIME_HTTP_PORT}/api/v1/health"
   else
-    curl --fail --silent --show-error --retry 10 --retry-connrefused \
+    curl_health \
       -H "Host: ${PRIMARY_SERVER_NAME}" \
-      "http://127.0.0.1:${SHARED_RUNTIME_HTTP_PORT}/api/v1/health" >/dev/null
+      "http://127.0.0.1:${SHARED_RUNTIME_HTTP_PORT}/api/v1/health"
   fi
 
   cleanup_releases

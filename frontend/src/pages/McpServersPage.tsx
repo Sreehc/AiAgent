@@ -144,7 +144,10 @@ export function McpServersPage() {
   if (!session?.user.roles.includes("ADMIN")) {
     return (
       <section className="page">
-        <header className="page-header"><div><p className="eyebrow">Admin Only</p><h1>MCP 服务器</h1></div></header>
+        <header className="page-header">
+          <h1>MCP 服务器</h1>
+          <span className="badge badge--neutral">Admin only</span>
+        </header>
         <EmptyState message="当前账号没有管理员权限，无法访问 MCP 配置。" />
       </section>
     );
@@ -153,10 +156,10 @@ export function McpServersPage() {
   return (
     <section className="page">
       <header className="page-header">
-        <div>
-          <p className="eyebrow">MCP Servers</p>
-          <h1>MCP 服务器</h1>
-          <p>注册 MCP 工具源，发现工具并检查服务健康状态。</p>
+        <h1>MCP 服务器</h1>
+        <div className="page-header__meta">
+          <span className="badge badge--neutral">{servers.filter((server) => server.status === "ACTIVE").length} 个活跃</span>
+          <span className="badge badge--neutral">{selectedServer?.transportType ?? "未选择"}</span>
         </div>
         <span className="badge">{servers.length} 个服务</span>
       </header>

@@ -240,10 +240,10 @@ export function WorkspacePage() {
   return (
     <section className="page">
       <header className="page-header">
-        <div>
-          <p className="eyebrow">Research Workspace</p>
-          <h1>研究工作台</h1>
-          <p>创建研究会话，绑定知识库，运行 Agent 任务并追踪执行计划、工具调用和最终产物。</p>
+        <h1>研究工作台</h1>
+        <div className="page-header__meta">
+          <span className="badge badge--neutral">{sessions.length} 个会话</span>
+          <span className="badge badge--neutral">{selectedKbIds.length} 个知识库</span>
         </div>
         <StatusPill status={runningTask ? "RUNNING" : sessionDetail?.session.status ?? "IDLE"} />
       </header>

@@ -102,10 +102,10 @@ export function ImageGenerationPage() {
   return (
     <section className="page">
       <header className="page-header">
-        <div>
-          <p className="eyebrow">Image Studio</p>
-          <h1>图片工作室</h1>
-          <p>生成研究配图或基于参考图编辑，并将结果挂接到会话产物。</p>
+        <h1>图片工作室</h1>
+        <div className="page-header__meta">
+          <span className="badge badge--neutral">{form.size}</span>
+          <span className="badge badge--neutral">{history.length} 条历史</span>
         </div>
         <span className="badge">{form.mode === "IMAGES" ? "文本生图" : "参考图编辑"}</span>
       </header>

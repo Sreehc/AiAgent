@@ -84,12 +84,10 @@ export function AppShell() {
             <Button type="button" variant="ghost" size="sm" className="mobile-menu-button" onClick={() => setSidebarOpen((current) => !current)}>
               菜单
             </Button>
-            <div>
-              <p className="eyebrow">AiAgent V1</p>
-              <h2>Operations Console</h2>
-            </div>
+            <span className="topbar__section">Console</span>
           </div>
           <div className="topbar__actions">
+            <span className="badge badge--neutral">{session?.user.roles.join(", ")}</span>
             <span className="badge">Cmd/Ctrl K</span>
           </div>
         </header>

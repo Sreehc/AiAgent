@@ -76,10 +76,10 @@ export function HistoryPage() {
   return (
     <section className="page">
       <header className="page-header">
-        <div>
-          <p className="eyebrow">Replay</p>
-          <h1>历史回放</h1>
-          <p>恢复会话的执行链路，包括计划步骤、工具调用、总结和产物引用。</p>
+        <h1>历史回放</h1>
+        <div className="page-header__meta">
+          <span className="badge badge--neutral">{latestPlanSteps.length} steps</span>
+          <span className="badge badge--neutral">{latestToolInvocations.length} calls</span>
         </div>
         <span className="badge">{filteredSessions.length} sessions</span>
       </header>

@@ -154,10 +154,10 @@ export function AccountPage() {
   return (
     <section className="page">
       <header className="page-header">
-        <div>
-          <p className="eyebrow">Account</p>
-          <h1>账号中心</h1>
-          <p>维护个人资料、安全凭据、AI 服务配置和最近登录记录。</p>
+        <h1>账号中心</h1>
+        <div className="page-header__meta">
+          <span className="badge badge--neutral">{logs.length} 条登录记录</span>
+          <span className="badge badge--neutral">{profile?.roles.join(", ") ?? "账户"}</span>
         </div>
         <StatusPill status="ACTIVE" label="登录态受保护" />
       </header>

@@ -191,10 +191,10 @@ export function KnowledgeBasesPage() {
   return (
     <section className="page">
       <header className="page-header">
-        <div>
-          <p className="eyebrow">Knowledge Bases</p>
-          <h1>知识库</h1>
-          <p>管理私有文档、索引状态和检索测试，为研究任务提供上下文。</p>
+        <h1>知识库</h1>
+        <div className="page-header__meta">
+          <span className="badge badge--neutral">{documents.length} 个文档</span>
+          <span className="badge badge--neutral">{searchHits.length} 个命中</span>
         </div>
         <span className="badge">{loading ? "加载中" : `${knowledgeBases.length} 个知识库`}</span>
       </header>

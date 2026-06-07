@@ -102,10 +102,10 @@ export function AdminSettingsPage() {
   return (
     <section className="page">
       <header className="page-header">
-        <div>
-          <p className="eyebrow">System Settings</p>
-          <h1>模型配置</h1>
-          <p>管理模型供应商配置和邀请注册链接入口。</p>
+        <h1>模型配置</h1>
+        <div className="page-header__meta">
+          <span className="badge badge--neutral">{models.filter((model) => model.enabled).length} 个启用</span>
+          <span className="badge badge--neutral">{invites.length} 个邀请码</span>
         </div>
         <span className="badge">{loading ? "加载中" : `${models.length} models / ${invites.length} invites`}</span>
       </header>
@@ -169,7 +169,10 @@ export function AdminSettingsPage() {
 function AdminDenied({ title }: { title: string }) {
   return (
     <section className="page">
-      <header className="page-header"><div><p className="eyebrow">Admin Only</p><h1>{title}</h1></div></header>
+      <header className="page-header">
+        <h1>{title}</h1>
+        <span className="badge badge--neutral">Admin only</span>
+      </header>
       <EmptyState message="当前账号没有管理员权限，无法访问该页面。" />
     </section>
   );

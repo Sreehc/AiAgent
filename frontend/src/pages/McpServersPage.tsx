@@ -303,7 +303,7 @@ export function McpServersPage() {
                 <p className="eyebrow">配置</p>
                 <h3>{selectedServer?.name ?? "选择一个服务"}</h3>
               </div>
-              <span className="badge badge--soft">{selectedServer.status === "ACTIVE" ? "活跃" : selectedServer.status === "INACTIVE" ? "未激活" : selectedServer.status}</span>
+              <span className="badge badge--soft">{selectedServer?.status === "ACTIVE" ? "活跃" : selectedServer?.status === "INACTIVE" ? "未激活" : selectedServer?.status}</span>
             </div>
 
             {selectedServer ? (

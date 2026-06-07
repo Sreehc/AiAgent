@@ -296,8 +296,9 @@ export function ImageGenerationPage() {
             </div>
 
             <div className="image-gallery">
-              {loading
-                ? Array.from({ length: 4 }).map((_, i) => (
+              {loading ? (
+                <>
+                  {Array.from({ length: 4 }).map((_, i) => (
                     <div key={`skeleton-${i}`} className="image-card image-card--skeleton">
                       <div className="image-card__preview image-card__preview--skeleton" />
                       <div className="image-card__body">
@@ -309,33 +310,36 @@ export function ImageGenerationPage() {
                         <div className="skeleton skeleton--text" style={{ width: "70%" }} />
                       </div>
                     </div>
-                  ))
-                : history.map((item) => (
-                <article key={item.jobId} className="image-card">
-                  {item.resultUrl ? (
-                    <img className="image-card__preview" src={item.resultUrl} alt={item.prompt} />
-                  ) : (
-                    <div className="image-card__placeholder">暂无预览</div>
-                  )}
-                  <div className="image-card__body">
-                    <div className="image-card__meta">
-                      <strong>{item.mode === "IMAGES" ? "文本生图" : "参考图编辑"}</strong>
-                      <span>{item.status === "COMPLETED" ? "已完成" : item.status === "FAILED" ? "失败" : "处理中"}</span>
-                    </div>
-                    <p>{item.prompt}</p>
-                    <small>
-                      {item.size} · {formatDateTime(item.createdAt)}
-                    </small>
-                    <small>会话：{item.sessionId ?? "未挂接"}</small>
-                    {item.errorMessage ? <small>失败原因：{item.errorMessage}</small> : null}
+                  ))}
+                </>
+              ) : (
+                history.map((item) => (
+                  <article key={item.jobId} className="image-card">
                     {item.resultUrl ? (
-                      <a href={item.resultUrl} target="_blank" rel="noreferrer">
-                        打开结果
-                      </a>
-                    ) : null}
-                  </div>
-                </article>
-              )))}
+                      <img className="image-card__preview" src={item.resultUrl} alt={item.prompt} />
+                    ) : (
+                      <div className="image-card__placeholder">暂无预览</div>
+                    )}
+                    <div className="image-card__body">
+                      <div className="image-card__meta">
+                        <strong>{item.mode === "IMAGES" ? "文本生图" : "参考图编辑"}</strong>
+                        <span>{item.status === "COMPLETED" ? "已完成" : item.status === "FAILED" ? "失败" : "处理中"}</span>
+                      </div>
+                      <p>{item.prompt}</p>
+                      <small>
+                        {item.size} · {formatDateTime(item.createdAt)}
+                      </small>
+                      <small>会话：{item.sessionId ?? "未挂接"}</small>
+                      {item.errorMessage ? <small>失败原因：{item.errorMessage}</small> : null}
+                      {item.resultUrl ? (
+                        <a href={item.resultUrl} target="_blank" rel="noreferrer">
+                          打开结果
+                        </a>
+                      ) : null}
+                    </div>
+                  </article>
+                ))
+              )}
               {!loading && history.length === 0 ? (
                 <div className="workspace-empty-block">
                   <p>还没有图片任务，先生成一张研究封面图或插图。</p>

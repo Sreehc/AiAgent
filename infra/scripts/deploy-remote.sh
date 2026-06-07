@@ -143,6 +143,36 @@ build_shared_runtime_port_args() {
   fi
 }
 
+reload_host_nginx() {
+  run_root nginx -t
+
+  if run_root nginx -s reload; then
+    return
+  fi
+
+  if [[ -x /etc/init.d/nginx ]] && run_root /etc/init.d/nginx reload; then
+    return
+  fi
+
+  local nginx_bin nginx_pid
+  nginx_bin="$(readlink -f "$(command -v nginx)" 2>/dev/null || command -v nginx)"
+  nginx_pid="$(
+    ps -eo pid=,args= \
+      | awk -v bin="${nginx_bin}" '
+          /nginx: master process/ && index($0, bin) {
+            print $1
+            exit
+          }
+        '
+  )"
+  if [[ -n "${nginx_pid}" ]]; then
+    run_root kill -HUP "${nginx_pid}"
+    return
+  fi
+
+  run_root systemctl reload nginx || run_root systemctl restart nginx
+}
+
 ensure_layout() {
   run_root mkdir -p "${APP_ROOT}/releases" "${APP_SHARED_DIR}" "${APP_LOG_DIR}"
   run_root cp "${APP_ENV_SOURCE}" "${APP_SHARED_DIR}/app.env"
@@ -245,8 +275,7 @@ deploy_native() {
   run_root systemctl daemon-reload
   run_root systemctl enable "${APP_NAME}.service" >/dev/null
   run_root systemctl restart "${APP_NAME}.service"
-  run_root nginx -t
-  run_root systemctl reload nginx || run_root systemctl restart nginx
+  reload_host_nginx
   curl --fail --silent --show-error --retry 10 --retry-connrefused \
     "http://127.0.0.1:${APP_BACKEND_PORT}/api/v1/health" >/dev/null
   cleanup_releases
@@ -337,8 +366,7 @@ deploy_shared_runtime() {
   docker_run exec "${SHARED_RUNTIME_CONTAINER}" supervisorctl restart "${APP_NAME}" >/dev/null \
     || docker_run exec "${SHARED_RUNTIME_CONTAINER}" supervisorctl start "${APP_NAME}" >/dev/null
   if host_nginx_available; then
-    run_root nginx -t
-    run_root systemctl reload nginx || run_root systemctl restart nginx
+    reload_host_nginx
   else
     docker_run exec "${SHARED_RUNTIME_CONTAINER}" nginx -t
     docker_run exec "${SHARED_RUNTIME_CONTAINER}" nginx -s reload

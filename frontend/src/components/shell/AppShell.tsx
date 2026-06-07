@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuthSession } from "../../hooks/useAuthSession";
 import { apiRequest } from "../../services/api";
@@ -16,19 +16,8 @@ const adminNav = [
   { to: "/admin/mcp-servers", label: "MCP 服务器" }
 ];
 
-const titles: Record<string, string> = {
-  "/workspace/chat": "研究工作台",
-  "/workspace/knowledge-bases": "知识库",
-  "/workspace/image-generation": "图片工作室",
-  "/workspace/history": "历史回放",
-  "/admin/settings": "模型配置",
-  "/admin/mcp-servers": "MCP 服务器",
-  "/account": "账号中心"
-};
-
 export function AppShell() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { session, setSession } = useAuthSession();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -97,7 +86,7 @@ export function AppShell() {
             </Button>
             <div>
               <p className="eyebrow">AiAgent V1</p>
-              <h2>{titles[location.pathname] ?? "工作台"}</h2>
+              <h2>Operations Console</h2>
             </div>
           </div>
           <div className="topbar__actions">

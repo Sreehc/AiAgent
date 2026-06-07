@@ -1,16 +1,22 @@
 import { useEffect, useState } from "react";
 import { AuthSession, clearSession, readSession, writeSession } from "../stores/auth";
 
+const SESSION_CHANGE_EVENT = "aiagent.auth.sessionchange";
+
 export function useAuthSession() {
   const [session, setSessionState] = useState<AuthSession | null>(() => readSession());
 
   useEffect(() => {
-    const onStorage = () => {
+    const syncSession = () => {
       setSessionState(readSession());
     };
 
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    window.addEventListener("storage", syncSession);
+    window.addEventListener(SESSION_CHANGE_EVENT, syncSession);
+    return () => {
+      window.removeEventListener("storage", syncSession);
+      window.removeEventListener(SESSION_CHANGE_EVENT, syncSession);
+    };
   }, []);
 
   function setSession(next: AuthSession | null) {
@@ -25,6 +31,7 @@ export function useAuthSession() {
       clearSession();
       setSessionState(null);
     }
+    window.dispatchEvent(new Event(SESSION_CHANGE_EVENT));
   }
 
   return {
@@ -32,4 +39,3 @@ export function useAuthSession() {
     setSession
   };
 }
-

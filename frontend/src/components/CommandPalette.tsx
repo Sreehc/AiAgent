@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuthSession } from "../hooks/useAuthSession";
+import { apiRequest } from "../services/api";
 
 type Command = {
   id: string;
   label: string;
   description: string;
-  path: string;
+  path?: string;
   keywords: string[];
+  adminOnly?: boolean;
+  action?: "logout";
 };
 
 type CommandPaletteProps = {
@@ -20,27 +24,56 @@ const COMMANDS: Command[] = [
   { id: "images", label: "图片工作室", description: "文本生图和参考图编辑", path: "/workspace/image-generation", keywords: ["image", "studio", "图片"] },
   { id: "history", label: "历史回放", description: "恢复会话、计划、工具和产物", path: "/workspace/history", keywords: ["history", "replay", "历史"] },
   { id: "account", label: "账号中心", description: "资料、安全和登录日志", path: "/account", keywords: ["account", "profile", "账号"] },
-  { id: "settings", label: "模型配置", description: "管理模型和邀请码", path: "/admin/settings", keywords: ["admin", "model", "settings", "配置"] },
-  { id: "mcp", label: "MCP 服务器", description: "管理 MCP 服务、发现工具和健康检查", path: "/admin/mcp-servers", keywords: ["mcp", "server", "tool"] }
+  { id: "settings", label: "模型配置", description: "管理模型和邀请码", path: "/admin/settings", keywords: ["admin", "model", "settings", "配置"], adminOnly: true },
+  { id: "mcp", label: "MCP 服务器", description: "管理 MCP 服务、发现工具和健康检查", path: "/admin/mcp-servers", keywords: ["mcp", "server", "tool"], adminOnly: true },
+  { id: "logout", label: "退出登录", description: "结束当前 session 并返回登录页", keywords: ["logout", "sign out", "退出"], action: "logout" }
 ];
 
 export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const navigate = useNavigate();
+  const { session, setSession } = useAuthSession();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const isAdmin = session?.user.roles.includes("ADMIN") ?? false;
 
   const filteredCommands = useMemo(() => {
+    const availableCommands = COMMANDS.filter((command) => {
+      if (command.adminOnly && !isAdmin) {
+        return false;
+      }
+      if (command.action === "logout" && !session) {
+        return false;
+      }
+      return true;
+    });
     const normalized = query.trim().toLowerCase();
     if (!normalized) {
-      return COMMANDS;
+      return availableCommands;
     }
-    return COMMANDS.filter((command) => {
+    return availableCommands.filter((command) => {
       return command.label.toLowerCase().includes(normalized)
         || command.description.toLowerCase().includes(normalized)
         || command.keywords.some((keyword) => keyword.toLowerCase().includes(normalized));
     });
-  }, [query]);
+  }, [isAdmin, query, session]);
+
+  async function runCommand(command: Command) {
+    if (command.action === "logout") {
+      if (session?.accessToken) {
+        await apiRequest<void>("/auth/logout", { method: "POST" }, session.accessToken).catch(() => undefined);
+      }
+      setSession(null);
+      navigate("/login", { replace: true });
+      onClose();
+      return;
+    }
+
+    if (command.path) {
+      navigate(command.path);
+      onClose();
+    }
+  }
 
   useEffect(() => {
     if (!isOpen) {
@@ -70,13 +103,12 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       }
       if (event.key === "Enter" && filteredCommands[activeIndex]) {
         event.preventDefault();
-        navigate(filteredCommands[activeIndex].path);
-        onClose();
+        void runCommand(filteredCommands[activeIndex]);
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [activeIndex, filteredCommands, isOpen, navigate, onClose]);
+  }, [activeIndex, filteredCommands, isOpen, navigate, onClose, session?.accessToken, setSession]);
 
   useEffect(() => {
     setActiveIndex(0);
@@ -103,10 +135,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
               type="button"
               className={`command-palette__item ${index === activeIndex ? "command-palette__item--active" : ""}`}
               onMouseEnter={() => setActiveIndex(index)}
-              onClick={() => {
-                navigate(command.path);
-                onClose();
-              }}
+              onClick={() => void runCommand(command)}
             >
               <strong>{command.label}</strong>
               <span className="muted">{command.description}</span>

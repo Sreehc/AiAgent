@@ -105,6 +105,44 @@ has_docker_runtime() {
   command -v docker >/dev/null 2>&1 || run_root docker version >/dev/null 2>&1
 }
 
+host_port_in_use() {
+  local port="$1"
+  if command -v ss >/dev/null 2>&1; then
+    ss -H -ltn "sport = :${port}" | grep -q .
+  elif command -v netstat >/dev/null 2>&1; then
+    netstat -ltn | awk '{print $4}' | grep -Eq "(^|[.:])${port}$"
+  else
+    (echo >"/dev/tcp/127.0.0.1/${port}") >/dev/null 2>&1
+  fi
+}
+
+build_shared_runtime_port_args() {
+  port_args=()
+
+  if ! host_nginx_available; then
+    port_args+=(-p "${SHARED_RUNTIME_HTTP_PORT}:80")
+    return
+  fi
+
+  local port
+  for port in $(seq "${SHARED_RUNTIME_BACKEND_PORT_START}" "${SHARED_RUNTIME_BACKEND_PORT_END}"); do
+    if host_port_in_use "${port}"; then
+      if [[ "${port}" == "${APP_BACKEND_PORT}" ]]; then
+        echo "backend port ${APP_BACKEND_PORT} is already in use on the deployment host" >&2
+        exit 1
+      fi
+      log "skipping occupied shared backend port: ${port}"
+      continue
+    fi
+    port_args+=(-p "127.0.0.1:${port}:${port}")
+  done
+
+  if (( ${#port_args[@]} == 0 )); then
+    echo "no free shared backend ports in ${SHARED_RUNTIME_BACKEND_PORT_START}-${SHARED_RUNTIME_BACKEND_PORT_END}" >&2
+    exit 1
+  fi
+}
+
 ensure_layout() {
   run_root mkdir -p "${APP_ROOT}/releases" "${APP_SHARED_DIR}" "${APP_LOG_DIR}"
   run_root cp "${APP_ENV_SOURCE}" "${APP_SHARED_DIR}/app.env"
@@ -236,14 +274,16 @@ ensure_shared_runtime_container() {
     docker_run rm -f "${SHARED_RUNTIME_CONTAINER}" >/dev/null
   fi
 
+  if docker_run container inspect "${SHARED_RUNTIME_CONTAINER}" >/dev/null 2>&1 \
+    && [[ "$(docker_run inspect -f '{{.State.Running}}' "${SHARED_RUNTIME_CONTAINER}")" != "true" ]]; then
+    log "removing stopped shared runtime container: ${SHARED_RUNTIME_CONTAINER}"
+    docker_run rm -f "${SHARED_RUNTIME_CONTAINER}" >/dev/null
+  fi
+
   if ! docker_run container inspect "${SHARED_RUNTIME_CONTAINER}" >/dev/null 2>&1; then
     log "starting shared runtime container: ${SHARED_RUNTIME_CONTAINER}"
-    local port_args=(
-      -p "127.0.0.1:${SHARED_RUNTIME_BACKEND_PORT_START}-${SHARED_RUNTIME_BACKEND_PORT_END}:${SHARED_RUNTIME_BACKEND_PORT_START}-${SHARED_RUNTIME_BACKEND_PORT_END}"
-    )
-    if ! host_nginx_available; then
-      port_args+=(-p "${SHARED_RUNTIME_HTTP_PORT}:80")
-    fi
+    local port_args
+    build_shared_runtime_port_args
 
     docker_run run -d \
       --name "${SHARED_RUNTIME_CONTAINER}" \

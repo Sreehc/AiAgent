@@ -1,15 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { Alert, Button, EmptyState, Field, Input, Panel, StatusPill } from "../components/ui";
 import { useAuthSession } from "../hooks/useAuthSession";
-import {
-  apiRequest,
-  ApiError,
-  ArtifactItem,
-  PlanStepItem,
-  SessionDetailResponse,
-  SessionItem,
-  SessionListResponse,
-  ToolInvocationItem
-} from "../services/api";
+import { apiRequest, ApiError, ArtifactItem, PlanStepItem, SessionDetailResponse, SessionItem, SessionListResponse, ToolInvocationItem } from "../services/api";
 
 export function HistoryPage() {
   const { session } = useAuthSession();
@@ -26,22 +18,11 @@ export function HistoryPage() {
     if (!normalized) {
       return sessions;
     }
-    return sessions.filter((item) => {
-      return item.title.toLowerCase().includes(normalized)
-        || item.sessionId.toLowerCase().includes(normalized)
-        || item.status.toLowerCase().includes(normalized)
-        || item.agentMode.toLowerCase().includes(normalized);
-    });
+    return sessions.filter((item) => item.title.toLowerCase().includes(normalized) || item.sessionId.toLowerCase().includes(normalized) || item.status.toLowerCase().includes(normalized) || item.agentMode.toLowerCase().includes(normalized));
   }, [keyword, sessions]);
 
-  const reportArtifact = useMemo<ArtifactItem | null>(() => {
-    return sessionDetail?.artifacts.find((artifact) => artifact.artifactType === "REPORT") ?? null;
-  }, [sessionDetail]);
-
-  const nonReportArtifacts = useMemo<ArtifactItem[]>(() => {
-    return sessionDetail?.artifacts.filter((artifact) => artifact.artifactType !== "REPORT") ?? [];
-  }, [sessionDetail]);
-
+  const reportArtifact = useMemo<ArtifactItem | null>(() => sessionDetail?.artifacts.find((artifact) => artifact.artifactType === "REPORT") ?? null, [sessionDetail]);
+  const nonReportArtifacts = useMemo<ArtifactItem[]>(() => sessionDetail?.artifacts.filter((artifact) => artifact.artifactType !== "REPORT") ?? [], [sessionDetail]);
   const latestPlanSteps = useMemo<PlanStepItem[]>(() => sessionDetail?.planSteps ?? [], [sessionDetail]);
   const latestToolInvocations = useMemo<ToolInvocationItem[]>(() => sessionDetail?.toolInvocations ?? [], [sessionDetail]);
 
@@ -83,11 +64,7 @@ export function HistoryPage() {
     setReplaying(true);
     setError(null);
     try {
-      const detail = await apiRequest<SessionDetailResponse>(
-        `/sessions/${sessionId}/replay`,
-        {},
-        session.accessToken
-      );
+      const detail = await apiRequest<SessionDetailResponse>(`/sessions/${sessionId}/replay`, {}, session.accessToken);
       setSessionDetail(detail);
     } catch (requestError) {
       setError((requestError as ApiError).message);
@@ -97,212 +74,95 @@ export function HistoryPage() {
   }
 
   return (
-    <section className="workspace">
-      <header className="workspace__header">
+    <section className="page">
+      <header className="page-header">
         <div>
-          <p className="eyebrow">Replay Workspace</p>
-          <h2>历史会话页</h2>
+          <p className="eyebrow">Replay</p>
+          <h1>历史回放</h1>
+          <p>恢复会话的执行链路，包括计划步骤、工具调用、总结和产物引用。</p>
         </div>
         <span className="badge">{filteredSessions.length} sessions</span>
       </header>
+      {error ? <Alert tone="error">{error}</Alert> : null}
 
-      <div className="workspace-layout">
-        <aside className="workspace-sidebar workspace__panel">
-          <div className="workspace-sidebar__section">
-            <h3>会话筛选</h3>
-            <div className="workspace-form">
-              <label>
-                关键词
-                <input
-                  value={keyword}
-                  onChange={(event) => setKeyword(event.target.value)}
-                  placeholder="标题 / ID / 状态 / 模式"
-                />
-              </label>
-              <button type="button" onClick={() => void loadSessions()}>
-                刷新列表
-              </button>
-            </div>
-          </div>
-
-          <div className="workspace-sidebar__section">
-            <div className="workspace-sidebar__heading">
-              <h3>历史会话</h3>
-              <span className="muted">{loading ? "加载中..." : `${filteredSessions.length} 条`}</span>
-            </div>
-            <div className="session-list">
+      <div className="content-grid">
+        <aside className="stack">
+          <Panel title="会话筛选" eyebrow="Filter" action={<Button type="button" variant="ghost" size="sm" onClick={() => void loadSessions()}>刷新</Button>}>
+            <Field label="关键词"><Input value={keyword} onChange={(event) => setKeyword(event.target.value)} placeholder="标题 / ID / 状态 / 模式" /></Field>
+          </Panel>
+          <Panel title="历史会话" eyebrow="Sessions" action={<span className="badge">{loading ? "加载中" : `${filteredSessions.length} 条`}</span>}>
+            <div className="list">
               {filteredSessions.map((item) => (
-                <button
-                  key={item.sessionId}
-                  type="button"
-                  className={`session-card ${selectedSessionId === item.sessionId ? "session-card--active" : ""}`}
-                  onClick={() => setSelectedSessionId(item.sessionId)}
-                >
+                <button key={item.sessionId} type="button" className={`list-item ${selectedSessionId === item.sessionId ? "list-item--active" : ""}`} onClick={() => setSelectedSessionId(item.sessionId)}>
                   <strong>{item.title}</strong>
                   <span>{item.sessionId}</span>
-                  <small>
-                    {item.status} · {item.agentMode} · {formatDateTime(item.createdAt)}
-                  </small>
+                  <small>{item.agentMode} · {formatDateTime(item.createdAt)}</small>
+                  <StatusPill status={item.status} />
                 </button>
               ))}
-              {!loading && filteredSessions.length === 0 ? (
-                <div className="workspace-empty-block">
-                  <p>当前筛选条件下没有历史会话。</p>
-                </div>
-              ) : null}
+              {!loading && filteredSessions.length === 0 ? <EmptyState message="当前筛选条件下没有历史会话。" /> : null}
             </div>
-          </div>
+          </Panel>
         </aside>
 
-        <div className="workspace-main">
-          <section className="workspace__panel workspace-main__section">
-            <div className="workspace-main__section-header">
-              <div>
-                <p className="eyebrow">Replay Detail</p>
-                <h3>{sessionDetail?.session.title ?? "选择一个会话查看回放"}</h3>
+        <main className="stack">
+          <Panel title={sessionDetail?.session.title ?? "选择一个会话查看回放"} eyebrow="Replay Detail" action={<StatusPill status={replaying ? "RUNNING" : sessionDetail?.session.status ?? "IDLE"} />}>
+            <div className="stack">
+              <div className="meta-grid">
+                <div className="meta-card"><span>最近执行</span><strong>{sessionDetail?.runs[0]?.runId ?? "-"}</strong></div>
+                <div className="meta-card"><span>模式</span><strong>{sessionDetail?.runs[0]?.executionMode ?? "-"}</strong></div>
+                <div className="meta-card"><span>产物数</span><strong>{sessionDetail?.artifacts.length ?? 0}</strong></div>
               </div>
-              <span className="badge badge--soft">
-                {replaying ? "回放加载中" : sessionDetail?.session.status ?? "IDLE"}
-              </span>
+              <div className="markdown-block">{sessionDetail?.summary ?? reportArtifact?.content ?? "这里会显示总结结果与报告正文。"}</div>
             </div>
+          </Panel>
 
-            {error ? <p className="form-message form-message--error">{error}</p> : null}
-
-            {replaying ? (
-              <div className="workspace-skeleton-grid">
-                <div className="workspace-skeleton workspace-skeleton--headline" />
-                <div className="workspace-skeleton workspace-skeleton--block" />
-                <div className="workspace-skeleton workspace-skeleton--block" />
-              </div>
-            ) : (
-              <>
-                <div className="result-meta">
-                  <div>
-                    <span className="muted">最近执行</span>
-                    <strong>{sessionDetail?.runs[0]?.runId ?? "-"}</strong>
-                  </div>
-                  <div>
-                    <span className="muted">模式</span>
-                    <strong>{sessionDetail?.runs[0]?.executionMode ?? "-"}</strong>
-                  </div>
-                  <div>
-                    <span className="muted">产物数</span>
-                    <strong>{sessionDetail?.artifacts.length ?? 0}</strong>
-                  </div>
-                </div>
-
-                <div className="report-card">
-                  <div className="report-card__header">
-                    <strong>{reportArtifact?.title ?? "暂无报告产物"}</strong>
-                    {reportArtifact ? <span className="badge badge--soft">REPORT</span> : null}
-                  </div>
-                  <pre>{sessionDetail?.summary ?? reportArtifact?.content ?? "这里会显示总结结果与报告正文。"}</pre>
-                </div>
-              </>
-            )}
-          </section>
-
-          <section className="workspace-grid workspace-grid--three">
-            <div className="workspace__panel workspace-main__section">
-              <div className="workspace-main__section-header">
-                <div>
-                  <p className="eyebrow">Plan Timeline</p>
-                  <h3>计划时间线</h3>
-                </div>
-                <span className="muted">{latestPlanSteps.length} steps</span>
-              </div>
-              <div className="plan-list">
+          <div className="content-grid content-grid--two">
+            <Panel title="计划时间线" eyebrow="Plan" action={<span className="badge">{latestPlanSteps.length} steps</span>}>
+              <div className="timeline">
                 {latestPlanSteps.map((step) => (
-                  <article key={`${step.stepNo}-${step.title}`} className="plan-card">
-                    <div className="plan-card__header">
-                      <strong>
-                        {step.stepNo}. {step.title}
-                      </strong>
-                      <span>{step.status}</span>
-                    </div>
+                  <article key={`${step.stepNo}-${step.title}`} className="timeline-item">
+                    <div className="timeline-item__header"><strong>{step.stepNo}. {step.title}</strong><StatusPill status={step.status} /></div>
                     <p className="muted">{step.toolName ?? "未调用工具"}</p>
-                    {step.toolInput ? <p>输入：{step.toolInput}</p> : null}
-                    {step.toolOutput ? <p>输出：{step.toolOutput}</p> : null}
+                    {step.toolInput ? <pre className="json-block">{step.toolInput}</pre> : null}
+                    {step.toolOutput ? <pre className="json-block">{step.toolOutput}</pre> : null}
                   </article>
                 ))}
-                {latestPlanSteps.length === 0 ? (
-                  <div className="workspace-empty-block">
-                    <p>该会话暂无计划步骤。</p>
-                  </div>
-                ) : null}
+                {latestPlanSteps.length === 0 ? <EmptyState message="该会话暂无计划步骤。" /> : null}
               </div>
-            </div>
-
-            <div className="workspace__panel workspace-main__section">
-              <div className="workspace-main__section-header">
-                <div>
-                  <p className="eyebrow">Tool Ledger</p>
-                  <h3>工具调用列表</h3>
-                </div>
-                <span className="muted">{latestToolInvocations.length} calls</span>
-              </div>
-              <div className="event-list">
+            </Panel>
+            <Panel title="工具调用" eyebrow="Tools" action={<span className="badge">{latestToolInvocations.length} calls</span>}>
+              <div className="timeline">
                 {latestToolInvocations.map((toolInvocation) => (
-                  <article key={toolInvocation.toolCallId} className="event-card">
-                    <div className="event-card__header">
-                      <strong>{toolInvocation.toolName}</strong>
-                      <small>{toolInvocation.status}</small>
-                    </div>
-                    <p className="muted">
-                      {toolInvocation.toolType} · {formatDateTime(toolInvocation.startedAt)}
-                    </p>
-                    <pre>{toolInvocation.responsePayload ?? toolInvocation.requestPayload}</pre>
+                  <article key={toolInvocation.toolCallId} className="timeline-item">
+                    <div className="timeline-item__header"><strong>{toolInvocation.toolName}</strong><StatusPill status={toolInvocation.status} /></div>
+                    <p className="muted">{toolInvocation.toolType} · {formatDateTime(toolInvocation.startedAt)}</p>
+                    <pre className="json-block">{toolInvocation.responsePayload ?? toolInvocation.requestPayload}</pre>
                   </article>
                 ))}
-                {latestToolInvocations.length === 0 ? (
-                  <div className="workspace-empty-block">
-                    <p>该会话暂无工具调用记录。</p>
-                  </div>
-                ) : null}
+                {latestToolInvocations.length === 0 ? <EmptyState message="该会话暂无工具调用记录。" /> : null}
               </div>
-            </div>
+            </Panel>
+          </div>
 
-            <div className="workspace__panel workspace-main__section">
-              <div className="workspace-main__section-header">
-                <div>
-                  <p className="eyebrow">Artifacts</p>
-                  <h3>产物引用列表</h3>
-                </div>
-                <span className="muted">{nonReportArtifacts.length} refs</span>
-              </div>
-              <div className="plan-list">
-                {nonReportArtifacts.map((artifact) => (
-                  <article key={artifact.artifactId} className="plan-card">
-                    <div className="plan-card__header">
-                      <strong>{artifact.title}</strong>
-                      <span>{artifact.artifactType}</span>
-                    </div>
-                    <p className="muted">{artifact.mimeType ?? "artifact"}</p>
-                    {artifact.resultUrl ? (
-                      <a href={artifact.resultUrl} target="_blank" rel="noreferrer">
-                        打开产物
-                      </a>
-                    ) : (
-                      <p>该产物无外部文件链接。</p>
-                    )}
-                  </article>
-                ))}
-                {nonReportArtifacts.length === 0 ? (
-                  <div className="workspace-empty-block">
-                    <p>该会话暂无图片或附件产物。</p>
-                  </div>
-                ) : null}
-              </div>
+          <Panel title="产物引用" eyebrow="Artifacts" action={<span className="badge">{nonReportArtifacts.length} refs</span>}>
+            <div className="artifact-list">
+              {nonReportArtifacts.map((artifact) => (
+                <article key={artifact.artifactId} className="list-item">
+                  <div className="split"><strong>{artifact.title}</strong><span className="badge">{artifact.artifactType}</span></div>
+                  <small>{artifact.mimeType ?? "artifact"}</small>
+                  {artifact.resultUrl ? <a href={artifact.resultUrl} target="_blank" rel="noreferrer">打开产物</a> : <span className="muted">该产物无外部文件链接。</span>}
+                </article>
+              ))}
+              {nonReportArtifacts.length === 0 ? <EmptyState message="该会话暂无图片或附件产物。" /> : null}
             </div>
-          </section>
-        </div>
+          </Panel>
+        </main>
       </div>
     </section>
   );
 }
 
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("zh-CN", {
-    hour12: false
-  });
+  return new Date(value).toLocaleString("zh-CN", { hour12: false });
 }

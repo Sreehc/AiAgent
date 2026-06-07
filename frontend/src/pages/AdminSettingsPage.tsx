@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { Alert, Button, EmptyState, Field, Input, Panel, Select, StatusPill } from "../components/ui";
 import { useAuthSession } from "../hooks/useAuthSession";
 import { apiRequest, ApiError, InviteItem, ModelConfigItem } from "../services/api";
 
@@ -25,13 +26,6 @@ export function AdminSettingsPage() {
   const [submittingInvite, setSubmittingInvite] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
-
-  function copyInviteToken(token: string) {
-    void navigator.clipboard.writeText(token).then(() => {
-      setCopiedToken(token);
-      window.setTimeout(() => setCopiedToken(null), 2000);
-    });
-  }
 
   useEffect(() => {
     if (!session?.accessToken) {
@@ -68,14 +62,7 @@ export function AdminSettingsPage() {
     setSubmittingModel(true);
     setError(null);
     try {
-      await apiRequest<ModelConfigItem>(
-        "/admin/models",
-        {
-          method: "POST",
-          body: JSON.stringify(modelForm)
-        },
-        session.accessToken
-      );
+      await apiRequest<ModelConfigItem>("/admin/models", { method: "POST", body: JSON.stringify(modelForm) }, session.accessToken);
       setModelForm(DEFAULT_MODEL_FORM);
       await loadData();
     } catch (requestError) {
@@ -92,16 +79,7 @@ export function AdminSettingsPage() {
     setSubmittingInvite(true);
     setError(null);
     try {
-      await apiRequest<InviteItem>(
-        "/admin/invites",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            expiresInDays: inviteDays
-          })
-        },
-        session.accessToken
-      );
+      await apiRequest<InviteItem>("/admin/invites", { method: "POST", body: JSON.stringify({ expiresInDays: inviteDays }) }, session.accessToken);
       await loadData();
     } catch (requestError) {
       setError((requestError as ApiError).message);
@@ -110,214 +88,93 @@ export function AdminSettingsPage() {
     }
   }
 
+  function copyInviteToken(token: string) {
+    void navigator.clipboard.writeText(token).then(() => {
+      setCopiedToken(token);
+      window.setTimeout(() => setCopiedToken(null), 2000);
+    });
+  }
+
   if (!session?.user.roles.includes("ADMIN")) {
-    return (
-      <section className="workspace">
-        <header className="workspace__header">
-          <div>
-            <p className="eyebrow">Admin Only</p>
-            <h2>基础配置页</h2>
-          </div>
-        </header>
-        <div className="workspace__panel workspace-empty-block">
-          <p>当前账号没有管理员权限，无法访问基础配置页。</p>
-        </div>
-      </section>
-    );
+    return <AdminDenied title="模型配置" />;
   }
 
   return (
-    <section className="workspace">
-      <header className="workspace__header">
+    <section className="page">
+      <header className="page-header">
         <div>
-          <p className="eyebrow">管理控制台</p>
-          <h2>基础配置页</h2>
+          <p className="eyebrow">System Settings</p>
+          <h1>模型配置</h1>
+          <p>管理模型供应商配置和邀请注册链接入口。</p>
         </div>
-        <span className="badge">{loading ? "加载中" : `${models.length} 个模型 / ${invites.length} 个邀请码`}</span>
+        <span className="badge">{loading ? "加载中" : `${models.length} models / ${invites.length} invites`}</span>
       </header>
+      {error ? <Alert tone="error">{error}</Alert> : null}
 
-      <div className="workspace-layout">
-        <aside className="workspace-sidebar workspace__panel">
-          <div className="workspace-sidebar__section">
-            <h3>新增模型配置</h3>
-            <form className="workspace-form" onSubmit={onCreateModel}>
-              <label>
-                模型代码
-                <input
-                  value={modelForm.modelCode}
-                  onChange={(event) => setModelForm((current) => ({ ...current, modelCode: event.target.value }))}
-                />
-              </label>
-              <label>
-                名称
-                <input
-                  value={modelForm.name}
-                  onChange={(event) => setModelForm((current) => ({ ...current, name: event.target.value }))}
-                />
-              </label>
-              <label>
-                服务商
-                <input
-                  value={modelForm.provider}
-                  onChange={(event) => setModelForm((current) => ({ ...current, provider: event.target.value }))}
-                />
-              </label>
-              <div className="workspace-form__row">
-                <label>
-                  模型类型
-                  <select
-                    value={modelForm.modelType}
-                    onChange={(event) =>
-                      setModelForm((current) => ({ ...current, modelType: event.target.value as ModelType }))
-                    }
-                  >
-                    <option value="CHAT">CHAT</option>
-                    <option value="EMBEDDING">EMBEDDING</option>
-                    <option value="IMAGE">IMAGE</option>
-                  </select>
-                </label>
-                <label>
-                  启用状态
-                  <select
-                    value={modelForm.enabled ? "true" : "false"}
-                    onChange={(event) =>
-                      setModelForm((current) => ({ ...current, enabled: event.target.value === "true" }))
-                    }
-                  >
-                    <option value="true">启用</option>
-                    <option value="false">停用</option>
-                  </select>
-                </label>
+      <div className="content-grid content-grid--wide-side">
+        <aside className="stack">
+          <Panel title="新增模型" eyebrow="Models">
+            <form className="form-grid" onSubmit={onCreateModel}>
+              <Field label="模型代码"><Input value={modelForm.modelCode} onChange={(event) => setModelForm((current) => ({ ...current, modelCode: event.target.value }))} /></Field>
+              <Field label="名称"><Input value={modelForm.name} onChange={(event) => setModelForm((current) => ({ ...current, name: event.target.value }))} /></Field>
+              <Field label="服务商"><Input value={modelForm.provider} onChange={(event) => setModelForm((current) => ({ ...current, provider: event.target.value }))} /></Field>
+              <div className="form-row">
+                <Field label="模型类型"><Select value={modelForm.modelType} onChange={(event) => setModelForm((current) => ({ ...current, modelType: event.target.value as ModelType }))}><option value="CHAT">CHAT</option><option value="EMBEDDING">EMBEDDING</option><option value="IMAGE">IMAGE</option></Select></Field>
+                <Field label="状态"><Select value={modelForm.enabled ? "true" : "false"} onChange={(event) => setModelForm((current) => ({ ...current, enabled: event.target.value === "true" }))}><option value="true">启用</option><option value="false">停用</option></Select></Field>
               </div>
-              <label>
-                API 地址
-                <input
-                  value={modelForm.baseUrl}
-                  onChange={(event) => setModelForm((current) => ({ ...current, baseUrl: event.target.value }))}
-                />
-              </label>
-              <label>
-                API Key
-                <input
-                  type="password"
-                  value={modelForm.apiKey}
-                  onChange={(event) => setModelForm((current) => ({ ...current, apiKey: event.target.value }))}
-                  placeholder="仅创建/轮换时填写，列表只展示脱敏值"
-                />
-              </label>
-              {error ? <p className="form-message form-message--error">{error}</p> : null}
-              <button type="submit" disabled={submittingModel}>
-                {submittingModel ? "提交中..." : "创建模型"}
-              </button>
+              <Field label="API 地址"><Input value={modelForm.baseUrl} onChange={(event) => setModelForm((current) => ({ ...current, baseUrl: event.target.value }))} /></Field>
+              <Field label="API Key" description="仅创建或轮换时填写，列表展示脱敏值。"><Input type="password" value={modelForm.apiKey} onChange={(event) => setModelForm((current) => ({ ...current, apiKey: event.target.value }))} /></Field>
+              <Button type="submit" variant="primary" loading={submittingModel} fullWidth>创建模型</Button>
             </form>
-          </div>
-
-          <div className="workspace-sidebar__section">
-            <h3>创建邀请码</h3>
-            <div className="workspace-form">
-              <label>
-                过期天数
-                <input
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={inviteDays}
-                  onChange={(event) => setInviteDays(Number(event.target.value) || 1)}
-                />
-              </label>
-              <button type="button" disabled={submittingInvite} onClick={() => void onCreateInvite()}>
-                {submittingInvite ? "创建中..." : "生成邀请码"}
-              </button>
+          </Panel>
+          <Panel title="创建邀请码" eyebrow="Invites">
+            <div className="form-grid">
+              <Field label="过期天数"><Input type="number" min={1} max={365} value={inviteDays} onChange={(event) => setInviteDays(Number(event.target.value) || 1)} /></Field>
+              <Button type="button" variant="primary" loading={submittingInvite} onClick={() => void onCreateInvite()} fullWidth>生成邀请码</Button>
             </div>
-          </div>
+          </Panel>
         </aside>
 
-        <div className="workspace-main">
-          <section className="workspace__panel workspace-main__section">
-            <div className="workspace-main__section-header">
-              <div>
-                <p className="eyebrow">模型</p>
-                <h3>模型配置列表</h3>
-              </div>
-              <button type="button" className="ghost-button ghost-button--inline" onClick={() => void loadData()}>
-                刷新
-              </button>
-            </div>
-            <div className="plan-list">
+        <main className="stack">
+          <Panel title="模型列表" eyebrow="Registry" action={<Button type="button" variant="ghost" size="sm" onClick={() => void loadData()}>刷新</Button>}>
+            <div className="table-list">
               {models.map((model) => (
-                <article key={model.id ?? `${model.modelType}-${model.modelCode}`} className="plan-card">
-                  <div className="plan-card__header">
-                    <strong>{model.name}</strong>
-                    <span>{model.enabled ? "已启用" : "已停用"}</span>
-                  </div>
-                  <p>{model.modelCode} · {model.modelType === "CHAT" ? "聊天" : model.modelType === "EMBEDDING" ? "嵌入" : model.modelType === "IMAGE" ? "图像" : model.modelType} · {model.provider}</p>
-                  <p className="muted">{model.baseUrl}</p>
-                  <p className="muted">API Key: {model.apiKeyMasked ?? "未设置"}</p>
+                <article key={model.id ?? `${model.modelType}-${model.modelCode}`} className="table-row">
+                  <div><strong>{model.name}</strong><br /><small>{model.modelCode} · {model.provider}</small></div>
+                  <div><code>{model.baseUrl}</code><br /><small>API Key: {model.apiKeyMasked ?? "未设置"}</small></div>
+                  <StatusPill status={model.enabled ? "ACTIVE" : "INACTIVE"} label={`${model.modelType} · ${model.enabled ? "启用" : "停用"}`} />
                 </article>
               ))}
-              {!loading && models.length === 0 ? (
-                <div className="workspace-empty-block">
-                  <p>还没有模型配置，先录入一个聊天模型或嵌入模型。</p>
-                </div>
-              ) : null}
             </div>
-          </section>
-
-          <section className="workspace__panel workspace-main__section">
-            <div className="workspace-main__section-header">
-              <div>
-                <p className="eyebrow">邀请码</p>
-                <h3>最近邀请码</h3>
-              </div>
-              <span className="muted">{invites.length} 条</span>
-            </div>
-            <div className="event-list">
+            {!loading && models.length === 0 ? <EmptyState message="还没有模型配置，先录入一个聊天模型或嵌入模型。" /> : null}
+          </Panel>
+          <Panel title="最近邀请码" eyebrow="Invites" action={<span className="badge">{invites.length} 条</span>}>
+            <div className="table-list">
               {invites.map((invite) => (
-                <article key={`${invite.inviteToken}-${invite.createdAt}`} className="event-card invite-card">
-                  <div className="event-card__header">
-                    <strong>{invite.inviteToken}</strong>
-                    <div className="invite-card__actions">
-                      <button
-                        type="button"
-                        className="ghost-button ghost-button--inline invite-copy-btn"
-                        onClick={() => copyInviteToken(invite.inviteToken)}
-                      >
-                        {copiedToken === invite.inviteToken ? "已复制" : "复制"}
-                      </button>
-                      <small>{invite.status === "ACTIVE" ? "可用" : invite.status === "USED" ? "已使用" : invite.status === "EXPIRED" ? "已过期" : invite.status}</small>
-                    </div>
-                  </div>
-                  <p className="muted">创建时间：{formatDateTime(invite.createdAt)}</p>
-                  <p className="muted">过期时间：{formatDateTime(invite.expiresAt)}</p>
+                <article key={`${invite.inviteToken}-${invite.createdAt}`} className="table-row">
+                  <div><strong className="mono">{invite.inviteToken}</strong><br /><small>过期：{formatDateTime(invite.expiresAt)}</small></div>
+                  <StatusPill status={invite.status} />
+                  <Button type="button" variant="secondary" size="sm" onClick={() => copyInviteToken(invite.inviteToken)}>{copiedToken === invite.inviteToken ? "已复制" : "复制"}</Button>
                 </article>
               ))}
-              {!loading && invites.length === 0 ? (
-                <div className="workspace-empty-block">
-                  <p>还没有新生成的邀请码。</p>
-                </div>
-              ) : null}
             </div>
-          </section>
-
-          <section className="workspace__panel workspace-main__section">
-            <div className="workspace-main__section-header">
-              <div>
-                <p className="eyebrow">关联管理入口</p>
-                <h3>联动入口</h3>
-              </div>
-            </div>
-            <div className="workspace-empty-block">
-              <p>MCP 工具源配置已在独立页面维护；本页负责模型配置与邀请码管理，收拢管理员基础配置能力。</p>
-            </div>
-          </section>
-        </div>
+            {!loading && invites.length === 0 ? <EmptyState message="还没有新生成的邀请码。" /> : null}
+          </Panel>
+        </main>
       </div>
     </section>
   );
 }
 
+function AdminDenied({ title }: { title: string }) {
+  return (
+    <section className="page">
+      <header className="page-header"><div><p className="eyebrow">Admin Only</p><h1>{title}</h1></div></header>
+      <EmptyState message="当前账号没有管理员权限，无法访问该页面。" />
+    </section>
+  );
+}
+
 function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("zh-CN", {
-    hour12: false
-  });
+  return new Date(value).toLocaleString("zh-CN", { hour12: false });
 }

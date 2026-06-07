@@ -9,62 +9,48 @@ export type ToastMessage = {
   message: string;
 };
 
-// Global toast state
-let toastListeners: ((toasts: ToastMessage[]) => void)[] = [];
-let toasts: ToastMessage[] = [];
+let listeners: ((toasts: ToastMessage[]) => void)[] = [];
+let store: ToastMessage[] = [];
 
-function notifyListeners() {
-  toastListeners.forEach((listener) => listener([...toasts]));
+function emit() {
+  listeners.forEach((listener) => listener([...store]));
 }
 
-export function showToast(type: ToastType, message: string, duration = 3000) {
+export function showToast(type: ToastType, message: string, duration = 3200) {
   const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const toast: ToastMessage = { id, type, message };
-  toasts = [...toasts, toast];
-  notifyListeners();
-
+  store = [...store, { id, type, message }];
+  emit();
   if (duration > 0) {
-    window.setTimeout(() => {
-      toasts = toasts.filter((t) => t.id !== id);
-      notifyListeners();
-    }, duration);
+    window.setTimeout(() => dismissToast(id), duration);
   }
 }
 
 export function dismissToast(id: string) {
-  toasts = toasts.filter((t) => t.id !== id);
-  notifyListeners();
+  store = store.filter((toast) => toast.id !== id);
+  emit();
 }
 
 export function ToastContainer() {
-  const [currentToasts, setCurrentToasts] = useState<ToastMessage[]>([]);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   useEffect(() => {
-    const listener = (newToasts: ToastMessage[]) => setCurrentToasts(newToasts);
-    toastListeners.push(listener);
+    listeners = [...listeners, setToasts];
     return () => {
-      toastListeners = toastListeners.filter((l) => l !== listener);
+      listeners = listeners.filter((listener) => listener !== setToasts);
     };
   }, []);
 
-  if (currentToasts.length === 0) {
+  if (toasts.length === 0) {
     return null;
   }
 
   return createPortal(
-    <div className="toast-container">
-      {currentToasts.map((toast) => (
+    <div className="toast-container" role="status" aria-live="polite">
+      {toasts.map((toast) => (
         <div key={toast.id} className={`toast toast--${toast.type}`}>
-          <span className="toast__icon">
-            {toast.type === "success" ? "✓" : toast.type === "error" ? "✕" : "ℹ"}
-          </span>
           <span className="toast__message">{toast.message}</span>
-          <button
-            type="button"
-            className="toast__close"
-            onClick={() => dismissToast(toast.id)}
-          >
-            ✕
+          <button type="button" className="toast__close" onClick={() => dismissToast(toast.id)} aria-label="关闭通知">
+            ×
           </button>
         </div>
       ))}

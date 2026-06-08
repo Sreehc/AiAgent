@@ -27,6 +27,8 @@ jobs:
       DEPLOY_SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
       DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
       NGINX_CONFIG_DIR: ${{ vars.NGINX_CONFIG_DIR }}
+      APP_RUNTIME_CONTAINER: ${{ vars.APP_RUNTIME_CONTAINER }}
+      APP_RUNTIME_IMAGE: ${{ vars.APP_RUNTIME_IMAGE }}
       SHARED_RUNTIME_BACKEND_PORT_END: ${{ vars.SHARED_RUNTIME_BACKEND_PORT_END }}
       SHARED_RUNTIME_BACKEND_PORT_START: ${{ vars.SHARED_RUNTIME_BACKEND_PORT_START }}
       SHARED_RUNTIME_CONTAINER: ${{ vars.SHARED_RUNTIME_CONTAINER }}
@@ -95,6 +97,8 @@ jobs:
           shared_runtime_rebuild="${SHARED_RUNTIME_REBUILD:-false}"
           shared_runtime_backend_port_start="${SHARED_RUNTIME_BACKEND_PORT_START:-18080}"
           shared_runtime_backend_port_end="${SHARED_RUNTIME_BACKEND_PORT_END:-18120}"
+          app_runtime_container="${APP_RUNTIME_CONTAINER:-${app_name}-runtime}"
+          app_runtime_image="${APP_RUNTIME_IMAGE:-eclipse-temurin:21-jre}"
           nginx_config_dir="${NGINX_CONFIG_DIR:-}"
 
           rm -rf release deploy-release.tgz
@@ -121,6 +125,8 @@ jobs:
           SHARED_RUNTIME_REBUILD=${shared_runtime_rebuild}
           SHARED_RUNTIME_BACKEND_PORT_START=${shared_runtime_backend_port_start}
           SHARED_RUNTIME_BACKEND_PORT_END=${shared_runtime_backend_port_end}
+          APP_RUNTIME_CONTAINER=${app_runtime_container}
+          APP_RUNTIME_IMAGE=${app_runtime_image}
           NGINX_CONFIG_DIR=${nginx_config_dir}
           RELEASE_SHA=${GITHUB_SHA}
           EOF

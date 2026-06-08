@@ -1,27 +1,103 @@
 # AiAgent
 
-AiAgent 是一个面向研究任务的多智能体工作台。当前仓库已经具备前端 React 骨架、后端 Spring Boot 基线、认证与账号中心主链路、基础环境配置模板和健康检查接口。
+AiAgent 是一个面向研究、知识检索和多工具调用的智能体工作台。当前代码包含 React 前端、Spring Boot 后端、PostgreSQL/pgvector 持久化、Redis 缓存、Kafka 知识库索引任务、MinIO 对象存储、模型 Provider 配置、MCP 服务管理、图片生成和 GitHub Actions 部署流程。
 
-## 当前环境
+## 当前功能
 
-- Node.js 23
-- pnpm 10
-- Java 21+
-- Maven 3.9+
-- PostgreSQL 17.10 + pgvector 0.8.2
-- Redis 8.4.0
-- Kafka 3.8.0
-- MinIO RELEASE.2025-09-07T16-13-09Z
+- 账号与认证：邀请码注册、登录/退出、密码重置、登录失败限流、账号资料和登录日志。
+- 工作台会话：创建研究会话、绑定知识库、执行运行任务、SSE 流式返回、计划步骤、工具调用记录和报告产物回放。
+- 知识库/RAG：知识库管理、文档上传、结构化分块、异步索引、向量检索、全文检索、查询改写、重排、缓存和回归评估脚本。
+- 模型配置：管理员可配置 `CHAT`、`EMBEDDING`、`IMAGE` 模型，API Key 应用层加密保存，列表接口只返回脱敏值。
+- MCP 管理：HTTP/SSE、Streamable HTTP 和 STDIO MCP 服务配置、工具发现、健康检查、出站主机和 STDIO 可执行文件白名单。
+- 图片生成：图片生成、图片编辑入口、历史记录、对象存储产物和短期预签名访问 URL。
+- 前端应用：登录注册、工作台、知识库、图片生成、历史记录、管理员设置、MCP 服务和账号中心页面。
 
-## 目录
+## 技术栈
+
+- 前端：React 19、React Router 7、TypeScript 5、Vite 6、pnpm 10。
+- 后端：Java 21、Spring Boot 3.5、Maven、JDBC、Flyway、Actuator、Spring Kafka、Spring Data Redis。
+- 基础设施：PostgreSQL 17 + pgvector、Redis、Kafka 3.8、MinIO。
+- CI/CD：GitHub Actions、SSH 远端部署，支持宿主机 native 或共享 Docker runtime 回退模式。
+
+## 目录结构
 
 ```text
-frontend/  React + TypeScript + Vite
-backend/   Spring Boot baseline
-infra/     env/sql/scripts
+frontend/                    React + TypeScript + Vite 前端
+backend/                     Spring Boot 后端
+  src/main/resources/db/     Flyway 数据库迁移
+docs/                        PRD、技术设计、API、数据库和 UX 文档
+docs/archive/                历史实施记录与阶段归档
+infra/env/                   本地和生产环境变量模板
+infra/sql/                   数据库扩展初始化脚本
+infra/scripts/               服务检查、冒烟测试、RAG 评估和远端部署脚本
+infra/docker/shared-services PostgreSQL/Kafka/MinIO 共享基础设施模板
+infra/docker/shared-runtime  部署回退用共享 Web runtime 模板
+.github/workflows/          CI 与部署流水线
 ```
 
+## 环境要求
+
+- Node.js 22+，本地当前可使用 Node.js 23。
+- pnpm 10。
+- Java 21+。
+- Maven 3.9+。
+- PostgreSQL 17 + pgvector。
+- Redis。
+- Kafka 3.8+。
+- MinIO。
+
+## 本地基础设施
+
+后端默认读取本机服务：
+
+```text
+PostgreSQL: localhost:5432 / postgres / postgres
+Redis:      localhost:6379
+Kafka:      localhost:9092
+MinIO:      http://localhost:9000 / minioadmin / minioadmin
+```
+
+如果使用仓库里的共享基础设施模板，可以从 `infra/docker/shared-services` 启动 PostgreSQL、Kafka 和 MinIO。该模板要求先提供数据库和 MinIO 密钥环境变量，Redis 仍按当前部署说明复用已有实例。
+
+```bash
+cd infra/docker/shared-services
+POSTGRES_PASSWORD=change-me \
+AIAGENT_DB_PASSWORD=change-me \
+MINIO_ROOT_USER=minioadmin \
+MINIO_ROOT_PASSWORD=minioadmin \
+docker compose up -d
+```
+
+`infra/scripts/check-services.sh` 当前检查容器名是否匹配 `kafka`、`minio`、`PostgreSQL` 或 `redis`。如果使用 `shared-*` 容器名，该脚本需要相应调整或仅作为已有本机服务检查参考。
+
 ## 本地启动
+
+### 后端
+
+建议从环境模板创建本地配置，并替换所有密钥和密码占位值：
+
+```bash
+cp infra/env/.env.example .env.local
+```
+
+Spring Boot 不会自动读取仓库根目录的 `.env.local`。可以在 shell 中导出变量后启动，也可以直接使用系统环境变量、IDE Run Configuration 或部署环境注入。
+
+```bash
+set -a
+source .env.local
+set +a
+
+cd backend
+mvn spring-boot:run
+```
+
+默认端口为 `8080`，健康检查：
+
+```text
+GET http://localhost:8080/api/v1/health
+```
+
+Flyway 会自动执行 `backend/src/main/resources/db/migration` 下的迁移。初始化扩展脚本位于 `infra/sql/001_init_extensions.sql`，数据库需要启用 `vector` 扩展。
 
 ### 前端
 
@@ -31,171 +107,174 @@ pnpm install
 pnpm dev
 ```
 
-### 后端
+前端开发服务器默认访问 `http://localhost:5173`。前端 API 前缀固定为 `/api/v1`，本地联调时需要由 Vite/反向代理或同源部署把请求转发到后端。
 
-```bash
-cd backend
-mvn spring-boot:run
-```
+### 默认演示数据
 
-默认环境直接复用本机现有 Docker 服务：
-
-- PostgreSQL: `localhost:5432` / `postgres` / `root`
-- Redis: `localhost:6379`
-- Kafka: `localhost:9092`
-- MinIO: `http://localhost:9000`
-
-健康检查接口：
-
-```text
-GET /api/v1/health
-```
-
-本地开发数据库可能包含演示邀请码，例如：
+本地默认 `APP_BOOTSTRAP_DEMO_DATA_ENABLED=true`，迁移脚本和启动逻辑会提供演示邀请码，例如：
 
 ```text
 INVITE-ABC
 ```
 
-该邀请码仅用于本地/demo profile。生产环境必须关闭 `APP_BOOTSTRAP_DEMO_DATA_ENABLED`，并在上线前禁用或过期所有默认演示邀请码。
+生产环境必须设置：
+
+```text
+APP_BOOTSTRAP_DEMO_DATA_ENABLED=false
+```
+
+并在上线前禁用或过期所有默认演示邀请码。
 
 ## 关键环境变量
 
-从 `infra/env/.env.example` 复制本地配置，并替换所有 `change-me` / 空白密钥值。除数据库、Redis、Kafka、MinIO 外，生产化链路还需要：
+完整模板见 `infra/env/.env.example` 和 `infra/env/.env.production.example`。重点变量包括：
 
-- `APP_SECRET_ENCRYPTION_KEY`：用于模型密钥加密存储；生产环境必须配置。
+- `APP_PORT`：后端监听端口，本地默认 `8080`，生产模板默认 `18080`。
+- `APP_JWT_SECRET`：JWT 签名密钥，生产必须使用长随机值。
+- `APP_SECRET_ENCRYPTION_KEY`：模型 API Key 加密密钥，生产必须配置。
+- `APP_DB_*`：PostgreSQL 连接信息。
+- `APP_REDIS_*`：Redis 连接信息。
+- `APP_KAFKA_*`：Kafka bootstrap、知识库索引 topic 和 consumer group。
+- `APP_MINIO_*`：对象存储 endpoint、凭证和 bucket。
+- `APP_STORAGE_PRESIGNED_URL_TTL_SECONDS`：对象访问预签名 URL 有效期。
 - `APP_EMBEDDING_*`：Embedding provider、模型、base URL、API key、维度和超时。
-- `APP_RAG_*`：RAG embedding/retrieval 缓存 TTL 与检索超时。
-- `APP_CHAT_*`：Chat provider 运行时配置。
-- `APP_IMAGE_*`：图片生成 provider 运行时配置。
-- `APP_MCP_ALLOWED_HOSTS` / `APP_MCP_ALLOW_PRIVATE_NETWORK`：MCP 出站访问边界。
-- `APP_MCP_ALLOWED_STDIO_EXECUTABLES`：允许健康检查/运行的 STDIO MCP 可执行文件名；生产默认应为空或严格白名单。
-- `APP_STORAGE_PRESIGNED_URL_TTL_SECONDS`：对象下载 URL 的短期有效期。
-- `APP_BOOTSTRAP_DEMO_DATA_ENABLED=false`：生产环境必须关闭 demo 数据入口。
+- `APP_RAG_*`：RAG embedding/retrieval 缓存 TTL 和检索超时。
+- `APP_CHAT_*`：Chat provider 运行配置。
+- `APP_IMAGE_*`：图片生成 provider 运行配置。
+- `APP_MCP_ALLOWED_HOSTS`：允许 MCP HTTP 访问的主机列表。
+- `APP_MCP_ALLOW_PRIVATE_NETWORK`：是否允许 MCP 访问私有网络地址。
+- `APP_MCP_ALLOWED_STDIO_EXECUTABLES`：允许运行的 STDIO MCP 可执行文件名白名单。
+- `APP_BOOTSTRAP_DEMO_DATA_ENABLED`：是否启用本地演示数据。
 
-## 模型 Provider 与密钥
+生产 profile 会拒绝以 `local-mock` 作为默认模型 provider 启动。OpenAI-compatible provider 需要配置对应 `baseUrl`、模型 code 和 API key。
 
-管理员可以在基础配置页创建 `CHAT`、`EMBEDDING`、`IMAGE` 三类模型配置。模型 API Key 写入后会以应用层密文保存，列表接口只返回 `apiKeyMasked`。本地开发默认可使用 `local-mock` provider；生产 profile 会拒绝以 `local-mock` 作为默认模型 provider 启动。OpenAI-compatible provider 使用对应的 `baseUrl` 和模型 code 访问外部服务，真实凭证必须通过环境变量或管理端安全写入。
+## 常用命令
 
-## 本地校验
-
-### 基础构建
+### 后端编译和测试
 
 ```bash
 cd backend
 mvn -q -DskipTests compile
+mvn test
+```
 
-cd ../frontend
+### 前端构建
+
+```bash
+cd frontend
 pnpm build
 ```
 
-### 服务检查
+### RAG 评估
 
 ```bash
-./infra/scripts/check-services.sh
+./infra/scripts/rag-eval.sh
 ```
 
-### 冒烟回归
+默认样例数据位于 `backend/src/test/resources/rag_eval/sample-eval.json`。
 
-先启动后端服务，再执行：
+### 冒烟测试
+
+先启动后端服务并确保基础设施、管理员账号和必要模型配置可用，再执行：
 
 ```bash
 chmod +x ./infra/scripts/smoke-test.sh
 ./infra/scripts/smoke-test.sh
 ```
 
-默认脚本会覆盖以下主链路：
+脚本覆盖健康检查、登录、邀请码、模型配置、会话运行、SSE、图片生成、历史回放、知识库上传、索引和检索测试。
 
-- 健康检查与登录成功/失败
-- 管理员邀请码创建与普通用户访问管理员接口被拒绝
-- 模型配置创建与查询
-- 会话创建、SSE 执行、报告产物生成
-- 图片生成、历史查询、回放产物恢复
-- 知识库创建、上传、索引和检索测试
+## API 概览
 
-## 当前验证结果
+详细接口见 `docs/api-spec-aiagent-v1.md`。当前后端主要路由：
 
-本轮已完成以下本地验证：
+- `GET /api/v1/health`
+- `/api/v1/auth/*`：注册、登录、登出、忘记密码、重置密码。
+- `/api/v1/account/*`：资料、修改密码、登录日志。
+- `/api/v1/sessions/*`：会话、运行、SSE 执行、回放、知识库绑定。
+- `/api/v1/knowledge-bases/*`：知识库、文档上传、索引、重建索引、检索测试。
+- `/api/v1/images/*`：图片生成、编辑、历史记录。
+- `/api/v1/admin/models`：模型配置。
+- `/api/v1/admin/invites`：邀请码管理。
+- `/api/v1/admin/mcp-servers/*`：MCP 服务配置、发现和健康检查。
 
-- 后端编译：`mvn -DskipTests compile` 通过
-- 后端测试：`mvn test` 通过（16 tests, 0 failures）
-- 前端构建：`pnpm build` 通过
+响应统一包装为：
 
-剩余边界说明：
+```json
+{
+  "code": "SUCCESS",
+  "message": "OK",
+  "data": {}
+}
+```
 
-- MCP 已切到 transport client 结构，并具备 HTTP/STDIO 的真实调用路径与安全边界；若要完成生产联调，仍需要真实 MCP 服务端与认证信息。
-- 图片生成 provider 已接入真实 provider 路径；图片编辑场景是否可用取决于所配置的外部 provider 是否支持 edit 接口。
-- `infra/scripts/smoke-test.sh` 需要运行中的本地后端、管理员账号和基础设施服务，适合作为联调/回归脚本单独执行。
+## 文档
 
-说明：`infra/scripts/smoke-test.sh` 仍依赖运行中的后端服务、管理员账号和本地基础设施，适合作为联调/回归脚本单独执行。
+- `docs/prd-aiagent-v1.md`：产品需求。
+- `docs/tech-design-aiagent-v1.md`：技术设计。
+- `docs/api-spec-aiagent-v1.md`：API 规格。
+- `docs/database-design-aiagent-v1.md`：数据库设计。
+- `docs/ux-spec-aiagent-v1.md`：UX 规格。
+- `docs/frontend-ui-rebuild-plan-aiagent-v1.md`：前端 UI 重建计划。
+- `docs/archive/README.md`：历史阶段归档索引。
+
+## CI
+
+`.github/workflows/ci.yml` 在 `push main` 和 `pull_request` 时运行：
+
+- 前端：Node.js 22、pnpm 10、`pnpm install --no-frozen-lockfile`、`pnpm build`。
+- 后端：Java 21、`mvn test`。
 
 ## GitHub 自动部署
 
-仓库已经预留了 `ci` 和 `deploy` 两条 GitHub Actions：
-
-- `ci`：在 `push main` / `pull_request` 时校验前后端构建与测试。
-- `deploy`：在 `push main` 或手动触发时，把构建产物发到你的服务器并执行远端部署。
+`.github/workflows/deploy.yml` 在 `push main` 或手动触发时运行。流水线会构建前端、测试并打包后端、组装 release bundle，通过 SSH 上传服务器，然后执行 `infra/scripts/deploy-remote.sh`。
 
 ### 部署策略
 
-`deploy` workflow 会先在 GitHub Actions 内完成前端构建与后端打包，然后通过 SSH 上传到服务器。服务器端按以下优先级选择运行方式：
+远端脚本按配置选择：
 
-1. 如果宿主机已经有 `Java 21+`、`nginx`、`systemd`，优先复用宿主机环境。
-2. 如果宿主机缺少上述运行环境，但有 Docker，则自动创建并复用单个 `shared-web-runtime` 容器。
-3. 之后新增网站时，只需要换 `APP_NAME`、域名和后端端口，就可以共用同一个 Docker 运行时容器。
+1. `DEPLOY_MODE=native`：使用宿主机 Java 21、nginx、systemd。
+2. `DEPLOY_MODE=docker`：使用共享 Docker runtime。
+3. `DEPLOY_MODE=auto`：优先 native，条件不足时回退 Docker runtime。
 
-### 需要的 GitHub Secrets
+PostgreSQL、Redis、Kafka、MinIO 默认视为外部已有基础设施，部署流程不会自动创建。
+
+### 必需 GitHub Secrets
 
 - `DEPLOY_HOST`：服务器地址。
-- `DEPLOY_PORT`：SSH 端口，默认可填 `22`。
+- `DEPLOY_PORT`：SSH 端口，通常为 `22`。
 - `DEPLOY_USER`：部署用户。
 - `DEPLOY_SSH_PRIVATE_KEY`：部署私钥。
-- `APP_RUNTIME_ENV`：生产环境 `.env` 的完整内容，建议直接基于 `infra/env/.env.production.example` 生成。
+- `APP_RUNTIME_ENV`：生产 `.env` 完整内容，建议基于 `infra/env/.env.production.example` 生成。
 
-### 建议的 GitHub Variables
+### 常用 GitHub Variables
 
-- `DEPLOY_APP_NAME`：默认 `aiagent`。
-- `DEPLOY_APP_DOMAIN`：主域名，例如 `aiagent.example.com`。
-- `DEPLOY_SERVER_NAMES`：可选，多域名时用空格分隔，例如 `aiagent.example.com www.aiagent.example.com`。
-- `DEPLOY_APP_PORT`：后端监听端口，默认 `18080`。
-- `DEPLOY_MODE`：`auto`、`native` 或 `docker`，默认 `auto`。
-- `DEPLOY_BASE_PATH`：服务器发布根目录，默认 `/srv/deploy`。
-- `DEPLOY_SHARED_RUNTIME_HTTP_PORT`：共享 Docker 容器对外暴露的 HTTP 端口，默认 `80`。
-- `NGINX_CONFIG_DIR`：宿主机 nginx 站点配置目录；宝塔面板服务器使用 `/www/server/panel/vhost/nginx`。
-- `SHARED_RUNTIME_ROOT`：共享 Docker 运行时状态目录，默认 `/srv/shared-web-runtime`。
-- `SHARED_RUNTIME_IMAGE`：共享 Docker 镜像名，默认 `shared-web-runtime:latest`。
-- `SHARED_RUNTIME_CONTAINER`：共享 Docker 容器名，默认 `shared-web-runtime`。
-- `SHARED_RUNTIME_BACKEND_PORT_START` / `SHARED_RUNTIME_BACKEND_PORT_END`：共享 Docker 容器发布给宿主机 nginx 的后端端口段，默认 `18080` 到 `18120`。
-- `SHARED_RUNTIME_REBUILD`：是否强制重建共享镜像，默认 `false`。
+- `DEPLOY_APP_NAME`：应用名，默认 `aiagent`。
+- `DEPLOY_APP_DOMAIN`：主域名。
+- `DEPLOY_SERVER_NAMES`：nginx server_name，可用空格分隔多个域名。
+- `DEPLOY_APP_PORT`：后端端口，默认 `18080`。
+- `DEPLOY_MODE`：`auto`、`native` 或 `docker`。
+- `DEPLOY_BASE_PATH`：发布根目录，默认 `/srv/deploy`。
+- `NGINX_CONFIG_DIR`：宿主机 nginx 站点配置目录，例如宝塔面板常用 `/www/server/panel/vhost/nginx`。
+- `SHARED_RUNTIME_ROOT`、`SHARED_RUNTIME_IMAGE`、`SHARED_RUNTIME_CONTAINER`：共享 Docker runtime 配置。
+- `SHARED_RUNTIME_BACKEND_PORT_START` / `SHARED_RUNTIME_BACKEND_PORT_END`：共享 runtime 后端端口池。
+- `SHARED_RUNTIME_REBUILD`：是否强制重建共享 runtime 镜像。
+- `APP_RUNTIME_IMAGE` / `APP_RUNTIME_CONTAINER`：应用运行容器配置。
 
 ### 服务器前置要求
 
-- 部署用户需要对发布目录有写权限。
-- 如果走宿主机部署，部署用户需要无密码 `sudo`，以便写入 `systemd` 和 `nginx` 配置。
-- 如果走 Docker 回退，部署用户需要能执行 `docker`，或具备无密码 `sudo docker`。
-- PostgreSQL、Redis、Kafka、MinIO 这类基础设施默认仍然复用服务器已有实例，本流程不会替你自动新建。
+- 部署用户对发布目录有写权限。
+- native 模式需要 Java 21+、nginx、systemd，并允许部署用户无密码执行必要 `sudo` 操作。
+- docker 模式需要可执行 `docker` 或无密码 `sudo docker`。
+- 域名已解析到服务器，HTTP 入口端口可用。
 
-当前服务器已按共享基础设施方式预留 `infra/docker/shared-services` 模板，适合用 Docker 统一提供 PostgreSQL、Kafka、MinIO，并继续复用宿主机已有 Redis。
+默认发布目录：
 
-### 产物布局
+```text
+/srv/deploy/<APP_NAME>/releases/<git-sha>  单次发布目录
+/srv/deploy/<APP_NAME>/current             当前版本软链接
+/srv/deploy/<APP_NAME>/shared/app.env      后端运行时环境变量
+/srv/deploy/<APP_NAME>/shared/logs         后端日志
+```
 
-默认发布到 `/srv/deploy/<APP_NAME>`：
-
-- `releases/<git-sha>`：每次部署的发布目录。
-- `current`：当前生效版本的软链接。
-- `shared/app.env`：后端运行时环境变量。
-- `shared/logs`：后端运行日志。
-
-如果进入 Docker 回退模式，还会额外使用：
-
-- `/srv/shared-web-runtime/nginx/conf.d`：每个站点的 nginx 配置。
-- `/srv/shared-web-runtime/supervisor/conf.d`：每个站点的进程配置。
-
-### 首次部署建议
-
-1. 先把 `infra/env/.env.production.example` 改成你的生产配置，并写入 GitHub Secret `APP_RUNTIME_ENV`。
-2. 确认服务器上的数据库、Redis、Kafka、MinIO 连通。
-3. 确认域名已经解析到服务器，且 80 端口可用。
-4. 向 `main` 分支 push 一次，观察 Actions 中的 `deploy` job。
-
-当前实现默认处理 HTTP。若你要接入 HTTPS，建议继续在宿主机 nginx 或上游负载均衡层做证书终止。
+当前部署实现默认处理 HTTP。HTTPS 建议在宿主机 nginx 或上游负载均衡层做证书终止。

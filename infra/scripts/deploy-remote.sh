@@ -36,6 +36,8 @@ SHARED_RUNTIME_HTTP_PORT="${SHARED_RUNTIME_HTTP_PORT:-80}"
 SHARED_RUNTIME_BACKEND_PORT_START="${SHARED_RUNTIME_BACKEND_PORT_START:-18080}"
 SHARED_RUNTIME_BACKEND_PORT_END="${SHARED_RUNTIME_BACKEND_PORT_END:-18120}"
 SHARED_RUNTIME_REBUILD="${SHARED_RUNTIME_REBUILD:-false}"
+APP_RUNTIME_IMAGE="${APP_RUNTIME_IMAGE:-eclipse-temurin:21-jre}"
+APP_RUNTIME_CONTAINER="${APP_RUNTIME_CONTAINER:-${APP_NAME}-runtime}"
 SERVICE_USER="${SERVICE_USER:-$(id -un)}"
 SERVICE_GROUP="${SERVICE_GROUP:-$(id -gn)}"
 NGINX_CONFIG_DIR="${NGINX_CONFIG_DIR:-}"
@@ -278,12 +280,67 @@ EOF
 
 deploy_native() {
   log "deploy mode: native"
+  cleanup_shared_runtime_app
+  cleanup_app_runtime_container
   ensure_layout
   write_systemd_service
   write_native_nginx_conf
   run_root systemctl daemon-reload
   run_root systemctl enable "${APP_NAME}.service" >/dev/null
   run_root systemctl restart "${APP_NAME}.service"
+  reload_host_nginx
+  curl_health "http://127.0.0.1:${APP_BACKEND_PORT}/api/v1/health"
+  cleanup_releases
+}
+
+cleanup_shared_runtime_app() {
+  if ! docker_run container inspect "${SHARED_RUNTIME_CONTAINER}" >/dev/null 2>&1; then
+    return
+  fi
+
+  if [[ "$(docker_run inspect -f '{{.State.Running}}' "${SHARED_RUNTIME_CONTAINER}")" == "true" ]]; then
+    docker_run exec "${SHARED_RUNTIME_CONTAINER}" supervisorctl stop "${APP_NAME}" >/dev/null 2>&1 || true
+    docker_run exec "${SHARED_RUNTIME_CONTAINER}" supervisorctl remove "${APP_NAME}" >/dev/null 2>&1 || true
+  fi
+
+  run_root rm -f "${SHARED_RUNTIME_ROOT}/supervisor/conf.d/${APP_NAME}.conf"
+  run_root rm -f "${SHARED_RUNTIME_ROOT}/nginx/conf.d/${APP_NAME}.conf"
+}
+
+cleanup_app_runtime_container() {
+  if docker_run container inspect "${APP_RUNTIME_CONTAINER}" >/dev/null 2>&1; then
+    docker_run rm -f "${APP_RUNTIME_CONTAINER}" >/dev/null
+  fi
+}
+
+deploy_app_container() {
+  log "deploy mode: docker-app"
+  has_docker_runtime || {
+    echo "docker is not available on the deployment host" >&2
+    exit 1
+  }
+
+  cleanup_shared_runtime_app
+  ensure_layout
+  write_native_nginx_conf
+  cleanup_app_runtime_container
+
+  if host_port_in_use "${APP_BACKEND_PORT}"; then
+    echo "backend port ${APP_BACKEND_PORT} is already in use on the deployment host" >&2
+    exit 1
+  fi
+
+  docker_run run -d \
+    --name "${APP_RUNTIME_CONTAINER}" \
+    --restart unless-stopped \
+    -p "127.0.0.1:${APP_BACKEND_PORT}:${APP_BACKEND_PORT}" \
+    -v "${DEPLOY_BASE_PATH}:${DEPLOY_BASE_PATH}" \
+    --add-host host.docker.internal:host-gateway \
+    --env-file "${APP_SHARED_DIR}/app.env" \
+    -w "${CURRENT_LINK}/backend" \
+    "${APP_RUNTIME_IMAGE}" \
+    java -jar "${CURRENT_LINK}/backend/app.jar" --server.port="${APP_BACKEND_PORT}" >/dev/null
+
   reload_host_nginx
   curl_health "http://127.0.0.1:${APP_BACKEND_PORT}/api/v1/health"
   cleanup_releases
@@ -360,6 +417,7 @@ write_shared_runtime_nginx_conf() {
 
 deploy_shared_runtime() {
   log "deploy mode: docker-shared-runtime"
+  cleanup_app_runtime_container
   ensure_layout
   ensure_shared_runtime_container
   write_shared_runtime_supervisor_conf
@@ -406,6 +464,9 @@ main() {
         exit 1
       }
       deploy_shared_runtime
+      ;;
+    docker-app)
+      deploy_app_container
       ;;
     auto)
       if has_native_runtime; then

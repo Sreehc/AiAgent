@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Alert, Button, EmptyState, Field, Input } from "../components/ui";
 import { ApiError } from "../services/api";
 import { authApi } from "../services/authApi";
+import { AuthLayout } from "../features/auth/AuthLayout";
 
 type RegisterForm = {
   inviteToken: string;
@@ -50,7 +51,7 @@ export function RegisterPage() {
   }
 
   return (
-    <AuthShell title="创建受邀账号" intro="输入管理员发放的邀请码，创建可访问工作台的账号。">
+    <AuthLayout eyebrow="Invite register" title="创建受邀账号" intro="输入管理员发放的邀请码，创建可访问工作台的账号。" contextTitle="Controlled Access Workspace" contextDescription="邀请注册和登录态保护确保会话、知识库和产物默认归属个人账号。" footer={<>已有账号？<Link to="/login">返回登录</Link></>}>
       {inviteInvalid ? <EmptyState message="当前邀请码无效、已过期或已被使用，请联系管理员重新生成邀请码。" /> : null}
       <form className="form-grid" onSubmit={onSubmit}>
         <Field label="邀请码"><Input value={form.inviteToken} onChange={(event) => setForm((current) => ({ ...current, inviteToken: event.target.value }))} placeholder="INVITE-ABC" /></Field>
@@ -66,25 +67,6 @@ export function RegisterPage() {
         {success ? <Alert tone="success">{success}</Alert> : null}
         <Button type="submit" variant="primary" loading={submitting} fullWidth>创建账号</Button>
       </form>
-      <p className="auth-footer">已有账号？<Link to="/login">返回登录</Link></p>
-    </AuthShell>
-  );
-}
-
-function AuthShell({ title, intro, children }: { title: string; intro: string; children: React.ReactNode }) {
-  return (
-    <main className="auth-page">
-      <section className="auth-context">
-        <span className="app-brand__mark">AI</span>
-        <h1>Controlled Access Workspace</h1>
-        <p>AiAgent 使用邀请注册和登录态保护，确保会话、知识库和产物默认归属个人账号。</p>
-      </section>
-      <section className="auth-card">
-        <p className="eyebrow">Invite Register</p>
-        <h2>{title}</h2>
-        <p className="auth-card__intro">{intro}</p>
-        {children}
-      </section>
-    </main>
+    </AuthLayout>
   );
 }

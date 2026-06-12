@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Alert, Button, Field, Input } from "../components/ui";
 import { ApiError } from "../services/api";
 import { authApi } from "../services/authApi";
+import { AuthLayout } from "../features/auth/AuthLayout";
 
 export function ResetPasswordPage() {
   const [resetToken, setResetToken] = useState("");
@@ -33,16 +34,7 @@ export function ResetPasswordPage() {
   }
 
   return (
-    <main className="auth-page">
-      <section className="auth-context">
-        <span className="app-brand__mark">AI</span>
-        <h1>Reset Credentials</h1>
-        <p>设置新的登录密码后，可以继续访问原有工作台数据。</p>
-      </section>
-      <section className="auth-card">
-        <p className="eyebrow">Password Reset</p>
-        <h2>重置密码</h2>
-        <p className="auth-card__intro">输入找回密码流程收到的重置令牌，并设置新的登录密码。</p>
+    <AuthLayout eyebrow="Password reset" title="重置密码" intro="输入找回密码流程收到的重置令牌，并设置新的登录密码。" contextTitle="Reset Credentials" contextDescription="设置新的登录密码后，可以继续访问原有工作台数据。" footer={<Link to="/login">返回登录</Link>}>
         <form className="form-grid" onSubmit={onSubmit}>
           <Field label="重置令牌"><Input value={resetToken} onChange={(event) => setResetToken(event.target.value)} placeholder="reset_xxx" /></Field>
           <Field label="新密码"><Input value={newPassword} onChange={(event) => setNewPassword(event.target.value)} type="password" placeholder="至少 8 位" /></Field>
@@ -51,8 +43,6 @@ export function ResetPasswordPage() {
           {success ? <Alert tone="success">{success}</Alert> : null}
           <Button type="submit" variant="primary" loading={submitting} fullWidth>重置密码</Button>
         </form>
-        <p className="auth-footer"><Link to="/login">返回登录</Link></p>
-      </section>
-    </main>
+    </AuthLayout>
   );
 }

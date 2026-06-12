@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import { AppShell } from "../components/shell/AppShell";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AccountPage } from "../pages/AccountPage";
@@ -9,6 +9,7 @@ import { KnowledgeBasesPage } from "../pages/KnowledgeBasesPage";
 import { LoginPage } from "../pages/LoginPage";
 import { McpServersPage } from "../pages/McpServersPage";
 import { ImageGenerationPage } from "../pages/ImageGenerationPage";
+import { NotFoundPage } from "../pages/NotFoundPage";
 import { RegisterPage } from "../pages/RegisterPage";
 import { ResetPasswordPage } from "../pages/ResetPasswordPage";
 import { WorkspacePage } from "../pages/WorkspacePage";
@@ -31,7 +32,7 @@ export function AppRouter() {
           <Route path="/account" element={<AccountPage />} />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

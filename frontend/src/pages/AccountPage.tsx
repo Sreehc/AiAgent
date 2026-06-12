@@ -1,43 +1,14 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Alert, Button, EmptyState, Field, Input, Panel, Select, StatusPill } from "../components/ui";
-import { apiRequest, ApiError } from "../services/api";
+import { ApiError } from "../services/api";
+import { AccountApiConfig, AccountProfile, accountApi, LoginLogEntry } from "../services/accountApi";
 import { useAuthSession } from "../hooks/useAuthSession";
-
-type Profile = {
-  userId: string;
-  username: string;
-  displayName: string;
-  email: string | null;
-  phone: string | null;
-  roles: string[];
-};
-
-type ApiConfig = {
-  baseUrl: string;
-  apiKey: string;
-  model: string;
-  temperature: number;
-  maxTokens: number;
-};
-
-type LoginLogEntry = {
-  loginIp: string;
-  userAgent: string;
-  loginResult: string;
-  loginAt: string;
-};
-
-type LoginLogResponse = {
-  pageNo: number;
-  pageSize: number;
-  items: LoginLogEntry[];
-};
 
 export function AccountPage() {
   const { session } = useAuthSession();
   const accessToken = session?.accessToken ?? null;
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [apiConfig, setApiConfig] = useState<ApiConfig>({ baseUrl: "https://api.openai.com/v1", apiKey: "", model: "gpt-4", temperature: 0.7, maxTokens: 2000 });
+  const [profile, setProfile] = useState<AccountProfile | null>(null);
+  const [apiConfig, setApiConfig] = useState<AccountApiConfig>({ baseUrl: "https://api.openai.com/v1", apiKey: "", model: "gpt-4", temperature: 0.7, maxTokens: 2000 });
   const [logs, setLogs] = useState<LoginLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -59,9 +30,9 @@ export function AccountPage() {
     }
     setLoading(true);
     void Promise.all([
-      apiRequest<Profile>("/account/profile", {}, accessToken),
-      apiRequest<LoginLogResponse>("/account/login-logs?pageNo=1&pageSize=5", {}, accessToken),
-      apiRequest<ApiConfig>("/account/api-config", {}, accessToken).catch(() => null)
+      accountApi.getProfile(accessToken),
+      accountApi.listLoginLogs(accessToken, 1, 5),
+      accountApi.getApiConfig(accessToken).catch(() => null)
     ]).then(([profileResult, logResult, apiConfigResult]) => {
       setProfile(profileResult);
       setLogs(logResult.items);
@@ -83,7 +54,7 @@ export function AccountPage() {
     setProfileError(null);
     setProfileSuccess(null);
     try {
-      const updated = await apiRequest<Profile>("/account/profile", { method: "PUT", body: JSON.stringify({ displayName: profile.displayName, email: profile.email, phone: profile.phone }) }, accessToken);
+      const updated = await accountApi.updateProfile(accessToken, { displayName: profile.displayName, email: profile.email, phone: profile.phone });
       setProfile(updated);
       setProfileSuccess("资料已更新。");
     } catch (requestError) {
@@ -103,7 +74,7 @@ export function AccountPage() {
     setPasswordError(null);
     setPasswordMessage(null);
     try {
-      await apiRequest<void>("/account/change-password", { method: "POST", body: JSON.stringify({ oldPassword: form.get("oldPassword"), newPassword: form.get("newPassword") }) }, accessToken);
+      await accountApi.changePassword(accessToken, { oldPassword: form.get("oldPassword"), newPassword: form.get("newPassword") });
       event.currentTarget.reset();
       setPasswordMessage("密码已更新。");
     } catch (requestError) {
@@ -122,7 +93,7 @@ export function AccountPage() {
     setApiConfigError(null);
     setApiConfigMessage(null);
     try {
-      await apiRequest<void>("/account/api-config", { method: "PUT", body: JSON.stringify(apiConfig) }, accessToken);
+      await accountApi.updateApiConfig(accessToken, apiConfig);
       setApiConfigMessage("API 配置已保存。");
     } catch (requestError) {
       setApiConfigError((requestError as ApiError).message || "API 配置保存失败。");

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthSession } from "../hooks/useAuthSession";
-import { apiRequest } from "../services/api";
+import { authApi } from "../services/authApi";
 
 type Command = {
   id: string;
@@ -61,7 +61,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   async function runCommand(command: Command) {
     if (command.action === "logout") {
       if (session?.accessToken) {
-        await apiRequest<void>("/auth/logout", { method: "POST" }, session.accessToken).catch(() => undefined);
+        await authApi.logout(session.accessToken).catch(() => undefined);
       }
       setSession(null);
       navigate("/login", { replace: true });

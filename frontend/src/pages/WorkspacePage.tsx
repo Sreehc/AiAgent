@@ -3,7 +3,6 @@ import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Alert, Button, EmptyState, Field, Input, Panel, Select, StatusPill, Textarea } from "../components/ui";
 import { useAuthSession } from "../hooks/useAuthSession";
 import {
-  apiRequest,
   ApiError,
   ArtifactItem,
   KnowledgeBaseItem,
@@ -12,11 +11,10 @@ import {
   SessionItem,
   SessionListResponse,
   SessionStreamEvent,
-  ToolInvocationItem,
-  streamRequest
+  ToolInvocationItem
 } from "../services/api";
-
-type AgentMode = "REACT" | "PLAN_EXECUTE";
+import { knowledgeApi } from "../services/knowledgeApi";
+import { AgentMode, sessionsApi } from "../services/sessionsApi";
 
 type StreamLog = {
   id: string;
@@ -94,7 +92,7 @@ export function WorkspacePage() {
     }
     setLoadingSessions(true);
     try {
-      const result = await apiRequest<SessionListResponse>("/sessions?pageNo=1&pageSize=20", {}, session.accessToken);
+      const result = await sessionsApi.list(session.accessToken, 1, 20);
       setSessions(result.items);
       setSelectedSessionId((current) => current ?? result.items[0]?.sessionId ?? null);
     } catch (requestError) {
@@ -109,7 +107,7 @@ export function WorkspacePage() {
       return;
     }
     try {
-      const detail = await apiRequest<SessionDetailResponse>(`/sessions/${sessionId}`, {}, session.accessToken);
+      const detail = await sessionsApi.get(session.accessToken, sessionId);
       setSessionDetail(detail);
     } catch (requestError) {
       setError((requestError as ApiError).message);
@@ -121,7 +119,7 @@ export function WorkspacePage() {
       return;
     }
     try {
-      const result = await apiRequest<KnowledgeBaseItem[]>("/knowledge-bases", {}, session.accessToken);
+      const result = await knowledgeApi.list(session.accessToken);
       setKnowledgeBases(result);
     } catch (requestError) {
       setError((requestError as ApiError).message);
@@ -135,7 +133,7 @@ export function WorkspacePage() {
     setDeletingSession(true);
     setError(null);
     try {
-      await apiRequest<void>(`/sessions/${sessionToDelete.sessionId}`, { method: "DELETE" }, session.accessToken);
+      await sessionsApi.remove(session.accessToken, sessionToDelete.sessionId);
       if (selectedSessionId === sessionToDelete.sessionId) {
         setSelectedSessionId(null);
         setSessionDetail(null);
@@ -157,7 +155,7 @@ export function WorkspacePage() {
     setCreatingSession(true);
     setError(null);
     try {
-      const created = await apiRequest<SessionItem>("/sessions", { method: "POST", body: JSON.stringify(sessionForm) }, session.accessToken);
+      const created = await sessionsApi.create(session.accessToken, sessionForm);
       await loadSessions();
       setSelectedSessionId(created.sessionId);
     } catch (requestError) {
@@ -178,14 +176,14 @@ export function WorkspacePage() {
     setStreamLogs([]);
 
     try {
-      await streamRequest(
-        `/sessions/${selectedSessionId}/stream`,
+      await sessionsApi.streamRun(
+        session.accessToken,
+        selectedSessionId,
         {
           query: runForm.query,
           executionMode: runForm.executionMode,
           knowledgeBaseIds: parseKnowledgeBaseIds(runForm.knowledgeBaseIds)
         },
-        session.accessToken,
         onStreamEvent
       );
       await loadSessions();
@@ -206,10 +204,10 @@ export function WorkspacePage() {
     setBindingKnowledgeBases(true);
     setError(null);
     try {
-      await apiRequest<{ sessionId: string; knowledgeBaseIds: string[] }>(
-        `/sessions/${selectedSessionId}/knowledge-bases/bind`,
-        { method: "POST", body: JSON.stringify({ knowledgeBaseIds: parseKnowledgeBaseIds(runForm.knowledgeBaseIds) }) },
-        session.accessToken
+      await sessionsApi.bindKnowledgeBases(
+        session.accessToken,
+        selectedSessionId,
+        parseKnowledgeBaseIds(runForm.knowledgeBaseIds)
       );
       await loadSessionDetail(selectedSessionId);
     } catch (requestError) {

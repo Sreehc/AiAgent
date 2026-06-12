@@ -2,7 +2,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Alert, Button, EmptyState, Field, Input, Panel, StatusPill, Textarea } from "../components/ui";
 import { useAuthSession } from "../hooks/useAuthSession";
-import { apiRequest, ApiError, KnowledgeBaseItem, KnowledgeDocumentItem, SearchHit } from "../services/api";
+import { ApiError, KnowledgeBaseItem, KnowledgeDocumentItem, SearchHit } from "../services/api";
+import { knowledgeApi } from "../services/knowledgeApi";
 
 const DEFAULT_KB_FORM = {
   name: "行业研究资料库",
@@ -47,7 +48,7 @@ export function KnowledgeBasesPage() {
     }
     setLoading(true);
     try {
-      const result = await apiRequest<KnowledgeBaseItem[]>("/knowledge-bases", {}, session.accessToken);
+      const result = await knowledgeApi.list(session.accessToken);
       setKnowledgeBases(result);
       setSelectedKbId((current) => current ?? result[0]?.kbId ?? null);
     } catch (requestError) {
@@ -62,7 +63,7 @@ export function KnowledgeBasesPage() {
       return;
     }
     try {
-      const result = await apiRequest<KnowledgeDocumentItem[]>(`/knowledge-bases/${kbId}/documents`, {}, session.accessToken);
+      const result = await knowledgeApi.listDocuments(session.accessToken, kbId);
       setDocuments(result);
     } catch (requestError) {
       setError((requestError as ApiError).message);
@@ -77,7 +78,7 @@ export function KnowledgeBasesPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const created = await apiRequest<KnowledgeBaseItem>("/knowledge-bases", { method: "POST", body: JSON.stringify(kbForm) }, session.accessToken);
+      const created = await knowledgeApi.create(session.accessToken, kbForm);
       await loadKnowledgeBases();
       setSelectedKbId(created.kbId);
     } catch (requestError) {
@@ -94,7 +95,7 @@ export function KnowledgeBasesPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await apiRequest<KnowledgeBaseItem>(`/knowledge-bases/${selectedKbId}`, { method: "PUT", body: JSON.stringify(kbForm) }, session.accessToken);
+      await knowledgeApi.update(session.accessToken, selectedKbId, kbForm);
       await loadKnowledgeBases();
     } catch (requestError) {
       setError((requestError as ApiError).message);
@@ -110,7 +111,7 @@ export function KnowledgeBasesPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await apiRequest<void>(`/knowledge-bases/${kbToDelete.kbId}`, { method: "DELETE" }, session.accessToken);
+      await knowledgeApi.remove(session.accessToken, kbToDelete.kbId);
       setSearchHits([]);
       setSelectedKbId(null);
       setKbToDelete(null);
@@ -139,7 +140,7 @@ export function KnowledgeBasesPage() {
     try {
       const body = new FormData();
       body.append("file", file);
-      await apiRequest<KnowledgeDocumentItem>(`/knowledge-bases/${selectedKbId}/documents`, { method: "POST", body }, session.accessToken);
+      await knowledgeApi.uploadDocument(session.accessToken, selectedKbId, body);
       form.reset();
       await loadKnowledgeBases();
       await loadDocuments(selectedKbId);
@@ -157,7 +158,7 @@ export function KnowledgeBasesPage() {
     setUploading(true);
     setError(null);
     try {
-      await apiRequest<KnowledgeDocumentItem>(`/knowledge-bases/${selectedKbId}/documents/${documentId}/index`, { method: "POST" }, session.accessToken);
+      await knowledgeApi.indexDocument(session.accessToken, selectedKbId, documentId);
       await loadDocuments(selectedKbId);
     } catch (requestError) {
       setError((requestError as ApiError).message);
@@ -174,7 +175,7 @@ export function KnowledgeBasesPage() {
     setSearching(true);
     setError(null);
     try {
-      const result = await apiRequest<SearchHit[]>(`/knowledge-bases/${selectedKbId}/search-test`, { method: "POST", body: JSON.stringify({ query: searchQuery, topK: 5 }) }, session.accessToken);
+      const result = await knowledgeApi.searchTest(session.accessToken, selectedKbId, searchQuery, 5);
       setSearchHits(result);
     } catch (requestError) {
       setError((requestError as ApiError).message);

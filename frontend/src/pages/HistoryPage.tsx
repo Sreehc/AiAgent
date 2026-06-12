@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Button, EmptyState, Field, Input, Panel, StatusPill } from "../components/ui";
 import { useAuthSession } from "../hooks/useAuthSession";
-import { apiRequest, ApiError, ArtifactItem, PlanStepItem, SessionDetailResponse, SessionItem, SessionListResponse, ToolInvocationItem } from "../services/api";
+import { ApiError, ArtifactItem, PlanStepItem, SessionDetailResponse, SessionItem, ToolInvocationItem } from "../services/api";
+import { sessionsApi } from "../services/sessionsApi";
 
 export function HistoryPage() {
   const { session } = useAuthSession();
@@ -47,7 +48,7 @@ export function HistoryPage() {
     setLoading(true);
     setError(null);
     try {
-      const result = await apiRequest<SessionListResponse>("/sessions?pageNo=1&pageSize=50", {}, session.accessToken);
+      const result = await sessionsApi.list(session.accessToken, 1, 50);
       setSessions(result.items);
       setSelectedSessionId((current) => current ?? result.items[0]?.sessionId ?? null);
     } catch (requestError) {
@@ -64,7 +65,7 @@ export function HistoryPage() {
     setReplaying(true);
     setError(null);
     try {
-      const detail = await apiRequest<SessionDetailResponse>(`/sessions/${sessionId}/replay`, {}, session.accessToken);
+      const detail = await sessionsApi.replay(session.accessToken, sessionId);
       setSessionDetail(detail);
     } catch (requestError) {
       setError((requestError as ApiError).message);

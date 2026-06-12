@@ -2,7 +2,8 @@ import { FormEvent, useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
 import { Alert, Button, EmptyState, Field, Input, Panel, Select, StatusPill } from "../components/ui";
 import { useAuthSession } from "../hooks/useAuthSession";
-import { apiRequest, ApiError, McpDiscoverResponse, McpHealthResponse, McpServerItem } from "../services/api";
+import { ApiError, McpDiscoverResponse, McpHealthResponse, McpServerItem } from "../services/api";
+import { adminApi } from "../services/adminApi";
 
 type TransportType = "SSE" | "STDIO" | "STREAMABLE_HTTP";
 
@@ -42,7 +43,7 @@ export function McpServersPage() {
     }
     setLoading(true);
     try {
-      const result = await apiRequest<McpServerItem[]>("/admin/mcp-servers", {}, session.accessToken);
+      const result = await adminApi.listMcpServers(session.accessToken);
       setServers(result);
       if (result.length > 0 && !selectedServerCode) {
         selectServer(result[0]);
@@ -67,7 +68,7 @@ export function McpServersPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const created = await apiRequest<McpServerItem>("/admin/mcp-servers", { method: "POST", body: JSON.stringify({ name: form.name, serverCode: form.serverCode, transportType: form.transportType, endpoint: form.endpoint, commandLine: form.commandLine || null }) }, session.accessToken);
+      const created = await adminApi.createMcpServer(session.accessToken, { name: form.name, serverCode: form.serverCode, transportType: form.transportType, endpoint: form.endpoint, commandLine: form.commandLine || null });
       await loadServers();
       selectServer(created);
     } catch (requestError) {
@@ -84,7 +85,7 @@ export function McpServersPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const updated = await apiRequest<McpServerItem>(`/admin/mcp-servers/${selectedServerCode}`, { method: "PUT", body: JSON.stringify({ name: form.name, transportType: form.transportType, endpoint: form.endpoint, commandLine: form.commandLine || null, active: form.active }) }, session.accessToken);
+      const updated = await adminApi.updateMcpServer(session.accessToken, selectedServerCode, { name: form.name, transportType: form.transportType, endpoint: form.endpoint, commandLine: form.commandLine || null, active: form.active });
       await loadServers();
       selectServer(updated);
     } catch (requestError) {
@@ -101,7 +102,7 @@ export function McpServersPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await apiRequest<void>(`/admin/mcp-servers/${serverToDelete.serverCode}`, { method: "DELETE" }, session.accessToken);
+      await adminApi.deleteMcpServer(session.accessToken, serverToDelete.serverCode);
       setSelectedServerCode(null);
       setDiscoveries({});
       setHealthChecks({});
@@ -121,7 +122,7 @@ export function McpServersPage() {
     }
     setError(null);
     try {
-      const result = await apiRequest<McpDiscoverResponse>(`/admin/mcp-servers/${serverCode}/discover`, { method: "POST" }, session.accessToken);
+      const result = await adminApi.discoverMcpTools(session.accessToken, serverCode);
       setDiscoveries((current) => ({ ...current, [serverCode]: result }));
     } catch (requestError) {
       setError((requestError as ApiError).message);
@@ -134,7 +135,7 @@ export function McpServersPage() {
     }
     setError(null);
     try {
-      const result = await apiRequest<McpHealthResponse>(`/admin/mcp-servers/${serverCode}/health`, {}, session.accessToken);
+      const result = await adminApi.checkMcpHealth(session.accessToken, serverCode);
       setHealthChecks((current) => ({ ...current, [serverCode]: result }));
     } catch (requestError) {
       setError((requestError as ApiError).message);

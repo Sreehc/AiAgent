@@ -1,7 +1,8 @@
 import { FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
 import { Alert, Button, EmptyState, Field, Input } from "../components/ui";
-import { apiRequest, ApiError } from "../services/api";
+import { ApiError } from "../services/api";
+import { authApi } from "../services/authApi";
 
 export function ForgotPasswordPage() {
   const [usernameOrEmail, setUsernameOrEmail] = useState("");
@@ -15,7 +16,7 @@ export function ForgotPasswordPage() {
     setMessage(null);
     setError(null);
     try {
-      await apiRequest<void>("/auth/forgot-password", { method: "POST", body: JSON.stringify({ usernameOrEmail }) });
+      await authApi.forgotPassword(usernameOrEmail);
       setMessage("如果账号存在，系统已生成重置流程。开发环境可直接使用重置令牌页面完成新密码设置。");
     } catch (requestError) {
       setError((requestError as ApiError).message);

@@ -2,19 +2,8 @@ import { FormEvent, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Alert, Button, Field, Input } from "../components/ui";
 import { useAuthSession } from "../hooks/useAuthSession";
-import { apiRequest, ApiError } from "../services/api";
-
-type LoginResponse = {
-  accessToken: string;
-  expiresIn: number;
-  expiresAt?: number;
-  user: {
-    userId: string;
-    username: string;
-    displayName: string;
-    roles: string[];
-  };
-};
+import { ApiError } from "../services/api";
+import { authApi } from "../services/authApi";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -30,10 +19,7 @@ export function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const result = await apiRequest<LoginResponse>("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ username, password })
-      });
+      const result = await authApi.login({ username, password });
       setSession(result);
       const next = (location.state as { from?: string } | null)?.from ?? "/workspace/chat";
       navigate(next, { replace: true });

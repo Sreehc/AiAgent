@@ -1,7 +1,8 @@
 import { FormEvent, useState } from "react";
 import { Link } from "react-router-dom";
 import { Alert, Button, Field, Input } from "../components/ui";
-import { apiRequest, ApiError } from "../services/api";
+import { ApiError } from "../services/api";
+import { authApi } from "../services/authApi";
 
 export function ResetPasswordPage() {
   const [resetToken, setResetToken] = useState("");
@@ -22,7 +23,7 @@ export function ResetPasswordPage() {
       return;
     }
     try {
-      await apiRequest<void>("/auth/reset-password", { method: "POST", body: JSON.stringify({ resetToken, newPassword, confirmPassword }) });
+      await authApi.resetPassword({ resetToken, newPassword, confirmPassword });
       setSuccess("密码已重置，请返回登录页使用新密码登录。");
     } catch (requestError) {
       setError((requestError as ApiError).message || "密码重置失败。");

@@ -1,7 +1,7 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuthSession } from "../../hooks/useAuthSession";
-import { apiRequest } from "../../services/api";
+import { authApi } from "../../services/authApi";
 import { Button } from "../ui";
 
 const workNav = [
@@ -23,7 +23,7 @@ export function AppShell() {
 
   async function logout() {
     if (session?.accessToken) {
-      await apiRequest<void>("/auth/logout", { method: "POST" }, session.accessToken).catch(() => undefined);
+      await authApi.logout(session.accessToken).catch(() => undefined);
     }
     setSession(null);
     navigate("/login", { replace: true });

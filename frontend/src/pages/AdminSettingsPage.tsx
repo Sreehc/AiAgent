@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Alert, Button, EmptyState, Field, Input, Panel, Select, StatusPill } from "../components/ui";
 import { useAuthSession } from "../hooks/useAuthSession";
-import { apiRequest, ApiError, InviteItem, ModelConfigItem } from "../services/api";
+import { ApiError, InviteItem, ModelConfigItem } from "../services/api";
+import { adminApi } from "../services/adminApi";
 
 type ModelType = "CHAT" | "EMBEDDING" | "IMAGE";
 
@@ -42,8 +43,8 @@ export function AdminSettingsPage() {
     setError(null);
     try {
       const [modelItems, inviteItems] = await Promise.all([
-        apiRequest<ModelConfigItem[]>("/admin/models", {}, session.accessToken),
-        apiRequest<InviteItem[]>("/admin/invites?limit=10", {}, session.accessToken)
+        adminApi.listModels(session.accessToken),
+        adminApi.listInvites(session.accessToken, 10)
       ]);
       setModels(modelItems);
       setInvites(inviteItems);
@@ -62,7 +63,7 @@ export function AdminSettingsPage() {
     setSubmittingModel(true);
     setError(null);
     try {
-      await apiRequest<ModelConfigItem>("/admin/models", { method: "POST", body: JSON.stringify(modelForm) }, session.accessToken);
+      await adminApi.createModel(session.accessToken, modelForm);
       setModelForm(DEFAULT_MODEL_FORM);
       await loadData();
     } catch (requestError) {
@@ -79,7 +80,7 @@ export function AdminSettingsPage() {
     setSubmittingInvite(true);
     setError(null);
     try {
-      await apiRequest<InviteItem>("/admin/invites", { method: "POST", body: JSON.stringify({ expiresInDays: inviteDays }) }, session.accessToken);
+      await adminApi.createInvite(session.accessToken, inviteDays);
       await loadData();
     } catch (requestError) {
       setError((requestError as ApiError).message);

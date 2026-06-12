@@ -1,7 +1,8 @@
 import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Alert, Button, EmptyState, Field, Input } from "../components/ui";
-import { apiRequest, ApiError } from "../services/api";
+import { ApiError } from "../services/api";
+import { authApi } from "../services/authApi";
 
 type RegisterForm = {
   inviteToken: string;
@@ -36,7 +37,7 @@ export function RegisterPage() {
       return;
     }
     try {
-      await apiRequest<void>("/auth/register-by-invite", { method: "POST", body: JSON.stringify(form) });
+      await authApi.registerByInvite(form);
       setSuccess("注册成功，2 秒后跳转到登录页。");
       window.setTimeout(() => navigate("/login"), 2000);
     } catch (requestError) {

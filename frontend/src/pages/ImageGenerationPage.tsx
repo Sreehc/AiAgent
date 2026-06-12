@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Alert, Button, EmptyState, Field, Input, Panel, Select, Textarea } from "../components/ui";
 import { useAuthSession } from "../hooks/useAuthSession";
-import { apiRequest, ApiError, ImageGenerationItem, ImageHistoryItem, ImageHistoryResponse, SessionItem, SessionListResponse } from "../services/api";
+import { ApiError, ImageGenerationItem, ImageHistoryItem, SessionItem } from "../services/api";
+import { imagesApi } from "../services/imagesApi";
 
 type ImageMode = "IMAGES" | "EDITS";
 
@@ -39,7 +40,7 @@ export function ImageGenerationPage() {
       return;
     }
     try {
-      const result = await apiRequest<SessionListResponse>("/sessions?pageNo=1&pageSize=50", {}, session.accessToken);
+      const result = await imagesApi.listSessions(session.accessToken);
       setSessions(result.items);
       setForm((current) => ({ ...current, sessionId: current.sessionId || result.items[0]?.sessionId || "" }));
     } catch (requestError) {
@@ -53,7 +54,7 @@ export function ImageGenerationPage() {
     }
     setLoading(true);
     try {
-      const result = await apiRequest<ImageHistoryResponse>(`/images/history?pageNo=${pageNo}&pageSize=12`, {}, session.accessToken);
+      const result = await imagesApi.listHistory(session.accessToken, pageNo, 12);
       setHistory(result.items);
       setHistoryPageNo(result.pageNo);
       setHasMoreHistory(result.items.length === result.pageSize);
@@ -73,7 +74,7 @@ export function ImageGenerationPage() {
     setError(null);
     try {
       if (form.mode === "IMAGES") {
-        const generated = await apiRequest<ImageGenerationItem>("/images/generations", { method: "POST", body: JSON.stringify({ prompt: form.prompt, size: form.size, sessionId: form.sessionId || null }) }, session.accessToken);
+        const generated = await imagesApi.generate(session.accessToken, { prompt: form.prompt, size: form.size, sessionId: form.sessionId || null });
         setLatestResult(generated);
       } else {
         if (!referenceFile) {
@@ -88,7 +89,7 @@ export function ImageGenerationPage() {
           body.append("sessionId", form.sessionId);
         }
         body.append("referenceImage", referenceFile);
-        const edited = await apiRequest<ImageGenerationItem>("/images/edits", { method: "POST", body }, session.accessToken);
+        const edited = await imagesApi.edit(session.accessToken, body);
         setLatestResult(edited);
       }
       await loadHistory(1);

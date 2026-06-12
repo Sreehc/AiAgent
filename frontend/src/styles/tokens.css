@@ -7,6 +7,7 @@
   --color-surface-subtle: #f0f3ef;
   --color-surface-raised: #ffffff;
   --color-surface-inset: #f9faf8;
+  --color-overlay: rgba(12, 20, 16, 0.46);
 
   --color-text: #17201c;
   --color-text-muted: #5f6b65;
@@ -45,6 +46,7 @@
   --text-lg: 18px;
   --text-xl: 22px;
   --text-2xl: 28px;
+  --text-3xl: 34px;
 
   --line-tight: 1.2;
   --line-normal: 1.5;
@@ -73,13 +75,25 @@
   --focus-ring: 0 0 0 3px rgba(23, 72, 61, 0.18);
   --sidebar-width: 248px;
   --topbar-height: 56px;
+  --control-height-sm: 32px;
+  --control-height-md: 40px;
+  --control-height-lg: 44px;
+  --content-max-width: 1600px;
+
+  --z-shell: 20;
+  --z-overlay: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+
   --transition-fast: 140ms ease;
   --transition-normal: 180ms ease;
+  --transition-slow: 240ms ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
   :root {
     --transition-fast: 1ms linear;
     --transition-normal: 1ms linear;
+    --transition-slow: 1ms linear;
   }
 }

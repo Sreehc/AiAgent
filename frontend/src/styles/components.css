@@ -392,8 +392,8 @@ button.list-item {
   padding: var(--space-3);
   border: 1px solid var(--color-border-soft);
   border-radius: var(--radius-md);
-  background: #101714;
-  color: #d9efe5;
+  background: var(--color-text);
+  color: var(--color-primary-soft);
   font-size: var(--text-xs);
   line-height: 1.55;
 }

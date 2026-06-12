@@ -4,6 +4,7 @@
 
 html {
   min-width: 320px;
+  scroll-behavior: smooth;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
@@ -15,13 +16,13 @@ html {
 
 body {
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   background: var(--color-bg);
 }
 
 #root {
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 button,
@@ -33,6 +34,11 @@ textarea {
 
 button {
   color: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
 }
 
 a {
@@ -71,9 +77,33 @@ img {
   display: block;
 }
 
+::selection {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-hover);
+}
+
+* {
+  scrollbar-color: var(--color-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
 :focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }
 
 .muted {

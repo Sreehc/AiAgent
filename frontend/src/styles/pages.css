@@ -1,13 +1,11 @@
 .auth-page {
-  min-height: 100vh;
+  min-height: 100dvh;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(380px, 520px);
   gap: var(--space-8);
   align-items: center;
   padding: clamp(24px, 5vw, 72px);
-  background:
-    linear-gradient(90deg, rgba(23, 72, 61, 0.06), transparent 42%),
-    var(--color-bg);
+  background: var(--color-bg);
 }
 
 .auth-context {
@@ -242,7 +240,7 @@
 
 .danger-zone {
   border-color: var(--color-danger-soft);
-  background: #fffafa;
+  background: var(--color-danger-soft);
 }
 
 @media (max-width: 900px) {

@@ -1,6 +1,7 @@
 import { useLocation } from "react-router-dom";
 import { Button } from "../ui";
 import { allNavigation } from "./navigation";
+import { openCommandPalette } from "../command/commandEvents";
 
 type TopbarProps = {
   onOpenMenu: () => void;
@@ -21,7 +22,7 @@ export function Topbar({ onOpenMenu, roleLabel }: TopbarProps) {
         </div>
       </div>
       <div className="topbar__actions">
-        <button type="button" className="command-trigger" aria-label="打开命令面板">
+        <button type="button" className="command-trigger" aria-label="打开命令面板" onClick={openCommandPalette}>
           <span>搜索与跳转</span><kbd>⌘ K</kbd>
         </button>
         <span className="badge badge--neutral">{roleLabel}</span>

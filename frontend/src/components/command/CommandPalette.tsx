@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuthSession } from "../hooks/useAuthSession";
-import { authApi } from "../services/authApi";
+import { useAuthSession } from "../../hooks/useAuthSession";
+import { authApi } from "../../services/authApi";
 
 type Command = {
   id: string;
@@ -33,42 +33,26 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const navigate = useNavigate();
   const { session, setSession } = useAuthSession();
   const inputRef = useRef<HTMLInputElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
   const isAdmin = session?.user.roles.includes("ADMIN") ?? false;
 
   const filteredCommands = useMemo(() => {
-    const availableCommands = COMMANDS.filter((command) => {
-      if (command.adminOnly && !isAdmin) {
-        return false;
-      }
-      if (command.action === "logout" && !session) {
-        return false;
-      }
-      return true;
-    });
+    const available = COMMANDS.filter((command) => (!command.adminOnly || isAdmin) && (command.action !== "logout" || session));
     const normalized = query.trim().toLowerCase();
-    if (!normalized) {
-      return availableCommands;
-    }
-    return availableCommands.filter((command) => {
-      return command.label.toLowerCase().includes(normalized)
-        || command.description.toLowerCase().includes(normalized)
-        || command.keywords.some((keyword) => keyword.toLowerCase().includes(normalized));
-    });
+    if (!normalized) return available;
+    return available.filter((command) => command.label.toLowerCase().includes(normalized) || command.description.toLowerCase().includes(normalized) || command.keywords.some((keyword) => keyword.toLowerCase().includes(normalized)));
   }, [isAdmin, query, session]);
 
   async function runCommand(command: Command) {
     if (command.action === "logout") {
-      if (session?.accessToken) {
-        await authApi.logout(session.accessToken).catch(() => undefined);
-      }
+      if (session?.accessToken) await authApi.logout(session.accessToken).catch(() => undefined);
       setSession(null);
       navigate("/login", { replace: true });
       onClose();
       return;
     }
-
     if (command.path) {
       navigate(command.path);
       onClose();
@@ -76,69 +60,47 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   }
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
+    if (!isOpen) return;
+    previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setQuery("");
     setActiveIndex(0);
     window.setTimeout(() => inputRef.current?.focus(), 0);
+    return () => previousFocus.current?.focus();
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
+    if (!isOpen) return;
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();
-      }
-      if (event.key === "ArrowDown") {
+      } else if (event.key === "ArrowDown") {
         event.preventDefault();
         setActiveIndex((current) => filteredCommands.length === 0 ? 0 : (current + 1) % filteredCommands.length);
-      }
-      if (event.key === "ArrowUp") {
+      } else if (event.key === "ArrowUp") {
         event.preventDefault();
         setActiveIndex((current) => filteredCommands.length === 0 ? 0 : (current - 1 + filteredCommands.length) % filteredCommands.length);
-      }
-      if (event.key === "Enter" && filteredCommands[activeIndex]) {
+      } else if (event.key === "Enter" && filteredCommands[activeIndex]) {
         event.preventDefault();
         void runCommand(filteredCommands[activeIndex]);
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [activeIndex, filteredCommands, isOpen, navigate, onClose, session?.accessToken, setSession]);
+  }, [activeIndex, filteredCommands, isOpen, onClose]);
 
-  useEffect(() => {
-    setActiveIndex(0);
-  }, [query]);
+  useEffect(() => setActiveIndex(0), [query]);
 
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
   return (
-    <div className="command-overlay" onClick={onClose} role="presentation">
-      <div className="command-palette" role="dialog" aria-modal="true" aria-label="命令面板" onClick={(event) => event.stopPropagation()}>
-        <input
-          ref={inputRef}
-          className="command-palette__input"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索页面或操作"
-        />
-        <div className="command-palette__list">
+    <div className="command-overlay" onMouseDown={onClose} role="presentation">
+      <div className="command-palette" role="dialog" aria-modal="true" aria-label="命令面板" onMouseDown={(event) => event.stopPropagation()}>
+        <input ref={inputRef} className="command-palette__input" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索页面或操作" role="combobox" aria-expanded="true" aria-controls="command-palette-list" aria-autocomplete="list" />
+        <div id="command-palette-list" className="command-palette__list" role="listbox">
           {filteredCommands.map((command, index) => (
-            <button
-              key={command.id}
-              type="button"
-              className={`command-palette__item ${index === activeIndex ? "command-palette__item--active" : ""}`}
-              onMouseEnter={() => setActiveIndex(index)}
-              onClick={() => void runCommand(command)}
-            >
-              <strong>{command.label}</strong>
-              <span className="muted">{command.description}</span>
+            <button key={command.id} type="button" role="option" aria-selected={index === activeIndex} className={`command-palette__item ${index === activeIndex ? "command-palette__item--active" : ""}`} onMouseEnter={() => setActiveIndex(index)} onClick={() => void runCommand(command)}>
+              <strong>{command.label}</strong><span className="muted">{command.description}</span>
             </button>
           ))}
           {filteredCommands.length === 0 ? <div className="empty-state"><p>没有匹配的命令。</p></div> : null}

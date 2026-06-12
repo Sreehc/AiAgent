@@ -267,6 +267,10 @@
   margin-top: var(--space-4);
 }
 
+.image-history-actions {
+  margin-bottom: var(--space-4);
+}
+
 @media (max-width: 900px) {
   .auth-page {
     grid-template-columns: 1fr;

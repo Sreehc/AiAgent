@@ -494,6 +494,51 @@ button.list-item {
   font-size: var(--text-sm);
 }
 
+.session-list-item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.session-list-item--active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-subtle);
+}
+
+.session-list-item__main {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.session-list-item__main strong,
+.session-list-item__main span,
+.session-list-item__main small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-list-item__main span,
+.session-list-item__main small,
+.timeline-item__meta {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+.timeline-item__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
 .meta-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

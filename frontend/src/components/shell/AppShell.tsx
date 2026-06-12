@@ -26,6 +26,7 @@ export function AppShell() {
 
   return (
     <div className={`app-shell ${sidebarOpen ? "sidebar-open" : ""}`}>
+      <a className="skip-link" href="#main-content">跳到主要内容</a>
       <MobileNav isOpen={sidebarOpen} onClose={closeSidebar} />
       <Sidebar isAdmin={session?.user.roles.includes("ADMIN") ?? false} onNavigate={closeSidebar} footer={<UserMenu session={session} onLogout={() => void logout()} />} />
 

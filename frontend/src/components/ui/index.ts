@@ -1,6 +1,7 @@
 export { Alert } from "./Alert";
 export { Badge } from "./Badge";
 export { Button } from "./Button";
+export { Dialog } from "./Dialog";
 export { EmptyState } from "./EmptyState";
 export { Field } from "./Field";
 export { Input, Select, Textarea } from "./FormControls";

@@ -574,7 +574,7 @@ button.list-item {
   position: fixed;
   right: var(--space-4);
   bottom: var(--space-4);
-  z-index: 80;
+  z-index: var(--z-toast);
   display: grid;
   gap: var(--space-2);
   width: min(360px, calc(100vw - 32px));
@@ -595,6 +595,7 @@ button.list-item {
 .toast--success { border-color: var(--color-success-soft); }
 .toast--error { border-color: var(--color-danger-soft); }
 .toast--info { border-color: var(--color-info-soft); }
+.toast--warning { border-color: var(--color-warning-soft); }
 
 .toast__message {
   font-size: var(--text-sm);
@@ -614,11 +615,11 @@ button.list-item {
 .command-overlay {
   position: fixed;
   inset: 0;
-  z-index: 70;
+  z-index: var(--z-modal);
   display: grid;
   place-items: center;
   padding: var(--space-4);
-  background: rgba(15, 23, 20, 0.42);
+  background: var(--color-overlay);
 }
 
 .dialog,
@@ -638,6 +639,17 @@ button.list-item {
   border-bottom: 1px solid var(--color-border-soft);
 }
 
+.dialog__header h3,
+.dialog__header p {
+  margin: 0;
+}
+
+.dialog__header p {
+  margin-top: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
 .confirm-dialog h3 {
   margin: 0;
 }
@@ -645,6 +657,10 @@ button.list-item {
 .dialog__body,
 .confirm-dialog__message {
   padding: var(--space-4);
+}
+
+.dialog__body > .confirm-dialog__message {
+  padding: 0;
 }
 
 .dialog__actions,

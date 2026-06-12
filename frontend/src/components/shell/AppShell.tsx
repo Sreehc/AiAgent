@@ -1,20 +1,11 @@
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuthSession } from "../../hooks/useAuthSession";
 import { authApi } from "../../services/authApi";
-import { Button } from "../ui";
-
-const workNav = [
-  { to: "/workspace/chat", label: "研究工作台" },
-  { to: "/workspace/knowledge-bases", label: "知识库" },
-  { to: "/workspace/image-generation", label: "图片工作室" },
-  { to: "/workspace/history", label: "历史回放" }
-];
-
-const adminNav = [
-  { to: "/admin/settings", label: "模型配置" },
-  { to: "/admin/mcp-servers", label: "MCP 服务器" }
-];
+import { MobileNav } from "./MobileNav";
+import { Sidebar } from "./Sidebar";
+import { Topbar } from "./Topbar";
+import { UserMenu } from "./UserMenu";
 
 export function AppShell() {
   const navigate = useNavigate();
@@ -35,63 +26,12 @@ export function AppShell() {
 
   return (
     <div className={`app-shell ${sidebarOpen ? "sidebar-open" : ""}`}>
-      <aside className="app-sidebar" aria-label="主导航">
-        <Link className="app-brand" to="/workspace/chat" onClick={closeSidebar}>
-          <span className="app-brand__mark">AI</span>
-          <h1>AiAgent</h1>
-          <p>Operations Console</p>
-        </Link>
-
-        <nav className="app-nav">
-          <div className="app-nav__group">
-            <span className="app-nav__label">工作区</span>
-            {workNav.map((item) => (
-              <NavLink key={item.to} to={item.to} className="app-nav__link" onClick={closeSidebar}>
-                {item.label}
-              </NavLink>
-            ))}
-          </div>
-
-          {session?.user.roles.includes("ADMIN") ? (
-            <div className="app-nav__group">
-              <span className="app-nav__label">系统</span>
-              {adminNav.map((item) => (
-                <NavLink key={item.to} to={item.to} className="app-nav__link" onClick={closeSidebar}>
-                  {item.label}
-                </NavLink>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="app-nav__group">
-            <span className="app-nav__label">账户</span>
-            <NavLink to="/account" className="app-nav__link" onClick={closeSidebar}>账号中心</NavLink>
-          </div>
-        </nav>
-
-        <div className="app-sidebar__footer">
-          <div className="user-card">
-            <strong>{session?.user.displayName ?? session?.user.username}</strong>
-            <span>{session?.user.roles.join(", ")}</span>
-          </div>
-          <Button type="button" variant="ghost" onClick={() => void logout()} fullWidth>退出登录</Button>
-        </div>
-      </aside>
+      <MobileNav isOpen={sidebarOpen} onClose={closeSidebar} />
+      <Sidebar isAdmin={session?.user.roles.includes("ADMIN") ?? false} onNavigate={closeSidebar} footer={<UserMenu session={session} onLogout={() => void logout()} />} />
 
       <main className="app-main">
-        <header className="topbar">
-          <div className="cluster">
-            <Button type="button" variant="ghost" size="sm" className="mobile-menu-button" onClick={() => setSidebarOpen((current) => !current)}>
-              菜单
-            </Button>
-            <span className="topbar__section">Console</span>
-          </div>
-          <div className="topbar__actions">
-            <span className="badge badge--neutral">{session?.user.roles.join(", ")}</span>
-            <span className="badge">Cmd/Ctrl K</span>
-          </div>
-        </header>
-        <Outlet />
+        <Topbar onOpenMenu={() => setSidebarOpen(true)} roleLabel={session?.user.roles.join(", ") ?? "USER"} />
+        <div id="main-content"><Outlet /></div>
       </main>
     </div>
   );

@@ -311,6 +311,10 @@ export async function streamRequest(
       const parsed = parseEventChunk(chunk);
       if (parsed) {
         onEvent(parsed);
+        if (isTerminalStreamEvent(parsed)) {
+          await reader.cancel();
+          return;
+        }
       }
     }
   }
@@ -321,6 +325,10 @@ export async function streamRequest(
       onEvent(parsed);
     }
   }
+}
+
+function isTerminalStreamEvent(event: SessionStreamEvent) {
+  return event.event === "session.completed" || event.event === "session.failed";
 }
 
 function parseEventChunk(chunk: string): SessionStreamEvent | null {

@@ -30,7 +30,7 @@ export function Button({
   ].filter(Boolean).join(" ");
 
   return (
-    <button className={classes} disabled={disabled || loading} {...props}>
+    <button className={classes} disabled={disabled || loading} aria-busy={loading || undefined} {...props}>
       {loading ? <span className="spinner" aria-hidden="true" /> : null}
       {children}
     </button>

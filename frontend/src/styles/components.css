@@ -1,5 +1,5 @@
 .btn {
-  min-height: 40px;
+  min-height: var(--control-height-md);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -65,7 +65,7 @@
 }
 
 .btn--sm {
-  min-height: 32px;
+  min-height: var(--control-height-sm);
   padding: 0 var(--space-3);
   font-size: var(--text-sm);
 }
@@ -113,7 +113,7 @@
 
 .input,
 .select {
-  min-height: 40px;
+  min-height: var(--control-height-md);
   padding: 0 var(--space-3);
 }
 
@@ -158,6 +158,11 @@
 
 .panel--subtle {
   background: var(--color-surface-subtle);
+}
+
+.panel--plain {
+  border-color: transparent;
+  background: transparent;
 }
 
 .panel--raised {
@@ -217,6 +222,164 @@
 .status-pill--neutral {
   background: var(--color-surface-subtle);
   color: var(--color-text-muted);
+}
+
+.badge--success {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.badge--warning {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+.badge--danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.badge--info {
+  background: var(--color-info-soft);
+  color: var(--color-info);
+}
+
+.icon-button {
+  width: var(--control-height-md);
+  height: var(--control-height-md);
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.icon-button:hover:not(:disabled) {
+  border-color: var(--color-border);
+  background: var(--color-surface-subtle);
+  color: var(--color-text);
+}
+
+.icon-button--danger:hover:not(:disabled) {
+  border-color: var(--color-danger-soft);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.tabs {
+  min-height: var(--control-height-md);
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+}
+
+.tabs__item {
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.tabs__item--active {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.switch {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  align-items: center;
+  cursor: pointer;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch__control {
+  width: 38px;
+  height: 22px;
+  position: relative;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-subtle);
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.switch__control::after {
+  width: 16px;
+  height: 16px;
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast);
+}
+
+.switch input:checked + .switch__control {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.switch input:checked + .switch__control::after {
+  transform: translateX(16px);
+}
+
+.switch input:focus-visible + .switch__control {
+  box-shadow: var(--focus-ring);
+}
+
+.switch__copy {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.switch__copy small {
+  color: var(--color-text-muted);
+}
+
+.skeleton {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.skeleton__line {
+  height: 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+  animation: skeleton-pulse 1.4s ease-in-out infinite alternate;
+}
+
+.skeleton__line:last-child {
+  width: 64%;
+}
+
+.skeleton--compact .skeleton__line {
+  height: 10px;
+}
+
+@keyframes skeleton-pulse {
+  from { opacity: 0.5; }
+  to { opacity: 1; }
 }
 
 .status-pill--success {

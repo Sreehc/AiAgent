@@ -7,7 +7,7 @@ type PanelProps = {
   action?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
-  variant?: "default" | "subtle" | "raised";
+  variant?: "default" | "plain" | "subtle" | "raised";
   className?: string;
 };
 
@@ -23,6 +23,7 @@ export function Panel({
 }: PanelProps) {
   const classes = [
     "panel",
+    variant === "plain" ? "panel--plain" : "",
     variant === "subtle" ? "panel--subtle" : "",
     variant === "raised" ? "panel--raised" : "",
     className

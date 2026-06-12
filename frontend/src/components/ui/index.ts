@@ -1,7 +1,12 @@
 export { Alert } from "./Alert";
+export { Badge } from "./Badge";
 export { Button } from "./Button";
 export { EmptyState } from "./EmptyState";
 export { Field } from "./Field";
 export { Input, Select, Textarea } from "./FormControls";
+export { IconButton } from "./IconButton";
 export { Panel } from "./Panel";
+export { Skeleton } from "./Skeleton";
 export { StatusPill } from "./StatusPill";
+export { Switch } from "./Switch";
+export { Tabs } from "./Tabs";

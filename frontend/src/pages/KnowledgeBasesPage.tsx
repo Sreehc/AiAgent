@@ -1,14 +1,15 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { Alert, Button, EmptyState, Field, Input, Panel, StatusPill, Textarea } from "../components/ui";
+import { Alert } from "../components/ui";
+import { DocumentTable } from "../features/knowledge/DocumentTable";
+import { KnowledgeBaseList } from "../features/knowledge/KnowledgeBaseList";
+import { KnowledgeBaseSummary } from "../features/knowledge/KnowledgeBaseSummary";
+import { SearchTestPanel } from "../features/knowledge/SearchTestPanel";
 import { useAuthSession } from "../hooks/useAuthSession";
 import { ApiError, KnowledgeBaseItem, KnowledgeDocumentItem, SearchHit } from "../services/api";
 import { knowledgeApi } from "../services/knowledgeApi";
 
-const DEFAULT_KB_FORM = {
-  name: "行业研究资料库",
-  description: "用于沉淀行业报告、访谈纪要和私有研究文档"
-};
+const DEFAULT_KB_FORM = { name: "行业研究资料库", description: "用于沉淀行业报告、访谈纪要和私有研究文档" };
 
 export function KnowledgeBasesPage() {
   const { session } = useAuthSession();
@@ -25,13 +26,10 @@ export function KnowledgeBasesPage() {
   const [error, setError] = useState<string | null>(null);
   const [kbToDelete, setKbToDelete] = useState<KnowledgeBaseItem | null>(null);
 
-  const selectedKnowledgeBase = useMemo(() => knowledgeBases.find((item) => item.kbId === selectedKbId) ?? null, [knowledgeBases, selectedKbId]);
+  const selected = useMemo(() => knowledgeBases.find((item) => item.kbId === selectedKbId) ?? null, [knowledgeBases, selectedKbId]);
 
   useEffect(() => {
-    if (!session?.accessToken) {
-      return;
-    }
-    void loadKnowledgeBases();
+    if (session?.accessToken) void loadKnowledgeBases();
   }, [session?.accessToken]);
 
   useEffect(() => {
@@ -43,14 +41,12 @@ export function KnowledgeBasesPage() {
   }, [selectedKbId, session?.accessToken]);
 
   async function loadKnowledgeBases() {
-    if (!session?.accessToken) {
-      return;
-    }
+    if (!session?.accessToken) return;
     setLoading(true);
     try {
       const result = await knowledgeApi.list(session.accessToken);
       setKnowledgeBases(result);
-      setSelectedKbId((current) => current ?? result[0]?.kbId ?? null);
+      setSelectedKbId((current) => current && result.some((item) => item.kbId === current) ? current : result[0]?.kbId ?? null);
     } catch (requestError) {
       setError((requestError as ApiError).message);
     } finally {
@@ -59,22 +55,23 @@ export function KnowledgeBasesPage() {
   }
 
   async function loadDocuments(kbId: string) {
-    if (!session?.accessToken) {
-      return;
-    }
+    if (!session?.accessToken) return;
     try {
-      const result = await knowledgeApi.listDocuments(session.accessToken, kbId);
-      setDocuments(result);
+      setDocuments(await knowledgeApi.listDocuments(session.accessToken, kbId));
     } catch (requestError) {
       setError((requestError as ApiError).message);
     }
   }
 
-  async function onCreateKnowledgeBase(event: FormEvent<HTMLFormElement>) {
+  function selectKnowledgeBase(item: KnowledgeBaseItem) {
+    setSelectedKbId(item.kbId);
+    setKbForm({ name: item.name, description: item.description ?? "" });
+    setSearchHits([]);
+  }
+
+  async function onCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!session?.accessToken) {
-      return;
-    }
+    if (!session?.accessToken) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -88,10 +85,8 @@ export function KnowledgeBasesPage() {
     }
   }
 
-  async function onRenameKnowledgeBase() {
-    if (!session?.accessToken || !selectedKbId) {
-      return;
-    }
+  async function onSave() {
+    if (!session?.accessToken || !selectedKbId) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -104,17 +99,16 @@ export function KnowledgeBasesPage() {
     }
   }
 
-  async function onConfirmDeleteKb() {
-    if (!session?.accessToken || !kbToDelete) {
-      return;
-    }
+  async function onDelete() {
+    if (!session?.accessToken || !kbToDelete) return;
     setSubmitting(true);
     setError(null);
     try {
       await knowledgeApi.remove(session.accessToken, kbToDelete.kbId);
-      setSearchHits([]);
       setSelectedKbId(null);
+      setSearchHits([]);
       setKbToDelete(null);
+      setKbForm(DEFAULT_KB_FORM);
       await loadKnowledgeBases();
     } catch (requestError) {
       setError((requestError as ApiError).message);
@@ -123,14 +117,10 @@ export function KnowledgeBasesPage() {
     }
   }
 
-  async function onUploadDocument(event: FormEvent<HTMLFormElement>) {
+  async function onUpload(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!session?.accessToken || !selectedKbId) {
-      return;
-    }
-    const form = event.currentTarget;
-    const fileInput = form.elements.namedItem("file") as HTMLInputElement | null;
-    const file = fileInput?.files?.[0];
+    if (!session?.accessToken || !selectedKbId) return;
+    const file = (event.currentTarget.elements.namedItem("file") as HTMLInputElement | null)?.files?.[0];
     if (!file) {
       setError("请选择一个文档文件");
       return;
@@ -141,9 +131,8 @@ export function KnowledgeBasesPage() {
       const body = new FormData();
       body.append("file", file);
       await knowledgeApi.uploadDocument(session.accessToken, selectedKbId, body);
-      form.reset();
-      await loadKnowledgeBases();
-      await loadDocuments(selectedKbId);
+      event.currentTarget.reset();
+      await Promise.all([loadKnowledgeBases(), loadDocuments(selectedKbId)]);
     } catch (requestError) {
       setError((requestError as ApiError).message);
     } finally {
@@ -151,10 +140,8 @@ export function KnowledgeBasesPage() {
     }
   }
 
-  async function onIndexDocument(documentId: string) {
-    if (!session?.accessToken || !selectedKbId) {
-      return;
-    }
+  async function onIndex(documentId: string) {
+    if (!session?.accessToken || !selectedKbId) return;
     setUploading(true);
     setError(null);
     try {
@@ -167,16 +154,13 @@ export function KnowledgeBasesPage() {
     }
   }
 
-  async function onSearchTest(event: FormEvent<HTMLFormElement>) {
+  async function onSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!session?.accessToken || !selectedKbId) {
-      return;
-    }
+    if (!session?.accessToken || !selectedKbId) return;
     setSearching(true);
     setError(null);
     try {
-      const result = await knowledgeApi.searchTest(session.accessToken, selectedKbId, searchQuery, 5);
-      setSearchHits(result);
+      setSearchHits(await knowledgeApi.searchTest(session.accessToken, selectedKbId, searchQuery, 5));
     } catch (requestError) {
       setError((requestError as ApiError).message);
     } finally {
@@ -184,105 +168,19 @@ export function KnowledgeBasesPage() {
     }
   }
 
-  function onSelectKnowledgeBase(kb: KnowledgeBaseItem) {
-    setSelectedKbId(kb.kbId);
-    setKbForm({ name: kb.name, description: kb.description ?? "" });
-  }
-
   return (
     <section className="page">
-      <header className="page-header">
-        <h1>知识库</h1>
-        <div className="page-header__meta">
-          <span className="badge badge--neutral">{documents.length} 个文档</span>
-          <span className="badge badge--neutral">{searchHits.length} 个命中</span>
-        </div>
-        <span className="badge">{loading ? "加载中" : `${knowledgeBases.length} 个知识库`}</span>
-      </header>
+      <header className="page-header"><div><h1>知识库</h1><p>管理私有文档、索引状态，并在投入研究任务前验证召回质量。</p></div><div className="page-header__meta"><span className="badge badge--neutral">{knowledgeBases.length} 个知识库</span><span className="badge badge--neutral">{documents.length} 个文档</span></div><span className="badge">{searchHits.length} 个命中</span></header>
       {error ? <Alert tone="error">{error}</Alert> : null}
-
       <div className="content-grid">
-        <aside className="stack">
-          <Panel title="新建知识库" eyebrow="Create">
-            <form className="form-grid" onSubmit={onCreateKnowledgeBase}>
-              <Field label="名称"><Input value={kbForm.name} onChange={(event) => setKbForm((current) => ({ ...current, name: event.target.value }))} /></Field>
-              <Field label="描述"><Textarea value={kbForm.description} onChange={(event) => setKbForm((current) => ({ ...current, description: event.target.value }))} rows={4} /></Field>
-              <Button type="submit" variant="primary" loading={submitting} fullWidth>创建知识库</Button>
-            </form>
-          </Panel>
-          <Panel title="知识库列表" eyebrow="Library" action={<Button type="button" variant="ghost" size="sm" onClick={() => void loadKnowledgeBases()}>刷新</Button>}>
-            <div className="list">
-              {knowledgeBases.map((item) => (
-                <button key={item.kbId} type="button" className={`list-item ${selectedKbId === item.kbId ? "list-item--active" : ""}`} onClick={() => onSelectKnowledgeBase(item)}>
-                  <strong>{item.name}</strong>
-                  <span>{item.kbId}</span>
-                  <small>{item.documentCount} docs · {formatDateTime(item.updatedAt ?? item.createdAt)}</small>
-                </button>
-              ))}
-              {!loading && knowledgeBases.length === 0 ? <EmptyState message="还没有知识库，先创建一个用于沉淀私有文档。" /> : null}
-            </div>
-          </Panel>
-        </aside>
-
+        <KnowledgeBaseList items={knowledgeBases} selectedId={selectedKbId} loading={loading} submitting={submitting} form={kbForm} onFormChange={setKbForm} onCreate={onCreate} onSelect={selectKnowledgeBase} onRefresh={() => void loadKnowledgeBases()} />
         <main className="stack">
-          <Panel title={selectedKnowledgeBase?.name ?? "选择一个知识库"} eyebrow="Documents" action={<StatusPill status={selectedKnowledgeBase?.status ?? "IDLE"} />}>
-            <div className="stack">
-              <div className="cluster">
-                <Button type="button" variant="secondary" disabled={!selectedKbId || submitting} onClick={() => void onRenameKnowledgeBase()}>保存名称</Button>
-                <Button type="button" variant="danger" disabled={!selectedKnowledgeBase || submitting} onClick={() => selectedKnowledgeBase && setKbToDelete(selectedKnowledgeBase)}>删除知识库</Button>
-              </div>
-              <form className="form-grid" onSubmit={onUploadDocument}>
-                <Field label="上传文档" description="支持 txt、md、csv、json 等文本类文件。">
-                  <Input name="file" type="file" accept=".txt,.md,.csv,.json" disabled={!selectedKbId || uploading} />
-                </Field>
-                <Button type="submit" variant="primary" loading={uploading} disabled={!selectedKbId}>上传文档</Button>
-              </form>
-              <div className="table-list">
-                {documents.map((document) => (
-                  <article key={document.documentId} className="table-row">
-                    <div><strong>{document.fileName}</strong><br /><small>{document.fileType} · {document.chunkCount} chunks</small></div>
-                    <StatusPill status={document.parseStatus} />
-                    <Button type="button" variant="secondary" size="sm" loading={uploading} onClick={() => void onIndexDocument(document.documentId)}>触发索引</Button>
-                  </article>
-                ))}
-              </div>
-              {selectedKbId && documents.length === 0 ? <EmptyState message="当前知识库还没有文档，上传后即可索引并参与检索。" /> : null}
-            </div>
-          </Panel>
-
-          <Panel title="检索测试" eyebrow="Search" action={<span className="badge">{searchHits.length} hits</span>}>
-            <form className="form-grid" onSubmit={onSearchTest}>
-              <Field label="检索问题"><Textarea value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} rows={4} /></Field>
-              <Button type="submit" variant="primary" loading={searching} disabled={!selectedKbId}>开始检索</Button>
-            </form>
-            <div className="timeline" style={{ marginTop: "var(--space-4)" }}>
-              {searchHits.map((hit) => (
-                <article key={hit.chunkId} className="timeline-item">
-                  <div className="timeline-item__header"><strong>{hit.fileName}</strong><small>{hit.score.toFixed(4)}</small></div>
-                  <p className="muted">{hit.kbId} · chunk {hit.chunkNo}</p>
-                  <p>{hit.contentPreview}</p>
-                </article>
-              ))}
-              {searchHits.length === 0 ? <EmptyState message="输入问题后可验证当前知识库的召回片段。" /> : null}
-            </div>
-          </Panel>
+          <KnowledgeBaseSummary item={selected} form={kbForm} submitting={submitting} onFormChange={setKbForm} onSave={() => void onSave()} onDelete={() => selected && setKbToDelete(selected)} />
+          <DocumentTable selectedKbId={selectedKbId} documents={documents} uploading={uploading} onUpload={onUpload} onIndex={(documentId) => void onIndex(documentId)} />
+          <SearchTestPanel selected={selectedKbId !== null} query={searchQuery} hits={searchHits} searching={searching} onQueryChange={setSearchQuery} onSearch={onSearch} />
         </main>
       </div>
-
-      <ConfirmDialog
-        isOpen={kbToDelete !== null}
-        title="确认删除知识库"
-        message={<>确定要删除知识库「<strong>{kbToDelete?.name}</strong>」吗？关联文档和索引会一并删除。</>}
-        confirmText="删除知识库"
-        cancelText="取消"
-        onConfirm={onConfirmDeleteKb}
-        onCancel={() => setKbToDelete(null)}
-        danger
-      />
+      <ConfirmDialog isOpen={kbToDelete !== null} title="确认删除知识库" message={<>确定要删除知识库「<strong>{kbToDelete?.name}</strong>」吗？关联文档和索引会一并删除。</>} confirmText="删除知识库" cancelText="取消" onConfirm={onDelete} onCancel={() => setKbToDelete(null)} danger />
     </section>
   );
-}
-
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("zh-CN", { hour12: false });
 }

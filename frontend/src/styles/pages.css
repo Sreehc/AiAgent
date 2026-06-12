@@ -249,6 +249,24 @@
   background: var(--color-danger-soft);
 }
 
+.upload-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  align-items: end;
+}
+
+.search-test-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  align-items: end;
+}
+
+.search-hit-list {
+  margin-top: var(--space-4);
+}
+
 @media (max-width: 900px) {
   .auth-page {
     grid-template-columns: 1fr;
@@ -256,6 +274,11 @@
 
   .auth-context h1 {
     max-width: 100%;
+  }
+
+  .upload-row,
+  .search-test-layout {
+    grid-template-columns: 1fr;
   }
 
   .auth-points {

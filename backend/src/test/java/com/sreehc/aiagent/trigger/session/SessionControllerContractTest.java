@@ -6,6 +6,7 @@ import com.sreehc.aiagent.domain.account.UserRole;
 import com.sreehc.aiagent.domain.auth.SessionUser;
 import com.sreehc.aiagent.infrastructure.storage.ObjectStorageService;
 import com.sreehc.aiagent.trigger.AuthFilter;
+import com.sreehc.aiagent.trigger.GlobalExceptionHandler;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,9 @@ class SessionControllerContractTest {
                 mock(ObjectStorageService.class),
                 new ObjectMapper()
         );
-        mockMvc = standaloneSetup(controller).build();
+        mockMvc = standaloneSetup(controller)
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
         user = new SessionUser(7L, "alice", "Alice", List.of(UserRole.USER));
     }
 
@@ -71,6 +74,7 @@ class SessionControllerContractTest {
                         .content("""
                                 {"query":"research","executionMode":"REACT","knowledgeBaseIds":[]}
                                 """))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("ENDPOINT_NOT_FOUND"));
     }
 }

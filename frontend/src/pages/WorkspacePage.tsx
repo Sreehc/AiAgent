@@ -157,6 +157,10 @@ export function WorkspacePage() {
   function onStreamEvent(event: SessionStreamEvent) {
     const normalized = normalizeStreamEvent(event);
     setLiveEvents((current) => [...current, normalized].slice(-60));
+    if ((event.event === "session.failed" || event.event === "request.failed") && typeof event.data.message === "string") {
+      setError(event.data.message);
+      setStreamDisconnected(false);
+    }
     if (event.event === "summary.completed" && typeof event.data.summary === "string") {
       setSessionDetail((current) => current ? { ...current, summary: event.data.summary as string } : current);
     }

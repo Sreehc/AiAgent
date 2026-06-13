@@ -187,14 +187,21 @@ public class SessionRunExecutor {
             ));
             emitter.complete();
         } catch (Exception exception) {
-            sessionRepository.markRunFailed(run.id(), exception.getMessage());
+            String errorCode = exception instanceof AppException appException
+                    ? appException.code()
+                    : "SESSION_EXECUTION_FAILED";
+            String errorMessage = exception.getMessage() == null || exception.getMessage().isBlank()
+                    ? "Session execution failed"
+                    : exception.getMessage();
+            sessionRepository.markRunFailed(run.id(), errorMessage);
             sessionRepository.markSessionStatus(session.id(), SessionStatus.FAILED);
             trySend(emitter, "session.failed", Map.of(
                     "sessionId", session.sessionCode(),
                     "runId", run.runCode(),
-                    "message", exception.getMessage()
+                    "code", errorCode,
+                    "message", errorMessage
             ));
-            emitter.completeWithError(exception);
+            emitter.complete();
         }
     }
 

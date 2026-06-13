@@ -2,6 +2,7 @@ package com.sreehc.aiagent.trigger.session;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sreehc.aiagent.application.common.AppException;
 import com.sreehc.aiagent.application.session.SessionService;
 import com.sreehc.aiagent.domain.auth.SessionUser;
 import com.sreehc.aiagent.domain.knowledge.SearchHit;
@@ -15,6 +16,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -112,13 +114,40 @@ public class SessionController {
     public SseEmitter streamRun(
             @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
             @PathVariable("sessionId") String sessionId,
-            @Valid @RequestBody CreateRunRequest request
+            @RequestBody(required = false) CreateRunRequest request
     ) {
-        return sessionService.streamRun(currentUser, sessionId, new SessionService.CreateRunCommand(
-                request.query(),
-                request.executionMode(),
-                request.knowledgeBaseIds()
-        ));
+        if (request == null) {
+            return failedStream("PARAM_INVALID", "Request body is required");
+        }
+        if (request.query() == null || request.query().isBlank()) {
+            return failedStream("PARAM_INVALID", "Query is required");
+        }
+        if (request.executionMode() == null) {
+            return failedStream("PARAM_INVALID", "Execution mode is required");
+        }
+        try {
+            return sessionService.streamRun(currentUser, sessionId, new SessionService.CreateRunCommand(
+                    request.query(),
+                    request.executionMode(),
+                    request.knowledgeBaseIds()
+            ));
+        } catch (AppException exception) {
+            return failedStream(exception.code(), exception.getMessage());
+        }
+    }
+
+    private SseEmitter failedStream(String code, String message) {
+        SseEmitter emitter = new SseEmitter(0L);
+        try {
+            emitter.send(SseEmitter.event().name("request.failed").data(Map.of(
+                    "event", "request.failed",
+                    "data", Map.of("code", code, "message", message)
+            )));
+        } catch (Exception ignored) {
+            // The client may disconnect before receiving the terminal event.
+        }
+        emitter.complete();
+        return emitter;
     }
 
     private SessionResponse toSessionResponse(AgentSession session) {

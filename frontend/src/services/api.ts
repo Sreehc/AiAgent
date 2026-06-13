@@ -328,7 +328,7 @@ export async function streamRequest(
 }
 
 function isTerminalStreamEvent(event: SessionStreamEvent) {
-  return event.event === "session.completed" || event.event === "session.failed";
+  return event.event === "session.completed" || event.event === "session.failed" || event.event === "request.failed";
 }
 
 function parseEventChunk(chunk: string): SessionStreamEvent | null {

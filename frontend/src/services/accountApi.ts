@@ -11,6 +11,15 @@ export type AccountProfile = {
 
 export type AccountApiConfig = {
   baseUrl: string;
+  apiKeyMasked: string | null;
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  configured: boolean;
+};
+
+export type AccountApiConfigUpdate = {
+  baseUrl: string;
   apiKey: string;
   model: string;
   temperature: number;
@@ -41,6 +50,6 @@ export const accountApi = {
   listLoginLogs: (accessToken: string, pageNo = 1, pageSize = 5) =>
     apiRequest<LoginLogResponse>(`/account/login-logs?pageNo=${pageNo}&pageSize=${pageSize}`, {}, accessToken),
   getApiConfig: (accessToken: string) => apiRequest<AccountApiConfig>("/account/api-config", {}, accessToken),
-  updateApiConfig: (accessToken: string, payload: AccountApiConfig) =>
-    apiRequest<void>("/account/api-config", { method: "PUT", body: JSON.stringify(payload) }, accessToken)
+  updateApiConfig: (accessToken: string, payload: AccountApiConfigUpdate) =>
+    apiRequest<AccountApiConfig>("/account/api-config", { method: "PUT", body: JSON.stringify(payload) }, accessToken)
 };

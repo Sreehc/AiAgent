@@ -36,7 +36,9 @@ class SessionServiceTest {
                 mock(KnowledgeBaseService.class),
                 mock(McpExecutionService.class),
                 mock(SessionRunExecutor.class),
-                mock(ObjectStorageService.class)
+                mock(ObjectStorageService.class),
+                mock(RunControlService.class),
+                mock(ConversationMemoryService.class)
         );
         user = new SessionUser(7L, "alice", "Alice", List.of(UserRole.USER));
     }

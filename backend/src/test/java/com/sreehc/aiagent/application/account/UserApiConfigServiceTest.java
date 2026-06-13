@@ -5,6 +5,9 @@ import com.sreehc.aiagent.domain.account.UserRole;
 import com.sreehc.aiagent.domain.auth.SessionUser;
 import com.sreehc.aiagent.infrastructure.account.UserApiConfigRepository;
 import com.sreehc.aiagent.infrastructure.account.UserApiConfigRepository.StoredUserApiConfig;
+import com.sreehc.aiagent.infrastructure.knowledge.EmbeddingProviderRouter;
+import com.sreehc.aiagent.infrastructure.model.ChatModelProviderRouter;
+import com.sreehc.aiagent.infrastructure.model.ImageGenerationProviderRouter;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +28,13 @@ class UserApiConfigServiceTest {
     void setUp() {
         repository = mock(UserApiConfigRepository.class);
         cipher = mock(SecretCipherService.class);
-        service = new UserApiConfigService(repository, cipher);
+        service = new UserApiConfigService(
+                repository,
+                cipher,
+                mock(ChatModelProviderRouter.class),
+                mock(EmbeddingProviderRouter.class),
+                mock(ImageGenerationProviderRouter.class)
+        );
         user = new SessionUser(7L, "alice", "Alice", List.of(UserRole.USER));
     }
 

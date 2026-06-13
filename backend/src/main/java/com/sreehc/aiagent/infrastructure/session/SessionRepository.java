@@ -139,7 +139,8 @@ public class SessionRepository {
         return jdbcTemplate.query("""
                         select id, run_code, session_id, user_id, query_text, execution_mode,
                                knowledge_base_ids, retrieval_query, recall_set, final_evidence_set,
-                               status, error_message, started_at,
+                               status, error_message, heartbeat_at, cancel_requested_at, cancel_reason, paused_at, pause_reason, resumed_at,
+                               timeout_at, recovered_at, strategy_source, planning_rounds, fallback_reasons, started_at,
                                completed_at, created_at, updated_at
                         from execution_run
                         where session_id = :sessionId and run_code = :runCode
@@ -152,7 +153,8 @@ public class SessionRepository {
         return jdbcTemplate.query("""
                         select id, run_code, session_id, user_id, query_text, execution_mode,
                                knowledge_base_ids, retrieval_query, recall_set, final_evidence_set,
-                               status, error_message, started_at,
+                               status, error_message, heartbeat_at, cancel_requested_at, cancel_reason, paused_at, pause_reason, resumed_at,
+                               timeout_at, recovered_at, strategy_source, planning_rounds, fallback_reasons, started_at,
                                completed_at, created_at, updated_at
                         from execution_run
                         where session_id = :sessionId and id = :runId
@@ -165,7 +167,8 @@ public class SessionRepository {
         return jdbcTemplate.query("""
                         select id, run_code, session_id, user_id, query_text, execution_mode,
                                knowledge_base_ids, retrieval_query, recall_set, final_evidence_set,
-                               status, error_message, started_at,
+                               status, error_message, heartbeat_at, cancel_requested_at, cancel_reason, paused_at, pause_reason, resumed_at,
+                               timeout_at, recovered_at, strategy_source, planning_rounds, fallback_reasons, started_at,
                                completed_at, created_at, updated_at
                         from execution_run
                         where session_id = :sessionId
@@ -180,7 +183,8 @@ public class SessionRepository {
         return jdbcTemplate.query("""
                         select id, run_code, session_id, user_id, query_text, execution_mode,
                                knowledge_base_ids, retrieval_query, recall_set, final_evidence_set,
-                               status, error_message, started_at,
+                               status, error_message, heartbeat_at, cancel_requested_at, cancel_reason, paused_at, pause_reason, resumed_at,
+                               timeout_at, recovered_at, strategy_source, planning_rounds, fallback_reasons, started_at,
                                completed_at, created_at, updated_at
                         from execution_run
                         where session_id = :sessionId and status = :status
@@ -195,7 +199,8 @@ public class SessionRepository {
         return jdbcTemplate.query("""
                         select id, run_code, session_id, user_id, query_text, execution_mode,
                                knowledge_base_ids, retrieval_query, recall_set, final_evidence_set,
-                               status, error_message, started_at,
+                               status, error_message, heartbeat_at, cancel_requested_at, cancel_reason, paused_at, pause_reason, resumed_at,
+                               timeout_at, recovered_at, strategy_source, planning_rounds, fallback_reasons, started_at,
                                completed_at, created_at, updated_at
                         from execution_run
                         where session_id = :sessionId
@@ -232,6 +237,7 @@ public class SessionRepository {
                         update execution_run
                         set status = :toStatus,
                             started_at = now(),
+                            heartbeat_at = now(),
                             updated_at = now()
                         where id = :runId
                           and status = :fromStatus
@@ -258,6 +264,9 @@ public class SessionRepository {
                             retrieval_query = null,
                             recall_set = '[]'::jsonb,
                             final_evidence_set = '[]'::jsonb,
+                            strategy_source = null,
+                            planning_rounds = 1,
+                            fallback_reasons = '[]'::jsonb,
                             updated_at = now()
                         where id = :runId and status = :status
                         """,
@@ -290,6 +299,7 @@ public class SessionRepository {
                         update execution_run
                         set status = :status,
                             completed_at = now(),
+                            heartbeat_at = now(),
                             updated_at = now()
                         where id = :runId
                         """,
@@ -302,10 +312,197 @@ public class SessionRepository {
                         set status = :status,
                             error_message = :errorMessage,
                             completed_at = now(),
+                            heartbeat_at = now(),
                             updated_at = now()
                         where id = :runId
                         """,
                 Map.of("runId", runId, "status", RunStatus.FAILED.name(), "errorMessage", errorMessage));
+    }
+
+    public void updateRunHeartbeat(long runId) {
+        jdbcTemplate.update("""
+                        update execution_run
+                        set heartbeat_at = now(),
+                            updated_at = now()
+                        where id = :runId and status = :status
+                        """,
+                Map.of("runId", runId, "status", RunStatus.RUNNING.name()));
+    }
+
+    public void updateRunStrategy(long runId, AgentMode executionMode, String strategySource, int planningRounds) {
+        jdbcTemplate.update("""
+                        update execution_run
+                        set execution_mode = :executionMode,
+                            strategy_source = :strategySource,
+                            planning_rounds = :planningRounds,
+                            updated_at = now()
+                        where id = :runId
+                        """,
+                Map.of(
+                        "runId", runId,
+                        "executionMode", executionMode.name(),
+                        "strategySource", strategySource,
+                        "planningRounds", planningRounds
+                ));
+    }
+
+    public void updateRunPlanningRounds(long runId, int planningRounds) {
+        jdbcTemplate.update("""
+                        update execution_run
+                        set planning_rounds = :planningRounds,
+                            updated_at = now()
+                        where id = :runId
+                        """,
+                Map.of("runId", runId, "planningRounds", planningRounds));
+    }
+
+    public void appendRunFallbackReason(long runId, String reasonCode, String message) {
+        jdbcTemplate.update("""
+                        update execution_run
+                        set fallback_reasons = fallback_reasons || cast(:fallbackReason as jsonb),
+                            updated_at = now()
+                        where id = :runId
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("runId", runId)
+                        .addValue("fallbackReason", toJson(List.of(reasonCode + ":" + (message == null ? "" : message)))));
+    }
+
+    public boolean requestRunCancel(long userId, String sessionCode, String runCode, String reason) {
+        return jdbcTemplate.update("""
+                        update execution_run run
+                        set status = :cancelRequested,
+                            cancel_requested_at = now(),
+                            cancel_reason = :reason,
+                            updated_at = now()
+                        from agent_session session
+                        where run.session_id = session.id
+                          and session.user_id = :userId
+                          and session.session_code = :sessionCode
+                          and run.run_code = :runCode
+                          and run.status in (:cancelableStatuses)
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("userId", userId)
+                        .addValue("sessionCode", sessionCode)
+                        .addValue("runCode", runCode)
+                        .addValue("reason", reason)
+                        .addValue("cancelRequested", RunStatus.CANCEL_REQUESTED.name())
+                        .addValue("cancelableStatuses", List.of(RunStatus.PENDING.name(), RunStatus.RUNNING.name(), RunStatus.PAUSED.name()))) == 1;
+    }
+
+    public boolean isRunCancelRequested(long runId) {
+        Boolean result = jdbcTemplate.queryForObject("""
+                        select exists(
+                            select 1
+                            from execution_run
+                            where id = :runId and status = :status
+                        )
+                        """,
+                Map.of("runId", runId, "status", RunStatus.CANCEL_REQUESTED.name()),
+                Boolean.class);
+        return Boolean.TRUE.equals(result);
+    }
+
+    public boolean pauseRun(long userId, String sessionCode, String runCode, String reason) {
+        return jdbcTemplate.update("""
+                        update execution_run run
+                        set status = :pausedStatus,
+                            paused_at = now(),
+                            pause_reason = :reason,
+                            heartbeat_at = now(),
+                            updated_at = now()
+                        from agent_session session
+                        where run.session_id = session.id
+                          and session.user_id = :userId
+                          and session.session_code = :sessionCode
+                          and run.run_code = :runCode
+                          and run.status = :runningStatus
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("userId", userId)
+                        .addValue("sessionCode", sessionCode)
+                        .addValue("runCode", runCode)
+                        .addValue("reason", reason)
+                        .addValue("pausedStatus", RunStatus.PAUSED.name())
+                        .addValue("runningStatus", RunStatus.RUNNING.name())) == 1;
+    }
+
+    public boolean resumeRun(long userId, String sessionCode, String runCode) {
+        return jdbcTemplate.update("""
+                        update execution_run run
+                        set status = :runningStatus,
+                            resumed_at = now(),
+                            heartbeat_at = now(),
+                            updated_at = now()
+                        from agent_session session
+                        where run.session_id = session.id
+                          and session.user_id = :userId
+                          and session.session_code = :sessionCode
+                          and run.run_code = :runCode
+                          and run.status = :pausedStatus
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("userId", userId)
+                        .addValue("sessionCode", sessionCode)
+                        .addValue("runCode", runCode)
+                        .addValue("runningStatus", RunStatus.RUNNING.name())
+                        .addValue("pausedStatus", RunStatus.PAUSED.name())) == 1;
+    }
+
+    public boolean isRunPaused(long runId) {
+        Boolean result = jdbcTemplate.queryForObject("""
+                        select exists(
+                            select 1
+                            from execution_run
+                            where id = :runId and status = :status
+                        )
+                        """,
+                Map.of("runId", runId, "status", RunStatus.PAUSED.name()),
+                Boolean.class);
+        return Boolean.TRUE.equals(result);
+    }
+
+    public void markRunCancelled(long runId, String reason) {
+        jdbcTemplate.update("""
+                        update execution_run
+                        set status = :status,
+                            cancel_reason = coalesce(cancel_reason, :reason),
+                            completed_at = now(),
+                            heartbeat_at = now(),
+                            updated_at = now()
+                        where id = :runId
+                        """,
+                Map.of("runId", runId, "status", RunStatus.CANCELLED.name(), "reason", reason));
+    }
+
+    public void markPlanStepCancelled(long runId, int stepNo) {
+        jdbcTemplate.update("""
+                        update execution_plan_step
+                        set status = :status,
+                            completed_at = now(),
+                            updated_at = now()
+                        where run_id = :runId and step_no = :stepNo
+                        """,
+                Map.of("runId", runId, "stepNo", stepNo, "status", PlanStepStatus.CANCELLED.name()));
+    }
+
+    public int markStaleRunsTimedOut(Instant heartbeatBefore) {
+        return jdbcTemplate.update("""
+                        update execution_run
+                        set status = :timeoutStatus,
+                            error_message = coalesce(error_message, 'Run heartbeat timed out'),
+                            timeout_at = now(),
+                            completed_at = now(),
+                            updated_at = now()
+                        where status = :runningStatus
+                          and heartbeat_at is not null
+                          and heartbeat_at < :heartbeatBefore
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("timeoutStatus", RunStatus.TIMED_OUT.name())
+                        .addValue("runningStatus", RunStatus.RUNNING.name())
+                        .addValue("heartbeatBefore", Timestamp.from(heartbeatBefore)));
     }
 
     public long createPlanStep(long runId, String stepCode, int stepNo, String title, PlanStepStatus status) {
@@ -338,6 +535,7 @@ public class SessionRepository {
                         set status = :status,
                             tool_name = :toolName,
                             tool_input = :toolInput,
+                            started_at = coalesce(started_at, now()),
                             updated_at = now()
                         where run_id = :runId and step_no = :stepNo
                         """,
@@ -355,6 +553,8 @@ public class SessionRepository {
                         update execution_plan_step
                         set status = :status,
                             tool_output = :toolOutput,
+                            observation = :toolOutput,
+                            completed_at = now(),
                             updated_at = now()
                         where run_id = :runId and step_no = :stepNo
                         """,
@@ -366,10 +566,27 @@ public class SessionRepository {
                 ));
     }
 
+    public void markPlanStepObserved(long runId, int stepNo, String observation, String completionJudgement) {
+        jdbcTemplate.update("""
+                        update execution_plan_step
+                        set observation = :observation,
+                            completion_judgement = :completionJudgement,
+                            updated_at = now()
+                        where run_id = :runId and step_no = :stepNo
+                        """,
+                Map.of(
+                        "runId", runId,
+                        "stepNo", stepNo,
+                        "observation", observation,
+                        "completionJudgement", completionJudgement
+                ));
+    }
+
     public List<ExecutionPlanStep> listPlanSteps(long runId) {
         return jdbcTemplate.query("""
                         select id, step_code, run_id, step_no, title, status,
-                               tool_name, tool_input, tool_output, created_at, updated_at
+                               tool_name, tool_input, tool_output, planner_round, observation, completion_judgement, retry_count, started_at, completed_at,
+                               created_at, updated_at
                         from execution_plan_step
                         where run_id = :runId
                         order by step_no asc
@@ -421,7 +638,7 @@ public class SessionRepository {
     public List<ArtifactRecord> listArtifacts(long sessionId) {
         return jdbcTemplate.query("""
                         select id, artifact_code, user_id, session_id, run_id, artifact_type,
-                               title, content, storage_uri, mime_type, created_at
+                               title, content, storage_uri, mime_type, metadata, source_artifact_id, reusable, created_at
                         from artifact_record
                         where session_id = :sessionId
                         order by created_at desc
@@ -433,12 +650,50 @@ public class SessionRepository {
     public Optional<ArtifactRecord> findArtifactByCode(long userId, String artifactCode) {
         return jdbcTemplate.query("""
                         select id, artifact_code, user_id, session_id, run_id, artifact_type,
-                               title, content, storage_uri, mime_type, created_at
+                               title, content, storage_uri, mime_type, metadata, source_artifact_id, reusable, created_at
                         from artifact_record
                         where user_id = :userId and artifact_code = :artifactCode
                         """,
                 Map.of("userId", userId, "artifactCode", artifactCode),
                 rs -> rs.next() ? Optional.of(mapArtifact(rs)) : Optional.empty());
+    }
+
+    public List<ArtifactRecord> listUserArtifacts(long userId, List<String> artifactCodes) {
+        if (artifactCodes == null || artifactCodes.isEmpty()) {
+            return List.of();
+        }
+        return jdbcTemplate.query("""
+                        select id, artifact_code, user_id, session_id, run_id, artifact_type,
+                               title, content, storage_uri, mime_type, metadata, source_artifact_id, reusable, created_at
+                        from artifact_record
+                        where user_id = :userId and artifact_code in (:artifactCodes) and reusable = true
+                        order by created_at desc
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("userId", userId)
+                        .addValue("artifactCodes", artifactCodes),
+                (rs, rowNum) -> mapArtifact(rs));
+    }
+
+    public List<ArtifactRecord> listUserArtifacts(long userId, String artifactType, Boolean reusable, int pageNo, int pageSize) {
+        int offset = Math.max(pageNo - 1, 0) * pageSize;
+        return jdbcTemplate.query("""
+                        select id, artifact_code, user_id, session_id, run_id, artifact_type,
+                               title, content, storage_uri, mime_type, metadata, source_artifact_id, reusable, created_at
+                        from artifact_record
+                        where user_id = :userId
+                          and (:artifactType is null or artifact_type = :artifactType)
+                          and (:reusable is null or reusable = :reusable)
+                        order by created_at desc
+                        limit :limit offset :offset
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("userId", userId)
+                        .addValue("artifactType", artifactType)
+                        .addValue("reusable", reusable)
+                        .addValue("limit", pageSize)
+                        .addValue("offset", offset),
+                (rs, rowNum) -> mapArtifact(rs));
     }
 
     public void createMessage(String messageCode, long sessionId, Long runId, String roleCode, String content) {
@@ -463,6 +718,41 @@ public class SessionRepository {
                         """,
                 Map.of("sessionId", sessionId),
                 (rs, rowNum) -> mapMessage(rs));
+    }
+
+    public void upsertSessionMemory(long sessionId, long userId, String memoryType, String content, Long sourceRunId, int tokenEstimate) {
+        jdbcTemplate.update("""
+                        delete from session_memory
+                        where session_id = :sessionId and memory_type = :memoryType
+                        """,
+                Map.of("sessionId", sessionId, "memoryType", memoryType));
+        jdbcTemplate.update("""
+                        insert into session_memory (
+                            session_id, user_id, memory_type, content, source_run_id, token_estimate, created_at, updated_at
+                        )
+                        values (
+                            :sessionId, :userId, :memoryType, :content, :sourceRunId, :tokenEstimate, now(), now()
+                        )
+                        """,
+                new MapSqlParameterSource()
+                        .addValue("sessionId", sessionId)
+                        .addValue("userId", userId)
+                        .addValue("memoryType", memoryType)
+                        .addValue("content", content)
+                        .addValue("sourceRunId", sourceRunId)
+                        .addValue("tokenEstimate", tokenEstimate));
+    }
+
+    public Optional<String> findLatestSessionMemory(long sessionId, String memoryType) {
+        return jdbcTemplate.query("""
+                        select content
+                        from session_memory
+                        where session_id = :sessionId and memory_type = :memoryType
+                        order by updated_at desc
+                        limit 1
+                        """,
+                Map.of("sessionId", sessionId, "memoryType", memoryType),
+                rs -> rs.next() ? Optional.of(rs.getString("content")) : Optional.empty());
     }
 
     private AgentSession mapSession(ResultSet rs) throws SQLException {
@@ -492,6 +782,17 @@ public class SessionRepository {
                 rs.getString("error_message"),
                 rs.getString("recall_set"),
                 rs.getString("final_evidence_set"),
+                toInstant(rs.getTimestamp("heartbeat_at")),
+                toInstant(rs.getTimestamp("cancel_requested_at")),
+                rs.getString("cancel_reason"),
+                toInstant(rs.getTimestamp("paused_at")),
+                rs.getString("pause_reason"),
+                toInstant(rs.getTimestamp("resumed_at")),
+                toInstant(rs.getTimestamp("timeout_at")),
+                toInstant(rs.getTimestamp("recovered_at")),
+                rs.getString("strategy_source"),
+                rs.getInt("planning_rounds"),
+                rs.getString("fallback_reasons"),
                 toInstant(rs.getTimestamp("started_at")),
                 toInstant(rs.getTimestamp("completed_at")),
                 rs.getTimestamp("created_at").toInstant(),
@@ -510,6 +811,12 @@ public class SessionRepository {
                 rs.getString("tool_name"),
                 rs.getString("tool_input"),
                 rs.getString("tool_output"),
+                rs.getInt("planner_round"),
+                rs.getString("observation"),
+                rs.getString("completion_judgement"),
+                rs.getInt("retry_count"),
+                toInstant(rs.getTimestamp("started_at")),
+                toInstant(rs.getTimestamp("completed_at")),
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant()
         );
@@ -527,6 +834,9 @@ public class SessionRepository {
                 rs.getString("content"),
                 rs.getString("storage_uri"),
                 rs.getString("mime_type"),
+                rs.getString("metadata"),
+                rs.getObject("source_artifact_id") == null ? null : rs.getLong("source_artifact_id"),
+                rs.getBoolean("reusable"),
                 rs.getTimestamp("created_at").toInstant()
         );
     }

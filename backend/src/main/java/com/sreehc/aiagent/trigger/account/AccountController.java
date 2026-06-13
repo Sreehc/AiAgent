@@ -5,6 +5,7 @@ import com.sreehc.aiagent.application.account.UserApiConfigService;
 import com.sreehc.aiagent.domain.account.LoginLogEntry;
 import com.sreehc.aiagent.domain.account.UserApiConfig;
 import com.sreehc.aiagent.domain.account.UserAccount;
+import com.sreehc.aiagent.domain.admin.ModelType;
 import com.sreehc.aiagent.domain.auth.SessionUser;
 import com.sreehc.aiagent.trigger.ApiResponse;
 import com.sreehc.aiagent.trigger.AuthFilter;
@@ -100,6 +101,15 @@ public class AccountController {
         ))));
     }
 
+    @PostMapping("/api-config/test")
+    public ApiResponse<ApiConfigTestResponse> testApiConfig(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @Valid @RequestBody TestApiConfigRequest request
+    ) {
+        UserApiConfigService.TestResult result = userApiConfigService.test(currentUser, request.modelType());
+        return ApiResponse.success(new ApiConfigTestResponse(result.modelType().name(), result.status(), result.message()));
+    }
+
     private ProfileResponse toProfileResponse(UserAccount user) {
         return new ProfileResponse(
                 "u_" + user.id(),
@@ -144,6 +154,11 @@ public class AccountController {
     ) {
     }
 
+    public record TestApiConfigRequest(
+            @NotNull ModelType modelType
+    ) {
+    }
+
     public record ProfileResponse(
             String userId,
             String username,
@@ -168,6 +183,13 @@ public class AccountController {
             double temperature,
             int maxTokens,
             boolean configured
+    ) {
+    }
+
+    public record ApiConfigTestResponse(
+            String modelType,
+            String status,
+            String message
     ) {
     }
 }

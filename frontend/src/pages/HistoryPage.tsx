@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Alert } from "../components/ui";
 import { HistoryFilters } from "../features/history/HistoryFilters";
 import { HistoryList } from "../features/history/HistoryList";
 import { ReplayDetail } from "../features/history/ReplayDetail";
 import { useAuthSession } from "../hooks/useAuthSession";
-import { ApiError, SessionDetailResponse, SessionItem } from "../services/api";
+import { ApiError, ArtifactItem, SessionDetailResponse, SessionItem } from "../services/api";
 import { sessionsApi } from "../services/sessionsApi";
 
 export function HistoryPage() {
   const { session } = useAuthSession();
+  const navigate = useNavigate();
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [detail, setDetail] = useState<SessionDetailResponse | null>(null);
@@ -62,13 +64,27 @@ export function HistoryPage() {
     }
   }
 
+  function onUseArtifact(artifact: ArtifactItem) {
+    const key = "aiagent.reuseArtifacts";
+    let current: ArtifactItem[] = [];
+    try {
+      const raw = localStorage.getItem(key);
+      current = raw ? JSON.parse(raw) as ArtifactItem[] : [];
+    } catch {
+      current = [];
+    }
+    const next = current.some((item) => item.artifactId === artifact.artifactId) ? current : [...current, artifact];
+    localStorage.setItem(key, JSON.stringify(next));
+    navigate("/workspace/chat");
+  }
+
   return (
     <section className="page">
       <header className="page-header"><div><h1>历史回放</h1><p>审计研究任务的原始输入、执行步骤、工具调用和最终产物。</p></div><div className="page-header__meta"><span className="badge badge--neutral">{detail?.planSteps.length ?? 0} steps</span><span className="badge badge--neutral">{detail?.toolInvocations.length ?? 0} calls</span></div><span className="badge">{filtered.length} sessions</span></header>
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="content-grid">
         <aside className="stack"><HistoryFilters keyword={keyword} status={status} onKeywordChange={setKeyword} onStatusChange={setStatus} onRefresh={() => void loadSessions()} /><HistoryList items={filtered} selectedId={selectedSessionId} loading={loading} onSelect={setSelectedSessionId} /></aside>
-        <main><ReplayDetail detail={detail} loading={replaying} failed={replayFailed} onRetry={() => selectedSessionId && void loadReplay(selectedSessionId)} /></main>
+        <main><ReplayDetail detail={detail} loading={replaying} failed={replayFailed} onRetry={() => selectedSessionId && void loadReplay(selectedSessionId)} onUseArtifact={onUseArtifact} /></main>
       </div>
     </section>
   );

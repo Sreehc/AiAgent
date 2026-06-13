@@ -52,14 +52,12 @@ public class McpRuntimeGateway {
     public HealthCheckResult health(McpServerConfig server) {
         try {
             validateServer(server);
-            return switch (server.transportType()) {
-                case SSE, STREAMABLE_HTTP -> new HealthCheckResult("UP", "HTTP MCP endpoint allowed");
-                case STDIO -> isAllowedStdioExecutable(server.commandLine() == null ? null : server.commandLine().trim().split("\\s+")[0])
-                        ? new HealthCheckResult("UP", "STDIO executable allowlisted")
-                        : new HealthCheckResult("DOWN", "STDIO executable is not allowlisted");
-            };
+            Instant startedAt = Instant.now();
+            List<McpToolDescriptor> tools = resolveClient(server).discoverTools(server);
+            long latencyMs = Duration.between(startedAt, Instant.now()).toMillis();
+            return new HealthCheckResult("UP", "Discovered " + tools.size() + " tools in " + latencyMs + "ms", latencyMs, tools.size(), server.transportType().name(), null, Instant.now().toString());
         } catch (Exception exception) {
-            return new HealthCheckResult("DOWN", exception.getMessage());
+            return new HealthCheckResult("DOWN", exception.getMessage(), null, 0, server.transportType().name(), exception.getClass().getSimpleName(), Instant.now().toString());
         }
     }
 
@@ -193,7 +191,12 @@ public class McpRuntimeGateway {
 
     public record HealthCheckResult(
             String status,
-            String message
+            String message,
+            Long latencyMs,
+            int toolCount,
+            String transportType,
+            String errorCode,
+            String checkedAt
     ) {
     }
 

@@ -62,7 +62,7 @@ public class ImageGenerationService {
         String prompt = normalizePrompt(command.prompt());
         String size = normalizeSize(command.size());
         String artifactCode = nextCode("art");
-        ImageGenerationProvider.GeneratedImage generated = generateImage(prompt, size, null, null);
+        ImageGenerationProvider.GeneratedImage generated = generateImage(currentUser, prompt, size, null, null);
         String storageUri = objectStorageService.upload(
                 "images/" + currentUser.externalUserId() + "/" + artifactCode + "." + generated.fileExtension(),
                 generated.content(),
@@ -142,7 +142,7 @@ public class ImageGenerationService {
         }
 
         String resultArtifactCode = nextCode("art");
-        ImageGenerationProvider.GeneratedImage generated = generateImage(prompt, size, referenceBytes, referenceMimeType);
+        ImageGenerationProvider.GeneratedImage generated = generateImage(currentUser, prompt, size, referenceBytes, referenceMimeType);
         String resultStorageUri = objectStorageService.upload(
                 "images/" + currentUser.externalUserId() + "/" + resultArtifactCode + "." + generated.fileExtension(),
                 generated.content(),
@@ -231,6 +231,7 @@ public class ImageGenerationService {
     }
 
     private ImageGenerationProvider.GeneratedImage generateImage(
+            SessionUser currentUser,
             String prompt,
             String size,
             byte[] referenceImage,
@@ -238,7 +239,7 @@ public class ImageGenerationService {
     ) {
         try {
             AppProperties.Image image = appProperties.image();
-            ModelRuntimeResolver.RuntimeModel runtimeModel = modelRuntimeResolver.find(ModelType.IMAGE, null)
+            ModelRuntimeResolver.RuntimeModel runtimeModel = modelRuntimeResolver.findForUser(currentUser, ModelType.IMAGE, null)
                     .orElseGet(() -> new ModelRuntimeResolver.RuntimeModel(
                             image.modelCode(),
                             image.provider(),

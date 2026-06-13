@@ -8,6 +8,7 @@ import com.sreehc.aiagent.domain.auth.SessionUser;
 import com.sreehc.aiagent.domain.knowledge.SearchHit;
 import com.sreehc.aiagent.domain.session.AgentMode;
 import com.sreehc.aiagent.domain.session.AgentSession;
+import com.sreehc.aiagent.domain.session.StrategyMode;
 import com.sreehc.aiagent.infrastructure.storage.ObjectStorageService;
 import com.sreehc.aiagent.trigger.ApiResponse;
 import com.sreehc.aiagent.trigger.AuthFilter;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -108,18 +110,75 @@ public class SessionController {
         if (request.query() == null || request.query().isBlank()) {
             return failedStream("PARAM_INVALID", "Query is required");
         }
-        if (request.executionMode() == null) {
+        if (request.executionMode() == null && request.strategyMode() != StrategyMode.AUTO) {
             return failedStream("PARAM_INVALID", "Execution mode is required");
         }
         try {
             return sessionService.streamRun(currentUser, sessionId, new SessionService.CreateRunCommand(
                     request.query(),
-                    request.executionMode(),
-                    request.knowledgeBaseIds()
+                    request.executionMode() == null ? AgentMode.REACT : request.executionMode(),
+                    request.knowledgeBaseIds(),
+                    request.strategyMode(),
+                    request.artifactIds()
             ));
         } catch (AppException exception) {
             return failedStream(exception.code(), exception.getMessage());
         }
+    }
+
+    @PostMapping("/{sessionId}/runs/{runId}/cancel")
+    public ApiResponse<RunResponse> cancelRun(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable("sessionId") String sessionId,
+            @PathVariable("runId") String runId,
+            @RequestBody(required = false) CancelRunRequest request
+    ) {
+        return ApiResponse.success(toRunResponse(sessionService.cancelRun(currentUser, sessionId, runId, request == null ? null : request.reason())));
+    }
+
+    @PostMapping("/{sessionId}/runs/{runId}/pause")
+    public ApiResponse<RunResponse> pauseRun(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable("sessionId") String sessionId,
+            @PathVariable("runId") String runId,
+            @RequestBody(required = false) CancelRunRequest request
+    ) {
+        return ApiResponse.success(toRunResponse(sessionService.pauseRun(currentUser, sessionId, runId, request == null ? null : request.reason())));
+    }
+
+    @PostMapping("/{sessionId}/runs/{runId}/resume")
+    public ApiResponse<RunResponse> resumeRun(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable("sessionId") String sessionId,
+            @PathVariable("runId") String runId
+    ) {
+        return ApiResponse.success(toRunResponse(sessionService.resumeRun(currentUser, sessionId, runId)));
+    }
+
+    @GetMapping("/{sessionId}/memory")
+    public ApiResponse<SessionMemoryResponse> getMemory(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable("sessionId") String sessionId
+    ) {
+        return ApiResponse.success(new SessionMemoryResponse(sessionId, sessionService.getSessionMemory(currentUser, sessionId)));
+    }
+
+    @PutMapping("/{sessionId}/memory")
+    public ApiResponse<SessionMemoryResponse> updateMemory(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable("sessionId") String sessionId,
+            @RequestBody SessionMemoryRequest request
+    ) {
+        sessionService.updateSessionMemory(currentUser, sessionId, request == null ? "" : request.content());
+        return ApiResponse.success(new SessionMemoryResponse(sessionId, sessionService.getSessionMemory(currentUser, sessionId)));
+    }
+
+    @PostMapping("/{sessionId}/memory/rebuild")
+    public ApiResponse<SessionMemoryResponse> rebuildMemory(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable("sessionId") String sessionId
+    ) {
+        return ApiResponse.success(new SessionMemoryResponse(sessionId, sessionService.rebuildSessionMemory(currentUser, sessionId)));
     }
 
     private SseEmitter failedStream(String code, String message) {
@@ -149,19 +208,7 @@ public class SessionController {
     private SessionDetailResponse toSessionDetailResponse(SessionService.SessionDetail detail) {
         return new SessionDetailResponse(
                 toSessionResponse(detail.session()),
-                detail.runs().stream().map(run -> new RunResponse(
-                        run.runCode(),
-                        run.queryText(),
-                        run.retrievalQuery(),
-                        run.executionMode().name(),
-                        run.status().name(),
-                        run.knowledgeBaseIds(),
-                        parseEvidenceSet(run.recallSetJson()),
-                        parseEvidenceSet(run.finalEvidenceSetJson()),
-                        run.startedAt() == null ? null : run.startedAt().toString(),
-                        run.completedAt() == null ? null : run.completedAt().toString(),
-                        run.errorMessage()
-                )).toList(),
+                detail.runs().stream().map(this::toRunResponse).toList(),
                 detail.planSteps().stream().map(step -> new PlanStepResponse(
                         step.stepNo(),
                         step.title(),
@@ -195,6 +242,33 @@ public class SessionController {
         );
     }
 
+    private RunResponse toRunResponse(com.sreehc.aiagent.domain.session.ExecutionRun run) {
+        return new RunResponse(
+                run.runCode(),
+                run.queryText(),
+                run.retrievalQuery(),
+                run.executionMode().name(),
+                run.status().name(),
+                run.knowledgeBaseIds(),
+                parseEvidenceSet(run.recallSetJson()),
+                parseEvidenceSet(run.finalEvidenceSetJson()),
+                run.startedAt() == null ? null : run.startedAt().toString(),
+                run.completedAt() == null ? null : run.completedAt().toString(),
+                run.heartbeatAt() == null ? null : run.heartbeatAt().toString(),
+                run.cancelRequestedAt() == null ? null : run.cancelRequestedAt().toString(),
+                run.cancelReason(),
+                run.pausedAt() == null ? null : run.pausedAt().toString(),
+                run.pauseReason(),
+                run.resumedAt() == null ? null : run.resumedAt().toString(),
+                run.timeoutAt() == null ? null : run.timeoutAt().toString(),
+                run.recoveredAt() == null ? null : run.recoveredAt().toString(),
+                run.strategySource(),
+                run.planningRounds(),
+                run.fallbackReasonsJson(),
+                run.errorMessage()
+        );
+    }
+
     @PostMapping("/{sessionId}/knowledge-bases/bind")
     public ApiResponse<SessionKnowledgeBaseBindingResponse> bindKnowledgeBases(
             @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
@@ -213,12 +287,38 @@ public class SessionController {
 
     public record CreateRunRequest(
             @NotBlank String query,
-            @NotNull AgentMode executionMode,
-            List<String> knowledgeBaseIds
+            AgentMode executionMode,
+            StrategyMode strategyMode,
+            List<String> knowledgeBaseIds,
+            List<String> artifactIds
     ) {
+        public StrategyMode strategyMode() {
+            return strategyMode == null ? StrategyMode.MANUAL : strategyMode;
+        }
+
         public List<String> knowledgeBaseIds() {
             return knowledgeBaseIds == null ? List.of() : knowledgeBaseIds;
         }
+
+        public List<String> artifactIds() {
+            return artifactIds == null ? List.of() : artifactIds;
+        }
+    }
+
+    public record CancelRunRequest(
+            String reason
+    ) {
+    }
+
+    public record SessionMemoryRequest(
+            String content
+    ) {
+    }
+
+    public record SessionMemoryResponse(
+            String sessionId,
+            String content
+    ) {
     }
 
     public record SessionResponse(
@@ -248,6 +348,17 @@ public class SessionController {
             List<EvidenceResponse> finalEvidenceSet,
             String startedAt,
             String completedAt,
+            String heartbeatAt,
+            String cancelRequestedAt,
+            String cancelReason,
+            String pausedAt,
+            String pauseReason,
+            String resumedAt,
+            String timeoutAt,
+            String recoveredAt,
+            String strategySource,
+            int planningRounds,
+            String fallbackReasonsJson,
             String errorMessage
     ) {
     }

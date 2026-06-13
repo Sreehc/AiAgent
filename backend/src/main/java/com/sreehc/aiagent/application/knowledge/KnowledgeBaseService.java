@@ -138,6 +138,49 @@ public class KnowledgeBaseService {
         return knowledgeRepository.listDocuments(currentUser.id(), kbId);
     }
 
+    public KnowledgeDocument getDocument(SessionUser currentUser, String kbId, String documentId) {
+        return loadDocument(currentUser, kbId, documentId);
+    }
+
+    @Transactional
+    public void deleteDocument(SessionUser currentUser, String kbId, String documentId) {
+        KnowledgeDocument document = loadDocument(currentUser, kbId, documentId);
+        knowledgeRepository.deleteChunksByDocument(document.id());
+        objectStorageService.delete(document.storageUri());
+        knowledgeRepository.softDeleteDocument(currentUser.id(), kbId, documentId);
+    }
+
+    public String createDocumentDownloadUrl(SessionUser currentUser, String kbId, String documentId) {
+        KnowledgeDocument document = loadDocument(currentUser, kbId, documentId);
+        return objectStorageService.createDownloadUrl(document.storageUri());
+    }
+
+    public List<KnowledgeDocument> listDocumentVersions(SessionUser currentUser, String kbId, String documentId) {
+        KnowledgeDocument document = loadDocument(currentUser, kbId, documentId);
+        return knowledgeRepository.listDocumentVersions(currentUser.id(), kbId, document.fileName());
+    }
+
+    @Transactional
+    public KnowledgeDocument restoreDocumentVersion(SessionUser currentUser, String kbId, String documentId, String versionDocumentId) {
+        KnowledgeDocument current = loadDocument(currentUser, kbId, documentId);
+        KnowledgeDocument version = loadDocument(currentUser, kbId, versionDocumentId);
+        if (!current.fileName().equals(version.fileName())) {
+            throw new AppException("DOCUMENT_VERSION_MISMATCH", "Version does not belong to this document family", HttpStatus.BAD_REQUEST);
+        }
+        long restoredId = knowledgeRepository.createDocument(
+                current.knowledgeBaseId(),
+                nextCode("doc"),
+                version.fileName(),
+                version.fileType(),
+                version.storageUri(),
+                version.textContent()
+        );
+        KnowledgeDocument restored = knowledgeRepository.findDocumentByInternalId(restoredId)
+                .orElseThrow(() -> new IllegalStateException("Failed to load restored document"));
+        knowledgeIndexJobService.enqueue(restored, "RESTORE");
+        return restored;
+    }
+
     @Transactional
     public KnowledgeDocument indexDocument(SessionUser currentUser, String kbId, String documentId) {
         KnowledgeDocument document = loadDocument(currentUser, kbId, documentId);
@@ -185,7 +228,7 @@ public class KnowledgeBaseService {
         List<SearchHit> mergedHits;
         if (!rewritePlan.complex()) {
             mergedHits = retrieveSingleQuery(
-                    currentUser.id(),
+                    currentUser,
                     kbIdList,
                     rewritePlan.normalizedQuery(),
                     recallSize
@@ -197,7 +240,7 @@ public class KnowledgeBaseService {
                     break;
                 }
                 multiQueryHits.addAll(retrieveSingleQuery(
-                        currentUser.id(),
+                        currentUser,
                         kbIdList,
                         rewrittenQuery,
                         Math.max(10, recallSize / 2)
@@ -253,19 +296,19 @@ public class KnowledgeBaseService {
         return prefix + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
     }
 
-    private String embedQuery(String query) {
-        return queryEmbeddingService.embed(query);
+    private String embedQuery(SessionUser currentUser, String query) {
+        return queryEmbeddingService.embedForUser(currentUser, query);
     }
 
-    private List<SearchHit> retrieveSingleQuery(long userId, List<String> kbIdList, String query, int recallSize) {
+    private List<SearchHit> retrieveSingleQuery(SessionUser currentUser, List<String> kbIdList, String query, int recallSize) {
         List<SearchHit> vectorHits = knowledgeRepository.vectorRecall(
-                userId,
+                currentUser.id(),
                 kbIdList,
-                embedQuery(query),
+                embedQuery(currentUser, query),
                 recallSize
         );
         List<SearchHit> keywordHits = knowledgeRepository.keywordRecall(
-                userId,
+                currentUser.id(),
                 kbIdList,
                 query,
                 recallSize
@@ -311,6 +354,12 @@ public class KnowledgeBaseService {
             String retrievalQuery,
             List<SearchHit> recallHits,
             List<SearchHit> finalEvidenceHits
+    ) {
+    }
+
+    public record DocumentPreview(
+            KnowledgeDocument document,
+            String preview
     ) {
     }
 }

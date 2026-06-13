@@ -18,6 +18,7 @@ import com.sreehc.aiagent.domain.session.SessionStatus;
 import com.sreehc.aiagent.infrastructure.model.ChatModelProvider;
 import com.sreehc.aiagent.infrastructure.model.ChatModelProviderRouter;
 import com.sreehc.aiagent.infrastructure.session.SessionRepository;
+import java.util.ArrayList;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -37,6 +38,9 @@ public class SessionRunExecutor {
     private final ChatModelProviderRouter chatModelProviderRouter;
     private final ModelRuntimeResolver modelRuntimeResolver;
     private final AppProperties appProperties;
+    private final AgentStrategySelector agentStrategySelector;
+    private final ConversationMemoryService conversationMemoryService;
+    private final DynamicPlannerService dynamicPlannerService;
     private final ThreadPoolTaskExecutor executor;
 
     public SessionRunExecutor(
@@ -46,7 +50,10 @@ public class SessionRunExecutor {
             ObjectMapper objectMapper,
             ChatModelProviderRouter chatModelProviderRouter,
             ModelRuntimeResolver modelRuntimeResolver,
-            AppProperties appProperties
+            AppProperties appProperties,
+            AgentStrategySelector agentStrategySelector,
+            ConversationMemoryService conversationMemoryService,
+            DynamicPlannerService dynamicPlannerService
     ) {
         this.sessionRepository = sessionRepository;
         this.knowledgeBaseService = knowledgeBaseService;
@@ -55,6 +62,9 @@ public class SessionRunExecutor {
         this.chatModelProviderRouter = chatModelProviderRouter;
         this.modelRuntimeResolver = modelRuntimeResolver;
         this.appProperties = appProperties;
+        this.agentStrategySelector = agentStrategySelector;
+        this.conversationMemoryService = conversationMemoryService;
+        this.dynamicPlannerService = dynamicPlannerService;
         this.executor = new ThreadPoolTaskExecutor();
         this.executor.setThreadNamePrefix("aiagent-session-run-");
         this.executor.setCorePoolSize(2);
@@ -69,18 +79,30 @@ public class SessionRunExecutor {
 
     void executeStream(SessionUser currentUser, AgentSession session, SessionService.CreateRunCommand command, SseEmitter emitter) {
         List<String> effectiveKnowledgeBaseIds = resolveKnowledgeBaseIds(session, command.knowledgeBaseIds());
-        SessionService.CreateRunCommand effectiveCommand = new SessionService.CreateRunCommand(
+        AgentStrategySelector.Decision strategy = agentStrategySelector.select(
                 command.query(),
                 command.executionMode(),
-                effectiveKnowledgeBaseIds
+                command.strategyMode(),
+                effectiveKnowledgeBaseIds,
+                command.artifactIds()
+        );
+        SessionService.CreateRunCommand effectiveCommand = new SessionService.CreateRunCommand(
+                command.query(),
+                strategy.executionMode(),
+                effectiveKnowledgeBaseIds,
+                command.strategyMode(),
+                command.artifactIds()
         );
         ExecutionRun run = getOrCreatePendingRun(currentUser, session, effectiveCommand);
+        ConversationMemoryService.MemoryContext memoryContext = conversationMemoryService.loadContext(session.id(), currentUser.id(), command.artifactIds());
+        String memoryPrompt = conversationMemoryService.toPrompt(memoryContext);
 
         try {
             sessionRepository.markSessionStatus(session.id(), SessionStatus.RUNNING);
             if (!sessionRepository.markRunStarted(run.id())) {
                 throw new AppException("RUN_ALREADY_RUNNING", "Run is already running", HttpStatus.CONFLICT);
             }
+            sessionRepository.updateRunStrategy(run.id(), effectiveCommand.executionMode(), strategy.source(), 1);
             sessionRepository.createMessage(nextCode("msg"), session.id(), run.id(), "USER", effectiveCommand.query());
             trySend(emitter, "session.started", Map.of(
                     "sessionId", session.sessionCode(),
@@ -89,13 +111,38 @@ public class SessionRunExecutor {
                     "knowledgeBaseIds", effectiveKnowledgeBaseIds,
                     "startedAt", Instant.now().toString()
             ));
+            trySend(emitter, "strategy.selected", Map.of(
+                    "sessionId", session.sessionCode(),
+                    "runId", run.runCode(),
+                    "executionMode", effectiveCommand.executionMode().name(),
+                    "source", strategy.source(),
+                    "reason", strategy.reason(),
+                    "confidence", strategy.confidence()
+            ));
 
-            KnowledgeBaseService.SearchResult searchResult = knowledgeBaseService.searchAcrossKnowledgeBasesWithAudit(
-                    currentUser,
-                    effectiveKnowledgeBaseIds,
-                    effectiveCommand.query(),
-                    3
-            );
+            if (!memoryContext.inputArtifacts().isEmpty() && !memoryPrompt.isBlank()) {
+                String contextArtifactCode = nextCode("art");
+                sessionRepository.createArtifact(
+                        contextArtifactCode,
+                        currentUser.id(),
+                        session.id(),
+                        run.id(),
+                        ArtifactType.CONTEXT_SNIPPET,
+                        "复用上下文 · " + session.title(),
+                        memoryPrompt,
+                        null,
+                        "text/markdown"
+                );
+                trySend(emitter, "artifact.created", Map.of(
+                        "sessionId", session.sessionCode(),
+                        "runId", run.runCode(),
+                        "artifactId", contextArtifactCode,
+                        "artifactType", ArtifactType.CONTEXT_SNIPPET.name(),
+                        "title", "复用上下文 · " + session.title()
+                ));
+            }
+
+            KnowledgeBaseService.SearchResult searchResult = searchWithFallback(currentUser, effectiveKnowledgeBaseIds, effectiveCommand.query(), run, session, emitter);
             sessionRepository.updateRunRetrievalAudit(
                     run.id(),
                     searchResult.retrievalQuery(),
@@ -103,7 +150,7 @@ public class SessionRunExecutor {
                     toJson(searchResult.finalEvidenceHits())
             );
             List<SearchHit> evidenceHits = searchResult.finalEvidenceHits();
-            List<PlanSeed> plan = buildPlan(effectiveCommand, evidenceHits);
+            List<PlanSeed> plan = new ArrayList<>(buildPlan(currentUser, effectiveCommand, evidenceHits, memoryPrompt));
             for (PlanSeed step : plan) {
                 sessionRepository.createPlanStep(run.id(), nextCode("step"), step.stepNo(), step.title(), PlanStepStatus.PENDING);
             }
@@ -115,14 +162,14 @@ public class SessionRunExecutor {
                     "plan", plan.stream().map(step -> Map.of("stepNo", step.stepNo(), "title", step.title())).toList()
             ));
 
-            for (PlanSeed step : plan) {
+            List<PlanSeed> completedPlan = new ArrayList<>();
+            int index = 0;
+            int planningRounds = 1;
+            while (index < plan.size()) {
+                PlanSeed step = plan.get(index);
+                awaitRunControl(session, run, emitter);
+                sessionRepository.updateRunHeartbeat(run.id());
                 sessionRepository.markPlanStepRunning(run.id(), step.stepNo(), step.toolName(), step.toolInput());
-                McpExecutionService.InvocationResult invocationResult = mcpExecutionService.invokeForStep(
-                        run.id(),
-                        step.toolName(),
-                        step.title(),
-                        step.toolInput()
-                );
                 trySend(emitter, "task.started", Map.of(
                         "sessionId", session.sessionCode(),
                         "runId", run.runCode(),
@@ -133,13 +180,31 @@ public class SessionRunExecutor {
                         "sessionId", session.sessionCode(),
                         "runId", run.runCode(),
                         "stepNo", step.stepNo(),
-                        "toolName", invocationResult == null ? step.toolName() : invocationResult.toolName(),
-                        "toolType", invocationResult == null ? "BUILTIN" : invocationResult.toolType(),
-                        "toolCallId", invocationResult == null ? null : invocationResult.toolCallId(),
+                        "toolName", step.toolName(),
+                        "toolType", "PENDING",
+                        "toolCallId", null,
                         "toolInput", step.toolInput()
                 ));
+                McpExecutionService.InvocationResult invocationResult = mcpExecutionService.invokeForStep(
+                        run.id(),
+                        step.toolName(),
+                        step.title(),
+                        step.toolInput()
+                );
+                cancelIfRequested(session, run, emitter);
                 String toolOutput = invocationResult == null ? step.toolOutput() : invocationResult.resultText();
                 sessionRepository.markPlanStepCompleted(run.id(), step.stepNo(), toolOutput);
+                sessionRepository.createArtifact(
+                        nextCode("art"),
+                        currentUser.id(),
+                        session.id(),
+                        run.id(),
+                        ArtifactType.TOOL_OUTPUT,
+                        "Tool output · " + step.title(),
+                        toolOutput,
+                        null,
+                        "text/plain"
+                );
                 trySend(emitter, "tool.completed", Map.of(
                         "sessionId", session.sessionCode(),
                         "runId", run.runCode(),
@@ -149,9 +214,62 @@ public class SessionRunExecutor {
                         "toolCallId", invocationResult == null ? null : invocationResult.toolCallId(),
                         "toolOutput", toolOutput
                 ));
+                PlanSeed observedStep = new PlanSeed(step.stepNo(), step.title(), step.toolName(), step.toolInput(), toolOutput);
+                completedPlan.add(observedStep);
+                boolean toolFailed = invocationResult != null && !invocationResult.success();
+                String judgementPrompt = generateJudgementPrompt(currentUser, effectiveCommand, completedPlan, evidenceHits, memoryPrompt, toolFailed);
+                DynamicPlannerService.PlannerJudgement judgement = dynamicPlannerService.parseOrFallbackJudgement(
+                        completeWithChatProvider(currentUser, judgementPrompt),
+                        step.stepNo(),
+                        plan.size(),
+                        planningRounds,
+                        toolFailed,
+                        toolOutput
+                );
+                sessionRepository.markPlanStepObserved(run.id(), step.stepNo(), toolOutput, judgement.action().name() + ":" + judgement.reason());
+                trySend(emitter, "task.observed", Map.of(
+                        "sessionId", session.sessionCode(),
+                        "runId", run.runCode(),
+                        "stepNo", step.stepNo(),
+                        "observation", toolOutput
+                ));
+                trySend(emitter, "plan.judged", Map.of(
+                        "sessionId", session.sessionCode(),
+                        "runId", run.runCode(),
+                        "stepNo", step.stepNo(),
+                        "action", judgement.action().name(),
+                        "reason", judgement.reason()
+                ));
+                if (judgement.action() == DynamicPlannerService.PlannerAction.DONE) {
+                    break;
+                }
+                if (judgement.action() == DynamicPlannerService.PlannerAction.REPLAN
+                        && planningRounds < dynamicPlannerService.maxPlanningRounds()
+                        && plan.size() < dynamicPlannerService.maxPlanSteps()) {
+                    planningRounds++;
+                    sessionRepository.updateRunPlanningRounds(run.id(), planningRounds);
+                    List<PlanSeed> replanSteps = dynamicPlannerService.trimReplanSteps(
+                                    plan.stream().map(this::toPlanDraft).toList(),
+                                    judgement.steps()
+                            ).stream()
+                            .map(this::toPlanSeed)
+                            .toList();
+                    plan.addAll(replanSteps);
+                    for (PlanSeed replanStep : replanSteps) {
+                        sessionRepository.createPlanStep(run.id(), nextCode("step"), replanStep.stepNo(), replanStep.title(), PlanStepStatus.PENDING);
+                    }
+                    trySend(emitter, "plan.replanned", Map.of(
+                            "sessionId", session.sessionCode(),
+                            "runId", run.runCode(),
+                            "plannerRound", planningRounds,
+                            "plan", replanSteps.stream().map(replanStep -> Map.of("stepNo", replanStep.stepNo(), "title", replanStep.title())).toList()
+                    ));
+                }
+                index++;
             }
 
-            String reportContent = buildReport(session, effectiveCommand, plan, evidenceHits);
+            awaitRunControl(session, run, emitter);
+            String reportContent = buildReport(currentUser, session, effectiveCommand, completedPlan, evidenceHits, memoryPrompt);
             String artifactCode = nextCode("art");
             sessionRepository.createArtifact(
                     artifactCode,
@@ -165,6 +283,7 @@ public class SessionRunExecutor {
                     "text/markdown"
             );
             sessionRepository.createMessage(nextCode("msg"), session.id(), run.id(), "ASSISTANT", reportContent);
+            conversationMemoryService.updateSummary(session.id(), currentUser.id(), run.id(), reportContent);
             sessionRepository.markRunCompleted(run.id());
             sessionRepository.markSessionStatus(session.id(), SessionStatus.COMPLETED);
 
@@ -193,6 +312,10 @@ public class SessionRunExecutor {
             String errorMessage = exception.getMessage() == null || exception.getMessage().isBlank()
                     ? "Session execution failed"
                     : exception.getMessage();
+            if ("RUN_CANCELLED".equals(errorCode) || "RUN_PAUSED_INTERRUPTED".equals(errorCode)) {
+                emitter.complete();
+                return;
+            }
             sessionRepository.markRunFailed(run.id(), errorMessage);
             sessionRepository.markSessionStatus(session.id(), SessionStatus.FAILED);
             trySend(emitter, "session.failed", Map.of(
@@ -203,6 +326,85 @@ public class SessionRunExecutor {
             ));
             emitter.complete();
         }
+    }
+
+    private KnowledgeBaseService.SearchResult searchWithFallback(
+            SessionUser currentUser,
+            List<String> effectiveKnowledgeBaseIds,
+            String query,
+            ExecutionRun run,
+            AgentSession session,
+            SseEmitter emitter
+    ) {
+        try {
+            return knowledgeBaseService.searchAcrossKnowledgeBasesWithAudit(currentUser, effectiveKnowledgeBaseIds, query, 3);
+        } catch (AppException exception) {
+            if (exception.status().is4xxClientError()) {
+                throw exception;
+            }
+            return degradeRag(run, session, emitter, query, exception.getMessage());
+        } catch (Exception exception) {
+            return degradeRag(run, session, emitter, query, exception.getMessage());
+        }
+    }
+
+    private KnowledgeBaseService.SearchResult degradeRag(ExecutionRun run, AgentSession session, SseEmitter emitter, String query, String message) {
+        sessionRepository.appendRunFallbackReason(run.id(), "RAG_DEGRADED", message);
+        trySend(emitter, "rag.degraded", Map.of(
+                "sessionId", session.sessionCode(),
+                "runId", run.runCode(),
+                "message", message == null ? "RAG retrieval failed; continuing without evidence" : message
+        ));
+        return new KnowledgeBaseService.SearchResult(query, List.of(), List.of());
+    }
+
+    private void awaitRunControl(AgentSession session, ExecutionRun run, SseEmitter emitter) {
+        if (sessionRepository.isRunCancelRequested(run.id())) {
+            cancelIfRequested(session, run, emitter);
+        }
+        boolean pauseEventSent = false;
+        while (sessionRepository.isRunPaused(run.id())) {
+            if (!pauseEventSent) {
+                sessionRepository.markSessionStatus(session.id(), SessionStatus.PAUSED);
+                trySend(emitter, "session.paused", Map.of(
+                        "sessionId", session.sessionCode(),
+                        "runId", run.runCode(),
+                        "pausedAt", Instant.now().toString()
+                ));
+                pauseEventSent = true;
+            }
+            if (sessionRepository.isRunCancelRequested(run.id())) {
+                cancelIfRequested(session, run, emitter);
+            }
+            try {
+                Thread.sleep(500L);
+            } catch (InterruptedException interruptedException) {
+                Thread.currentThread().interrupt();
+                throw new AppException("RUN_PAUSED_INTERRUPTED", "Run pause wait interrupted", HttpStatus.CONFLICT);
+            }
+        }
+        if (pauseEventSent) {
+            sessionRepository.markSessionStatus(session.id(), SessionStatus.RUNNING);
+            trySend(emitter, "session.resumed", Map.of(
+                    "sessionId", session.sessionCode(),
+                    "runId", run.runCode(),
+                    "resumedAt", Instant.now().toString()
+            ));
+        }
+    }
+
+    private void cancelIfRequested(AgentSession session, ExecutionRun run, SseEmitter emitter) {
+        if (!sessionRepository.isRunCancelRequested(run.id())) {
+            return;
+        }
+        sessionRepository.markRunCancelled(run.id(), "Cancelled by user");
+        sessionRepository.markSessionStatus(session.id(), SessionStatus.CANCELLED);
+        trySend(emitter, "session.cancelled", Map.of(
+                "sessionId", session.sessionCode(),
+                "runId", run.runCode(),
+                "cancelledAt", Instant.now().toString()
+        ));
+        throw new AppException("RUN_CANCELLED", "Run cancelled", HttpStatus.CONFLICT);
     }
 
     private List<String> resolveKnowledgeBaseIds(AgentSession session, List<String> requestedKnowledgeBaseIds) {
@@ -234,38 +436,54 @@ public class SessionRunExecutor {
                 });
     }
 
-    private List<PlanSeed> buildPlan(SessionService.CreateRunCommand command, List<SearchHit> evidenceHits) {
-        String evidenceSummary = evidenceHits.isEmpty()
-                ? "当前未绑定知识库，使用普通公开执行链路"
-                : "检索到 " + evidenceHits.size() + " 条知识库证据，可注入执行上下文";
-        String plannerHint = generatePlannerHint(command, evidenceHits);
-        if (command.executionMode() == AgentMode.REACT) {
-            return List.of(
-                    new PlanSeed(1, "理解研究问题并确定范围", "query-analyzer", command.query(), plannerHint),
-                    new PlanSeed(2, "快速收集公开信息与用户上下文", "knowledge-search", "knowledgeBaseIds=" + command.knowledgeBaseIds(), evidenceSummary),
-                    new PlanSeed(3, "生成结构化研究结论", "report-writer", "format=markdown", "基于检索证据、工具结果与模型总结形成可回放报告")
-            );
-        }
-        return List.of(
-                new PlanSeed(1, "收集行业背景与市场边界", "market-scanner", command.query(), plannerHint),
-                new PlanSeed(2, "注入知识库证据与上下文", "knowledge-search", "knowledgeBaseIds=" + command.knowledgeBaseIds(), evidenceSummary),
-                new PlanSeed(3, "拆解主要玩家与竞争策略", "competitor-analyzer", "compare=players", "结合工具结果分析主要玩家、差异化能力与市场位置"),
-                new PlanSeed(4, "归纳趋势并生成交付报告", "report-writer", "output=structured-report", "输出结论摘要、风险、建议与后续观察点")
-        );
+    private List<PlanSeed> buildPlan(SessionUser currentUser, SessionService.CreateRunCommand command, List<SearchHit> evidenceHits, String memoryPrompt) {
+        String plannerHint = generatePlannerHint(currentUser, command, evidenceHits, memoryPrompt);
+        return dynamicPlannerService.parseOrFallbackPlan(plannerHint, command, evidenceHits, memoryPrompt).stream()
+                .map(this::toPlanSeed)
+                .toList();
     }
 
-    private String generatePlannerHint(SessionService.CreateRunCommand command, List<SearchHit> evidenceHits) {
+    private String generatePlannerHint(SessionUser currentUser, SessionService.CreateRunCommand command, List<SearchHit> evidenceHits, String memoryPrompt) {
         String prompt = """
-                You are the Planner role for an AI research agent. Produce one concise Chinese planning note.
+                You are the Planner role for an AI research agent. Return a JSON array of 2-6 steps.
+                Each step must include title, toolName, toolInput, toolOutput.
                 Query: %s
                 Execution mode: %s
                 Evidence count: %d
-                Return only the planning note, under 120 Chinese characters.
-                """.formatted(command.query(), command.executionMode().name(), evidenceHits.size());
-        return completeWithChatProvider(prompt);
+                Memory:
+                %s
+                Return only JSON.
+                """.formatted(command.query(), command.executionMode().name(), evidenceHits.size(), memoryPrompt == null ? "" : memoryPrompt);
+        return completeWithChatProvider(currentUser, prompt);
     }
 
-    private String buildReport(AgentSession session, SessionService.CreateRunCommand command, List<PlanSeed> plan, List<SearchHit> evidenceHits) {
+    private String generateJudgementPrompt(SessionUser currentUser, SessionService.CreateRunCommand command, List<PlanSeed> completedPlan, List<SearchHit> evidenceHits, String memoryPrompt, boolean toolFailed) {
+        String prompt = """
+                You are the Planner/Judge role for an AI research agent.
+                Decide whether the run objective is done, should continue, or needs replanning.
+                Return one JSON object only:
+                {"action":"CONTINUE|REPLAN|DONE","reason":"short reason","steps":[{"title":"","toolName":"","toolInput":"","toolOutput":""}]}
+
+                Query: %s
+                Execution mode: %s
+                Tool failed: %s
+                Completed steps:
+                %s
+                Evidence count: %d
+                Memory:
+                %s
+                """.formatted(
+                command.query(),
+                command.executionMode().name(),
+                toolFailed,
+                planToPrompt(completedPlan),
+                evidenceHits.size(),
+                memoryPrompt == null ? "" : memoryPrompt
+        );
+        return completeWithChatProvider(currentUser, prompt);
+    }
+
+    private String buildReport(SessionUser currentUser, AgentSession session, SessionService.CreateRunCommand command, List<PlanSeed> plan, List<SearchHit> evidenceHits, String memoryPrompt) {
         String fallbackReport = buildFallbackReport(session, command, plan, evidenceHits);
         String prompt = """
                 You are the Summary role for AiAgent. Generate a production research report in Chinese Markdown.
@@ -284,6 +502,8 @@ public class SessionRunExecutor {
                 %s
                 Evidence:
                 %s
+                Memory:
+                %s
                 """.formatted(
                 session.title(),
                 command.query(),
@@ -291,9 +511,10 @@ public class SessionRunExecutor {
                 command.executionMode().name(),
                 command.knowledgeBaseIds().isEmpty() ? "none" : String.join(", ", command.knowledgeBaseIds()),
                 planToPrompt(plan),
-                evidenceToPrompt(evidenceHits)
+                evidenceToPrompt(evidenceHits),
+                memoryPrompt == null ? "" : memoryPrompt
         );
-        String modelReport = completeWithChatProvider(prompt);
+        String modelReport = completeWithChatProvider(currentUser, prompt);
         if (modelReport == null || modelReport.isBlank() || modelReport.startsWith("[local-mock chat]")) {
             return fallbackReport;
         }
@@ -339,10 +560,10 @@ public class SessionRunExecutor {
         return builder.toString();
     }
 
-    private String completeWithChatProvider(String prompt) {
+    private String completeWithChatProvider(SessionUser currentUser, String prompt) {
         try {
             AppProperties.Chat chat = appProperties.chat();
-            ModelRuntimeResolver.RuntimeModel runtimeModel = modelRuntimeResolver.find(ModelType.CHAT, null)
+            ModelRuntimeResolver.RuntimeModel runtimeModel = modelRuntimeResolver.findForUser(currentUser, ModelType.CHAT, null)
                     .orElseGet(() -> new ModelRuntimeResolver.RuntimeModel(
                             chat.modelCode(),
                             chat.provider(),
@@ -363,6 +584,48 @@ public class SessionRunExecutor {
             }
             return "[local-mock chat] " + prompt.substring(0, Math.min(prompt.length(), 120));
         }
+    }
+
+    private List<PlanSeed> parsePlannerJson(String plannerJson) {
+        if (plannerJson == null || plannerJson.isBlank() || !plannerJson.stripLeading().startsWith("[")) {
+            return List.of();
+        }
+        try {
+            List<?> rawSteps = objectMapper.readValue(plannerJson, List.class);
+            List<PlanSeed> steps = new ArrayList<>();
+            int index = 1;
+            for (Object rawStep : rawSteps) {
+                if (rawStep instanceof Map<?, ?> map) {
+                    String title = stringValue(map.get("title"));
+                    String toolName = stringValue(map.get("toolName"));
+                    if (title.isBlank() || toolName.isBlank()) {
+                        continue;
+                    }
+                    steps.add(new PlanSeed(
+                            index++,
+                            title,
+                            toolName,
+                            stringValue(map.get("toolInput")),
+                            stringValue(map.get("toolOutput"))
+                    ));
+                }
+            }
+            return steps;
+        } catch (Exception exception) {
+            return List.of();
+        }
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    private PlanSeed toPlanSeed(DynamicPlannerService.PlanDraft draft) {
+        return new PlanSeed(draft.stepNo(), draft.title(), draft.toolName(), draft.toolInput(), draft.toolOutput());
+    }
+
+    private DynamicPlannerService.PlanDraft toPlanDraft(PlanSeed seed) {
+        return new DynamicPlannerService.PlanDraft(seed.stepNo(), seed.title(), seed.toolName(), seed.toolInput(), seed.toolOutput());
     }
 
     private boolean isProductionProfile() {

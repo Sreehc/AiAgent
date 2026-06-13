@@ -4,5 +4,7 @@ public enum PlanStepStatus {
     PENDING,
     RUNNING,
     COMPLETED,
-    FAILED
+    FAILED,
+    SKIPPED,
+    CANCELLED
 }

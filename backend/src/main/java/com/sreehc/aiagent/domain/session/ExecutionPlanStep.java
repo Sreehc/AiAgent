@@ -12,6 +12,12 @@ public record ExecutionPlanStep(
         String toolName,
         String toolInput,
         String toolOutput,
+        int plannerRound,
+        String observation,
+        String completionJudgement,
+        int retryCount,
+        Instant startedAt,
+        Instant completedAt,
         Instant createdAt,
         Instant updatedAt
 ) {

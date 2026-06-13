@@ -3,6 +3,7 @@ import { AppShell } from "../components/shell/AppShell";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AccountPage } from "../pages/AccountPage";
 import { AdminSettingsPage } from "../pages/AdminSettingsPage";
+import { AdminAuditPage } from "../pages/AdminAuditPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
 import { HistoryPage } from "../pages/HistoryPage";
 import { KnowledgeBasesPage } from "../pages/KnowledgeBasesPage";
@@ -12,6 +13,7 @@ import { ImageGenerationPage } from "../pages/ImageGenerationPage";
 import { NotFoundPage } from "../pages/NotFoundPage";
 import { RegisterPage } from "../pages/RegisterPage";
 import { ResetPasswordPage } from "../pages/ResetPasswordPage";
+import { RagEvaluationPage } from "../pages/RagEvaluationPage";
 import { WorkspacePage } from "../pages/WorkspacePage";
 
 export function AppRouter() {
@@ -29,6 +31,8 @@ export function AppRouter() {
           <Route path="/workspace/history" element={<HistoryPage />} />
           <Route path="/admin/settings" element={<AdminSettingsPage />} />
           <Route path="/admin/mcp-servers" element={<McpServersPage />} />
+          <Route path="/admin/audit" element={<AdminAuditPage />} />
+          <Route path="/admin/rag-evaluations" element={<RagEvaluationPage />} />
           <Route path="/account" element={<AccountPage />} />
         </Route>
       </Route>

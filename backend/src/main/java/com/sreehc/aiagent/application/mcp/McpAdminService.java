@@ -86,7 +86,18 @@ public class McpAdminService {
         adminAuthorizationService.ensureAdmin(currentUser);
         McpServerConfig server = loadServer(serverCode);
         McpRuntimeGateway.HealthCheckResult health = mcpRuntimeGateway.health(server);
-        return new HealthResult(server.serverCode(), health.status(), health.message());
+        return new HealthResult(server.serverCode(), health.status(), health.message(), health.latencyMs(), health.toolCount(), health.transportType(), health.errorCode(), health.checkedAt());
+    }
+
+    public ToolTestResult testTool(SessionUser currentUser, String serverCode, String toolName, String input) {
+        adminAuthorizationService.ensureAdmin(currentUser);
+        McpServerConfig server = loadServer(serverCode);
+        McpToolDescriptor tool = mcpRuntimeGateway.discoverTools(server).stream()
+                .filter(item -> item.toolName().equals(toolName))
+                .findFirst()
+                .orElseThrow(() -> new AppException("MCP_TOOL_NOT_FOUND", "MCP tool not found", HttpStatus.NOT_FOUND));
+        McpRuntimeGateway.ToolExecutionResult result = mcpRuntimeGateway.invoke(server, tool, "Manual admin tool test", input == null ? "" : input);
+        return new ToolTestResult(server.serverCode(), tool.toolName(), result.resultText(), result.responsePayload());
     }
 
     private McpServerConfig loadServer(String serverCode) {
@@ -139,7 +150,20 @@ public class McpAdminService {
     public record HealthResult(
             String serverCode,
             String status,
-            String message
+            String message,
+            Long latencyMs,
+            int toolCount,
+            String transportType,
+            String errorCode,
+            String checkedAt
+    ) {
+    }
+
+    public record ToolTestResult(
+            String serverCode,
+            String toolName,
+            String resultText,
+            String responsePayload
     ) {
     }
 }

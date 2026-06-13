@@ -13,6 +13,9 @@ public record ArtifactRecord(
         String content,
         String storageUri,
         String mimeType,
+        String metadataJson,
+        Long sourceArtifactId,
+        boolean reusable,
         Instant createdAt
 ) {
 }

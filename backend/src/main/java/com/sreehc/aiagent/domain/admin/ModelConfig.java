@@ -11,6 +11,10 @@ public record ModelConfig(
         String baseUrl,
         String apiKeyMasked,
         boolean enabled,
+        boolean defaultModel,
+        String lastTestStatus,
+        String lastTestMessage,
+        Instant lastTestedAt,
         Instant createdAt,
         Instant updatedAt
 ) {

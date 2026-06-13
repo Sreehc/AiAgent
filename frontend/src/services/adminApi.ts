@@ -1,10 +1,13 @@
 import {
   apiRequest,
+  AdminAuditRow,
   InviteItem,
   McpDiscoverResponse,
   McpHealthResponse,
   McpServerItem,
-  ModelConfigItem
+  ModelConfigItem,
+  RagEvaluationItem
+  , RagEvaluationCaseItem
 } from "./api";
 
 export type ModelConfigPayload = {
@@ -35,10 +38,40 @@ export type UpdateMcpServerPayload = {
   active: boolean;
 };
 
+export type AuditQuery = {
+  keyword?: string;
+  status?: string;
+  result?: string;
+  pageNo?: number;
+  pageSize?: number;
+};
+
+function auditQuery(params: AuditQuery = {}) {
+  const searchParams = new URLSearchParams();
+  if (params.keyword) searchParams.set("keyword", params.keyword);
+  if (params.status) searchParams.set("status", params.status);
+  if (params.result) searchParams.set("result", params.result);
+  searchParams.set("pageNo", String(params.pageNo ?? 1));
+  searchParams.set("pageSize", String(params.pageSize ?? 50));
+  return searchParams.toString();
+}
+
 export const adminApi = {
   listModels: (accessToken: string) => apiRequest<ModelConfigItem[]>("/admin/models", {}, accessToken),
   createModel: (accessToken: string, payload: ModelConfigPayload) =>
     apiRequest<ModelConfigItem>("/admin/models", { method: "POST", body: JSON.stringify(payload) }, accessToken),
+  updateModel: (accessToken: string, modelCode: string, payload: Omit<ModelConfigPayload, "modelCode">) =>
+    apiRequest<ModelConfigItem>(`/admin/models/${modelCode}`, { method: "PUT", body: JSON.stringify(payload) }, accessToken),
+  enableModel: (accessToken: string, modelCode: string) =>
+    apiRequest<ModelConfigItem>(`/admin/models/${modelCode}/enable`, { method: "POST" }, accessToken),
+  disableModel: (accessToken: string, modelCode: string) =>
+    apiRequest<ModelConfigItem>(`/admin/models/${modelCode}/disable`, { method: "POST" }, accessToken),
+  deleteModel: (accessToken: string, modelCode: string) =>
+    apiRequest<void>(`/admin/models/${modelCode}`, { method: "DELETE" }, accessToken),
+  testModel: (accessToken: string, modelCode: string) =>
+    apiRequest<{ modelCode: string; status: string; message: string }>(`/admin/models/${modelCode}/test`, { method: "POST" }, accessToken),
+  setDefaultModel: (accessToken: string, modelCode: string) =>
+    apiRequest<ModelConfigItem>(`/admin/models/${modelCode}/default`, { method: "POST" }, accessToken),
   listInvites: (accessToken: string, limit = 10) =>
     apiRequest<InviteItem[]>(`/admin/invites?limit=${limit}`, {}, accessToken),
   createInvite: (accessToken: string, expiresInDays: number) =>
@@ -61,5 +94,27 @@ export const adminApi = {
   discoverMcpTools: (accessToken: string, serverCode: string) =>
     apiRequest<McpDiscoverResponse>(`/admin/mcp-servers/${serverCode}/discover`, { method: "POST" }, accessToken),
   checkMcpHealth: (accessToken: string, serverCode: string) =>
-    apiRequest<McpHealthResponse>(`/admin/mcp-servers/${serverCode}/health`, {}, accessToken)
+    apiRequest<McpHealthResponse>(`/admin/mcp-servers/${serverCode}/health`, {}, accessToken),
+  testMcpTool: (accessToken: string, serverCode: string, toolName: string, input: string) =>
+    apiRequest<{ serverCode: string; toolName: string; resultText: string; responsePayload: string }>(
+      `/admin/mcp-servers/${serverCode}/tools/${toolName}/test`,
+      { method: "POST", body: JSON.stringify({ input }) },
+      accessToken
+    ),
+  listAuditUsers: (accessToken: string, params?: AuditQuery) => apiRequest<AdminAuditRow[]>(`/admin/audit/users?${auditQuery(params)}`, {}, accessToken),
+  listAuditRuns: (accessToken: string, params?: AuditQuery) =>
+    apiRequest<AdminAuditRow[]>(`/admin/audit/runs?${auditQuery(params)}`, {}, accessToken),
+  listAuditTools: (accessToken: string, params?: AuditQuery) =>
+    apiRequest<AdminAuditRow[]>(`/admin/audit/tool-invocations?${auditQuery(params)}`, {}, accessToken),
+  listAuditLogins: (accessToken: string, params?: AuditQuery) => apiRequest<AdminAuditRow[]>(`/admin/audit/login-logs?${auditQuery(params)}`, {}, accessToken),
+  createRagEvaluation: (accessToken: string, payload: { topK: number; knowledgeBaseIds?: string[]; cases: Array<{ query: string; expectedCitationIds: string[]; expectedTextContains: string[] }> }) =>
+    apiRequest<RagEvaluationItem>("/admin/rag-evaluations", { method: "POST", body: JSON.stringify(payload) }, accessToken),
+  listRagEvaluations: (accessToken: string) => apiRequest<RagEvaluationItem[]>("/admin/rag-evaluations", {}, accessToken),
+  listRagEvaluationCases: (accessToken: string) => apiRequest<RagEvaluationCaseItem[]>("/admin/rag-evaluation-cases", {}, accessToken),
+  createRagEvaluationCase: (accessToken: string, payload: { query: string; expectedCitationIds: string[]; expectedTextContains: string[]; enabled: boolean }) =>
+    apiRequest<RagEvaluationCaseItem>("/admin/rag-evaluation-cases", { method: "POST", body: JSON.stringify(payload) }, accessToken),
+  updateRagEvaluationCase: (accessToken: string, caseId: string, payload: { query: string; expectedCitationIds: string[]; expectedTextContains: string[]; enabled: boolean }) =>
+    apiRequest<RagEvaluationCaseItem>(`/admin/rag-evaluation-cases/${caseId}`, { method: "PUT", body: JSON.stringify(payload) }, accessToken),
+  deleteRagEvaluationCase: (accessToken: string, caseId: string) =>
+    apiRequest<void>(`/admin/rag-evaluation-cases/${caseId}`, { method: "DELETE" }, accessToken)
 };

@@ -132,6 +132,16 @@ export function McpServersPage() {
     }
   }
 
+  async function onTestTool(toolName: string) {
+    if (!session?.accessToken || !selectedCode) return;
+    try {
+      const result = await adminApi.testMcpTool(session.accessToken, selectedCode, toolName, "AiAgent admin smoke test");
+      setError(`${result.toolName}: ${result.resultText}`);
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
+    }
+  }
+
   if (!session?.user.roles.includes("ADMIN")) return <section className="page"><header className="page-header"><h1>MCP 服务器</h1><span className="badge badge--neutral">Admin only</span></header><EmptyState message="当前账号没有管理员权限，无法访问 MCP 配置。" /></section>;
 
   return (
@@ -140,7 +150,7 @@ export function McpServersPage() {
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="content-grid content-grid--wide-side">
         <aside className="stack">{selected ? <button type="button" className="text-action" onClick={resetSelection}>+ 注册新服务</button> : null}<McpServerForm form={form} editing={selected !== null} submitting={submitting} onChange={setForm} onCreate={onCreate} onUpdate={() => void onUpdate()} onDelete={() => selected && setServerToDelete(selected)} /><McpServerRegistry servers={servers} selectedCode={selectedCode} healthChecks={healthChecks} loading={loading} onSelect={selectServer} onRefresh={() => void loadServers()} /></aside>
-        <main className="stack"><McpToolList server={selected} discovery={selectedCode ? discoveries[selectedCode] : undefined} health={selectedCode ? healthChecks[selectedCode] : undefined} onDiscover={() => void onDiscover()} onHealth={() => void onHealth()} /></main>
+        <main className="stack"><McpToolList server={selected} discovery={selectedCode ? discoveries[selectedCode] : undefined} health={selectedCode ? healthChecks[selectedCode] : undefined} onDiscover={() => void onDiscover()} onHealth={() => void onHealth()} onTestTool={(toolName) => void onTestTool(toolName)} /></main>
       </div>
       <ConfirmDialog isOpen={serverToDelete !== null} title="确认删除服务配置" message={<>确定要删除 MCP 服务「<strong>{serverToDelete?.name}</strong>」吗？此操作不可恢复。</>} confirmText="删除配置" cancelText="取消" onConfirm={onDelete} onCancel={() => setServerToDelete(null)} danger />
     </section>

@@ -51,6 +51,12 @@ public class ProductionConfigurationGuard implements ApplicationRunner {
         requireProviderConfiguration("embedding", appProperties.embedding().provider(), appProperties.embedding().modelCode(), appProperties.embedding().baseUrl(), appProperties.embedding().apiKey());
         requireProviderConfiguration("chat", appProperties.chat().provider(), appProperties.chat().modelCode(), appProperties.chat().baseUrl(), appProperties.chat().apiKey());
         requireProviderConfiguration("image", appProperties.image().provider(), appProperties.image().modelCode(), appProperties.image().baseUrl(), appProperties.image().apiKey());
+        if (!"smtp".equalsIgnoreCase(appProperties.email().provider())) {
+            throw new IllegalStateException("Production password reset requires APP_EMAIL_PROVIDER=smtp");
+        }
+        if (isBlank(appProperties.email().host()) || isBlank(appProperties.email().from())) {
+            throw new IllegalStateException("Production SMTP requires host and from address");
+        }
         if (hasActiveDemoInvite()) {
             throw new IllegalStateException("Default demo invite tokens must be disabled or expired before production startup");
         }

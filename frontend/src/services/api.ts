@@ -8,7 +8,7 @@ export type SessionItem = {
   sessionId: string;
   title: string;
   agentMode: "REACT" | "PLAN_EXECUTE";
-  status: "IDLE" | "RUNNING" | "COMPLETED" | "FAILED";
+  status: "IDLE" | "RUNNING" | "PAUSED" | "COMPLETED" | "FAILED" | "CANCELLED" | "TIMED_OUT";
   createdAt: string;
 };
 
@@ -23,32 +23,50 @@ export type RunItem = {
   query: string;
   retrievalQuery: string | null;
   executionMode: "REACT" | "PLAN_EXECUTE";
-  status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+  status: "PENDING" | "RUNNING" | "PAUSED" | "COMPLETED" | "FAILED" | "CANCEL_REQUESTED" | "CANCELLED" | "TIMED_OUT";
   knowledgeBaseIds: string[];
   recallSet: EvidenceItem[];
   finalEvidenceSet: EvidenceItem[];
   startedAt: string | null;
   completedAt: string | null;
+  heartbeatAt: string | null;
+  cancelRequestedAt: string | null;
+  cancelReason: string | null;
+  pausedAt: string | null;
+  pauseReason: string | null;
+  resumedAt: string | null;
+  timeoutAt: string | null;
+  recoveredAt: string | null;
+  strategySource: string | null;
+  planningRounds: number;
+  fallbackReasonsJson: string | null;
   errorMessage: string | null;
 };
 
 export type PlanStepItem = {
   stepNo: number;
   title: string;
-  status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+  status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | "SKIPPED" | "CANCELLED";
   toolName: string | null;
   toolInput: string | null;
   toolOutput: string | null;
+  observation?: string | null;
+  completionJudgement?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
 };
 
 export type ArtifactItem = {
   artifactId: string;
-  artifactType: "REPORT" | "IMAGE" | "IMAGE_REFERENCE";
+  artifactType: "REPORT" | "IMAGE" | "IMAGE_REFERENCE" | "ATTACHMENT" | "TOOL_OUTPUT" | "CONTEXT_SNIPPET";
   title: string;
   content: string;
   storageUri: string | null;
   mimeType: string | null;
   resultUrl: string | null;
+  metadata?: string | null;
+  sourceArtifactId?: number | null;
+  reusable?: boolean;
   createdAt: string;
 };
 
@@ -79,6 +97,8 @@ export type KnowledgeDocumentItem = {
   parseStatus: string;
   storageUri: string;
   chunkCount: number;
+  versionNo: number;
+  fileSize: number;
   lastError: string | null;
   createdAt: string;
 };
@@ -141,6 +161,11 @@ export type McpHealthResponse = {
   serverCode: string;
   status: string;
   message: string;
+  latencyMs: number | null;
+  toolCount: number;
+  transportType: string;
+  errorCode: string | null;
+  checkedAt: string;
 };
 
 export type ModelConfigItem = {
@@ -151,6 +176,33 @@ export type ModelConfigItem = {
   modelType: "CHAT" | "EMBEDDING" | "IMAGE";
   baseUrl: string;
   apiKeyMasked: string | null;
+  enabled: boolean;
+  defaultModel: boolean;
+  lastTestStatus: string | null;
+  lastTestMessage: string | null;
+  lastTestedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdminAuditRow = Record<string, unknown>;
+
+export type RagEvaluationItem = {
+  evalId: string;
+  knowledgeBaseIds: string;
+  cases: string;
+  metrics: string;
+  status: string;
+  errorMessage: string | null;
+  createdAt: string;
+  completedAt: string | null;
+};
+
+export type RagEvaluationCaseItem = {
+  caseId: string;
+  query: string;
+  expectedCitationIds: string[];
+  expectedTextContains: string[];
   enabled: boolean;
   createdAt: string;
   updatedAt: string;

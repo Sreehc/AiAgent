@@ -13,6 +13,7 @@ export function AdminSettingsPage() {
   const [models, setModels] = useState<ModelConfigItem[]>([]);
   const [invites, setInvites] = useState<InviteItem[]>([]);
   const [modelForm, setModelForm] = useState(DEFAULT_MODEL_FORM);
+  const [editingModelCode, setEditingModelCode] = useState<string | null>(null);
   const [inviteDays, setInviteDays] = useState(7);
   const [loading, setLoading] = useState(true);
   const [submittingModel, setSubmittingModel] = useState(false);
@@ -39,20 +40,39 @@ export function AdminSettingsPage() {
     }
   }
 
-  async function onCreateModel(event: FormEvent<HTMLFormElement>) {
+  async function onSubmitModel(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!session?.accessToken) return;
     setSubmittingModel(true);
     setError(null);
     try {
-      await adminApi.createModel(session.accessToken, modelForm);
+      if (editingModelCode) {
+        const { modelCode: _modelCode, ...payload } = modelForm;
+        await adminApi.updateModel(session.accessToken, editingModelCode, payload);
+      } else {
+        await adminApi.createModel(session.accessToken, modelForm);
+      }
       setModelForm(DEFAULT_MODEL_FORM);
+      setEditingModelCode(null);
       await loadData();
     } catch (requestError) {
       setError((requestError as ApiError).message);
     } finally {
       setSubmittingModel(false);
     }
+  }
+
+  function onEditModel(model: ModelConfigItem) {
+    setEditingModelCode(model.modelCode);
+    setModelForm({
+      modelCode: model.modelCode,
+      name: model.name,
+      provider: model.provider,
+      modelType: model.modelType,
+      baseUrl: model.baseUrl,
+      apiKey: "",
+      enabled: model.enabled
+    });
   }
 
   async function onCreateInvite() {
@@ -66,6 +86,47 @@ export function AdminSettingsPage() {
       setError((requestError as ApiError).message);
     } finally {
       setSubmittingInvite(false);
+    }
+  }
+
+  async function onToggleModel(model: ModelConfigItem) {
+    if (!session?.accessToken) return;
+    try {
+      model.enabled ? await adminApi.disableModel(session.accessToken, model.modelCode) : await adminApi.enableModel(session.accessToken, model.modelCode);
+      await loadData();
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
+    }
+  }
+
+  async function onDeleteModel(model: ModelConfigItem) {
+    if (!session?.accessToken) return;
+    try {
+      await adminApi.deleteModel(session.accessToken, model.modelCode);
+      await loadData();
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
+    }
+  }
+
+  async function onTestModel(model: ModelConfigItem) {
+    if (!session?.accessToken) return;
+    try {
+      const result = await adminApi.testModel(session.accessToken, model.modelCode);
+      setError(`${result.modelCode}: ${result.status} - ${result.message}`);
+      await loadData();
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
+    }
+  }
+
+  async function onDefaultModel(model: ModelConfigItem) {
+    if (!session?.accessToken) return;
+    try {
+      await adminApi.setDefaultModel(session.accessToken, model.modelCode);
+      await loadData();
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
     }
   }
 
@@ -85,11 +146,11 @@ export function AdminSettingsPage() {
       {models.some((model) => model.provider === "local-mock" && model.enabled) ? <Alert tone="error">检测到已启用的 local-mock provider。生产环境应停用该配置。</Alert> : null}
       <div className="content-grid content-grid--wide-side">
         <aside className="stack">
-          <ModelForm form={modelForm} submitting={submittingModel} onChange={setModelForm} onSubmit={onCreateModel} />
+          <ModelForm form={modelForm} submitting={submittingModel} editing={editingModelCode !== null} onChange={setModelForm} onSubmit={onSubmitModel} onCancelEdit={() => { setEditingModelCode(null); setModelForm(DEFAULT_MODEL_FORM); }} />
           <Panel title="创建邀请码" eyebrow="Access"><div className="form-grid"><Field label="过期天数"><Input type="number" min={1} max={365} value={inviteDays} onChange={(event) => setInviteDays(Number(event.target.value) || 1)} /></Field><Button type="button" variant="primary" loading={submittingInvite} onClick={() => void onCreateInvite()} fullWidth>生成邀请码</Button></div></Panel>
         </aside>
         <main className="stack">
-          <ModelRegistry models={models} loading={loading} />
+          <ModelRegistry models={models} loading={loading} onToggle={onToggleModel} onEdit={onEditModel} onDelete={onDeleteModel} onTest={onTestModel} onDefault={onDefaultModel} />
           <Panel title="最近邀请码" eyebrow="Invites" action={<span className="badge">{invites.length} 条</span>}><div className="table-list">{invites.map((invite) => <article key={`${invite.inviteToken}-${invite.createdAt}`} className="table-row"><div><strong className="mono">{invite.inviteToken}</strong><br /><small>过期：{formatDateTime(invite.expiresAt)}</small></div><StatusPill status={invite.status} /><Button type="button" variant="secondary" size="sm" onClick={() => copyInviteToken(invite.inviteToken)}>{copiedToken === invite.inviteToken ? "已复制" : "复制"}</Button></article>)}</div>{!loading && invites.length === 0 ? <EmptyState message="还没有新生成的邀请码。" /> : null}</Panel>
         </main>
       </div>

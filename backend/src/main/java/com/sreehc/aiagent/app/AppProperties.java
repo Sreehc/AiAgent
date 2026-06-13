@@ -12,9 +12,30 @@ public record AppProperties(
         Chat chat,
         Image image,
         Mcp mcp,
+        Email email,
+        Run run,
         Bootstrap bootstrap,
         Secret secret
 ) {
+    public AppProperties(
+            Auth auth,
+            Storage storage,
+            Embedding embedding,
+            Kafka kafka,
+            Rag rag,
+            Chat chat,
+            Image image,
+            Mcp mcp,
+            Bootstrap bootstrap,
+            Secret secret
+    ) {
+        this(auth, storage, embedding, kafka, rag, chat, image, mcp,
+                new Email("log", "no-reply@aiagent.local", "http://localhost:5173/reset-password", "localhost", 1025, null, null, false, false, 5000L, 10000L),
+                new Run(3, 8, 10L),
+                bootstrap,
+                secret);
+    }
+
     public record Auth(
             long sessionTtlSeconds,
             Integer loginFailureLimit,
@@ -76,6 +97,28 @@ public record AppProperties(
             String allowedHosts,
             Boolean allowPrivateNetwork,
             String allowedStdioExecutables
+    ) {
+    }
+
+    public record Email(
+            String provider,
+            String from,
+            String resetBaseUrl,
+            String host,
+            Integer port,
+            String username,
+            String password,
+            Boolean startTls,
+            Boolean ssl,
+            Long connectTimeoutMillis,
+            Long readTimeoutMillis
+    ) {
+    }
+
+    public record Run(
+            Integer maxPlanningRounds,
+            Integer maxPlanSteps,
+            Long staleTimeoutMinutes
     ) {
     }
 

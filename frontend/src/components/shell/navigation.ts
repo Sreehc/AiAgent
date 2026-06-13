@@ -13,7 +13,9 @@ export const workNavigation: NavigationItem[] = [
 
 export const adminNavigation: NavigationItem[] = [
   { to: "/admin/settings", label: "模型配置", shortLabel: "模型" },
-  { to: "/admin/mcp-servers", label: "MCP 服务器", shortLabel: "MCP" }
+  { to: "/admin/mcp-servers", label: "MCP 服务器", shortLabel: "MCP" },
+  { to: "/admin/audit", label: "审计", shortLabel: "审计" },
+  { to: "/admin/rag-evaluations", label: "RAG 评估", shortLabel: "评估" }
 ];
 
 export const accountNavigation: NavigationItem[] = [

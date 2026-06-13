@@ -7,6 +7,10 @@ import com.sreehc.aiagent.domain.admin.ModelConfig;
 import com.sreehc.aiagent.domain.admin.ModelType;
 import com.sreehc.aiagent.domain.auth.SessionUser;
 import com.sreehc.aiagent.infrastructure.admin.AdminSettingsRepository;
+import com.sreehc.aiagent.infrastructure.model.ChatModelProvider;
+import com.sreehc.aiagent.infrastructure.model.ChatModelProviderRouter;
+import com.sreehc.aiagent.infrastructure.model.ImageGenerationProviderRouter;
+import com.sreehc.aiagent.infrastructure.model.ModelProviderException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -20,15 +24,21 @@ public class AdminSettingsService {
     private final AdminAuthorizationService adminAuthorizationService;
     private final AdminSettingsRepository adminSettingsRepository;
     private final SecretCipherService secretCipherService;
+    private final ChatModelProviderRouter chatModelProviderRouter;
+    private final ImageGenerationProviderRouter imageGenerationProviderRouter;
 
     public AdminSettingsService(
             AdminAuthorizationService adminAuthorizationService,
             AdminSettingsRepository adminSettingsRepository,
-            SecretCipherService secretCipherService
+            SecretCipherService secretCipherService,
+            ChatModelProviderRouter chatModelProviderRouter,
+            ImageGenerationProviderRouter imageGenerationProviderRouter
     ) {
         this.adminAuthorizationService = adminAuthorizationService;
         this.adminSettingsRepository = adminSettingsRepository;
         this.secretCipherService = secretCipherService;
+        this.chatModelProviderRouter = chatModelProviderRouter;
+        this.imageGenerationProviderRouter = imageGenerationProviderRouter;
     }
 
     public List<ModelConfig> listModels(SessionUser currentUser) {
@@ -55,6 +65,101 @@ public class AdminSettingsService {
         );
         return adminSettingsRepository.findModelConfigById(id)
                 .orElseThrow(() -> new IllegalStateException("Failed to load created model config"));
+    }
+
+    @Transactional
+    public ModelConfig updateModel(SessionUser currentUser, String modelCode, UpdateModelCommand command) {
+        adminAuthorizationService.ensureAdmin(currentUser);
+        ModelConfig existing = ensureModelExists(modelCode);
+        if (isBlank(command.provider()) || command.modelType() == null) {
+            throw new AppException("PARAM_INVALID", "Provider and model type are required", HttpStatus.BAD_REQUEST);
+        }
+        if (!"local-mock".equalsIgnoreCase(command.provider())
+                && isBlank(command.baseUrl())) {
+            throw new AppException("PARAM_INVALID", "Non-mock model providers require baseUrl", HttpStatus.BAD_REQUEST);
+        }
+        if (!"local-mock".equalsIgnoreCase(command.provider())
+                && isBlank(command.apiKey())
+                && isBlank(existing.apiKeyMasked())) {
+            throw new AppException("PARAM_INVALID", "Non-mock model providers require apiKey", HttpStatus.BAD_REQUEST);
+        }
+        String encryptedApiKey = isBlank(command.apiKey()) ? null : secretCipherService.encrypt(command.apiKey());
+        adminSettingsRepository.updateModelConfig(
+                modelCode,
+                command.name(),
+                command.provider(),
+                command.modelType(),
+                command.baseUrl(),
+                encryptedApiKey,
+                isBlank(command.apiKey()) ? null : maskApiKey(command.apiKey()),
+                isBlank(command.apiKey()) ? null : secretCipherService.keyVersion(),
+                command.enabled()
+        );
+        return adminSettingsRepository.findModelConfigByCode(modelCode)
+                .orElseThrow(() -> new AppException("MODEL_NOT_FOUND", "Model config not found", HttpStatus.NOT_FOUND));
+    }
+
+    @Transactional
+    public ModelConfig setModelEnabled(SessionUser currentUser, String modelCode, boolean enabled) {
+        adminAuthorizationService.ensureAdmin(currentUser);
+        ensureModelExists(modelCode);
+        adminSettingsRepository.setModelEnabled(modelCode, enabled);
+        return adminSettingsRepository.findModelConfigByCode(modelCode)
+                .orElseThrow(() -> new AppException("MODEL_NOT_FOUND", "Model config not found", HttpStatus.NOT_FOUND));
+    }
+
+    @Transactional
+    public void deleteModel(SessionUser currentUser, String modelCode) {
+        adminAuthorizationService.ensureAdmin(currentUser);
+        ModelConfig model = ensureModelExists(modelCode);
+        if (model.defaultModel()) {
+            throw new AppException("MODEL_DEFAULT_DELETE_DENIED", "Default model cannot be deleted", HttpStatus.CONFLICT);
+        }
+        adminSettingsRepository.deleteModelConfig(modelCode);
+    }
+
+    @Transactional
+    public ModelConfig setDefaultModel(SessionUser currentUser, String modelCode) {
+        adminAuthorizationService.ensureAdmin(currentUser);
+        ModelConfig model = ensureModelExists(modelCode);
+        adminSettingsRepository.setDefaultModel(modelCode, model.modelType());
+        return adminSettingsRepository.findModelConfigByCode(modelCode)
+                .orElseThrow(() -> new AppException("MODEL_NOT_FOUND", "Model config not found", HttpStatus.NOT_FOUND));
+    }
+
+    @Transactional
+    public ModelTestResult testModel(SessionUser currentUser, String modelCode) {
+        adminAuthorizationService.ensureAdmin(currentUser);
+        AdminSettingsRepository.RuntimeModelConfig runtime = adminSettingsRepository.findRuntimeModelConfig(
+                        ensureModelExists(modelCode).modelType(),
+                        modelCode
+                )
+                .orElseThrow(() -> new AppException("MODEL_NOT_ENABLED", "Only enabled models can be tested", HttpStatus.CONFLICT));
+        String status = "SUCCESS";
+        String message = "Connection test passed";
+        try {
+            if ("local-mock".equalsIgnoreCase(runtime.provider())) {
+                message = "local-mock provider is available";
+            } else if (runtime.modelType() == ModelType.CHAT) {
+                ChatModelProvider provider = chatModelProviderRouter.route(runtime.provider());
+                provider.complete(new ChatModelProvider.ChatRequest(
+                        "Return ok.",
+                        runtime.modelCode(),
+                        runtime.baseUrl(),
+                        secretCipherService.decrypt(runtime.apiKeyCiphertext())
+                ));
+            } else if (runtime.modelType() == ModelType.IMAGE) {
+                imageGenerationProviderRouter.route(runtime.provider());
+                message = "Image provider route is available; generation smoke is skipped to avoid cost";
+            } else {
+                message = "Embedding provider route is managed by RAG runtime; direct smoke is skipped";
+            }
+        } catch (Exception exception) {
+            status = "FAILED";
+            message = exception instanceof ModelProviderException ? exception.getMessage() : "Connection test failed";
+        }
+        adminSettingsRepository.markModelTestResult(modelCode, status, message);
+        return new ModelTestResult(modelCode, status, message);
     }
 
     @Transactional
@@ -87,6 +192,11 @@ public class AdminSettingsService {
         return value == null || value.isBlank();
     }
 
+    private ModelConfig ensureModelExists(String modelCode) {
+        return adminSettingsRepository.findModelConfigByCode(modelCode)
+                .orElseThrow(() -> new AppException("MODEL_NOT_FOUND", "Model config not found", HttpStatus.NOT_FOUND));
+    }
+
     private String maskApiKey(String apiKey) {
         if (apiKey == null || apiKey.isBlank()) {
             return null;
@@ -105,6 +215,23 @@ public class AdminSettingsService {
             String baseUrl,
             String apiKey,
             boolean enabled
+    ) {
+    }
+
+    public record UpdateModelCommand(
+            String name,
+            String provider,
+            ModelType modelType,
+            String baseUrl,
+            String apiKey,
+            boolean enabled
+    ) {
+    }
+
+    public record ModelTestResult(
+            String modelCode,
+            String status,
+            String message
     ) {
     }
 

@@ -8,8 +8,10 @@ import org.springframework.stereotype.Component;
 @Component
 public class EmbeddingProviderRouter {
     private final EmbeddingProvider activeProvider;
+    private final List<EmbeddingProvider> providers;
 
     public EmbeddingProviderRouter(List<EmbeddingProvider> providers, AppProperties appProperties) {
+        this.providers = providers;
         String configuredProvider = resolveConfiguredProvider(appProperties);
         this.activeProvider = providers.stream()
                 .filter(provider -> provider.providerCode().equalsIgnoreCase(configuredProvider))
@@ -23,6 +25,14 @@ public class EmbeddingProviderRouter {
 
     public String embed(String content) {
         return activeProvider.embed(content);
+    }
+
+    public String embed(String providerCode, String content, String modelCode, String baseUrl, String apiKey) {
+        return providers.stream()
+                .filter(provider -> provider.providerCode().equalsIgnoreCase(providerCode))
+                .findFirst()
+                .orElseThrow(() -> new EmbeddingProviderException("Unsupported embedding provider: " + providerCode))
+                .embed(content, modelCode, baseUrl, apiKey);
     }
 
     private String resolveConfiguredProvider(AppProperties appProperties) {

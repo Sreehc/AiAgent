@@ -927,14 +927,13 @@ After shell and page tasks:
 - Admin routes still hide navigation for normal users and show denied state if directly accessed.
 - SSE parser behavior unchanged unless intentionally extended.
 
-## 12. Open Decisions Before Implementation
+## 12. 实施后确认事项
 
-- 是否允许新增图标库？推荐 `lucide-react`，但可不加依赖完成第一版。
-- 是否允许新增 Radix primitives？如果不允许，Dialog、Tabs、Popover 需要自建基础交互。
-- 邀请码管理是否继续留在模型配置页，还是后续拆成独立管理员页面？
-- 模型测试连接接口是否存在？若不存在，前端只展示“待后端支持”的禁用入口。
-- 历史回放是否保持单页详情面板，还是新增详情路由？当前建议保持单页，避免改路由契约。
-- 是否需要为 `api.ts` 的 DTO 类型拆分文件？当前建议暂不拆，避免影响范围过大。
+- 未新增图标库或 Radix primitives，Dialog、Tabs 等基础交互由项目自建。
+- 邀请码管理继续位于模型配置页。
+- 模型和个人 API 测试连接接口不存在，前端保留禁用入口。
+- 历史回放保持单页详情面板，未新增路由。
+- `api.ts` DTO 仍集中维护，领域请求已拆分到各 service wrapper。
 
 ## 13. Initial Implementation Recommendation
 
@@ -959,6 +958,8 @@ The full rebuild was completed in the planned 17-task sequence.
 - Responsive layouts, keyboard focus, mobile navigation, permission-denied states, and a dedicated 404 route are implemented.
 - Existing routes, API response envelopes, protected-route behavior, and SSE parsing contracts remain unchanged.
 - Model and personal API connection-test actions remain disabled because the backend does not expose a connection-test API.
+- The artifact UI currently supports `REPORT`, `IMAGE`, and `IMAGE_REFERENCE`; attachment and tool-output artifact types do not exist in the backend.
+- MCP STDIO discovery and real provider image editing remain backend limitations, not frontend completion gaps.
 
 Final verification includes:
 
@@ -971,3 +972,8 @@ rg 'style=\{|gradient|backdrop-filter|100vh|连接测试成功' src
 ```
 
 The `rg` checks must return no matches. Browser smoke coverage includes all public, workspace, account, and admin routes at desktop and mobile widths.
+
+Current verification on 2026-06-13:
+
+- `pnpm build` passes.
+- Frontend automated tests are not configured; regression verification currently depends on build checks and manual/browser smoke testing.

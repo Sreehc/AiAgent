@@ -15,6 +15,20 @@ export const knowledgeApi = {
     apiRequest<void>(`/knowledge-bases/${kbId}`, { method: "DELETE" }, accessToken),
   listDocuments: (accessToken: string, kbId: string) =>
     apiRequest<KnowledgeDocumentItem[]>(`/knowledge-bases/${kbId}/documents`, {}, accessToken),
+  getDocument: (accessToken: string, kbId: string, documentId: string) =>
+    apiRequest<{ document: KnowledgeDocumentItem; preview: string }>(`/knowledge-bases/${kbId}/documents/${documentId}`, {}, accessToken),
+  downloadDocument: (accessToken: string, kbId: string, documentId: string) =>
+    apiRequest<{ url: string }>(`/knowledge-bases/${kbId}/documents/${documentId}/download`, {}, accessToken),
+  deleteDocument: (accessToken: string, kbId: string, documentId: string) =>
+    apiRequest<void>(`/knowledge-bases/${kbId}/documents/${documentId}`, { method: "DELETE" }, accessToken),
+  listDocumentVersions: (accessToken: string, kbId: string, documentId: string) =>
+    apiRequest<KnowledgeDocumentItem[]>(`/knowledge-bases/${kbId}/documents/${documentId}/versions`, {}, accessToken),
+  restoreDocumentVersion: (accessToken: string, kbId: string, documentId: string, versionId: string) =>
+    apiRequest<KnowledgeDocumentItem>(
+      `/knowledge-bases/${kbId}/documents/${documentId}/versions/${versionId}/restore`,
+      { method: "POST" },
+      accessToken
+    ),
   uploadDocument: (accessToken: string, kbId: string, body: FormData) =>
     apiRequest<KnowledgeDocumentItem>(`/knowledge-bases/${kbId}/documents`, { method: "POST", body }, accessToken),
   indexDocument: (accessToken: string, kbId: string, documentId: string) =>

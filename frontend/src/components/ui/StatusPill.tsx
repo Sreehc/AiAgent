@@ -16,10 +16,10 @@ function getTone(status: string) {
   if (["RUNNING", "PENDING", "PROCESSING", "IDLE"].includes(status)) {
     return "info";
   }
-  if (["FAILED", "ERROR", "INACTIVE", "UNHEALTHY", "EXPIRED"].includes(status)) {
+  if (["FAILED", "ERROR", "INACTIVE", "UNHEALTHY", "EXPIRED", "TIMED_OUT"].includes(status)) {
     return "danger";
   }
-  if (["WARNING", "USED"].includes(status)) {
+  if (["WARNING", "USED", "PAUSED", "CANCEL_REQUESTED", "CANCELLED", "SKIPPED"].includes(status)) {
     return "warning";
   }
   return "neutral";
@@ -31,6 +31,11 @@ function formatStatus(status: string) {
     RUNNING: "执行中",
     COMPLETED: "已完成",
     FAILED: "失败",
+    PAUSED: "已暂停",
+    CANCEL_REQUESTED: "取消中",
+    CANCELLED: "已取消",
+    TIMED_OUT: "已超时",
+    SKIPPED: "已跳过",
     PENDING: "等待中",
     PROCESSING: "处理中",
     ACTIVE: "活跃",

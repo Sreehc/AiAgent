@@ -97,6 +97,60 @@ public class KnowledgeBaseController {
                 .toList());
     }
 
+    @GetMapping("/{kbId}/documents/{documentId}")
+    public ApiResponse<DocumentDetailResponse> getDocument(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable String kbId,
+            @PathVariable String documentId
+    ) {
+        KnowledgeDocument document = knowledgeBaseService.getDocument(currentUser, kbId, documentId);
+        String text = document.textContent() == null ? "" : document.textContent();
+        return ApiResponse.success(new DocumentDetailResponse(
+                toDocumentResponse(document),
+                text.length() <= 4000 ? text : text.substring(0, 4000)
+        ));
+    }
+
+    @GetMapping("/{kbId}/documents/{documentId}/download")
+    public ApiResponse<DocumentDownloadResponse> downloadDocument(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable String kbId,
+            @PathVariable String documentId
+    ) {
+        return ApiResponse.success(new DocumentDownloadResponse(knowledgeBaseService.createDocumentDownloadUrl(currentUser, kbId, documentId)));
+    }
+
+    @DeleteMapping("/{kbId}/documents/{documentId}")
+    public ApiResponse<Void> deleteDocument(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable String kbId,
+            @PathVariable String documentId
+    ) {
+        knowledgeBaseService.deleteDocument(currentUser, kbId, documentId);
+        return ApiResponse.success(null);
+    }
+
+    @GetMapping("/{kbId}/documents/{documentId}/versions")
+    public ApiResponse<List<DocumentResponse>> listDocumentVersions(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable String kbId,
+            @PathVariable String documentId
+    ) {
+        return ApiResponse.success(knowledgeBaseService.listDocumentVersions(currentUser, kbId, documentId).stream()
+                .map(this::toDocumentResponse)
+                .toList());
+    }
+
+    @PostMapping("/{kbId}/documents/{documentId}/versions/{versionId}/restore")
+    public ApiResponse<DocumentResponse> restoreDocumentVersion(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable String kbId,
+            @PathVariable String documentId,
+            @PathVariable String versionId
+    ) {
+        return ApiResponse.success(toDocumentResponse(knowledgeBaseService.restoreDocumentVersion(currentUser, kbId, documentId, versionId)));
+    }
+
     @PostMapping("/{kbId}/documents/{documentId}/index")
     public ApiResponse<DocumentResponse> indexDocument(
             @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
@@ -148,6 +202,8 @@ public class KnowledgeBaseController {
                 document.parseStatus().name(),
                 document.storageUri(),
                 document.chunkCount(),
+                document.versionNo(),
+                document.fileSize(),
                 document.lastError(),
                 document.createdAt().toString()
         );
@@ -208,8 +264,21 @@ public class KnowledgeBaseController {
             String parseStatus,
             String storageUri,
             int chunkCount,
+            int versionNo,
+            long fileSize,
             String lastError,
             String createdAt
+    ) {
+    }
+
+    public record DocumentDetailResponse(
+            DocumentResponse document,
+            String preview
+    ) {
+    }
+
+    public record DocumentDownloadResponse(
+            String url
     ) {
     }
 

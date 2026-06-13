@@ -26,6 +26,12 @@ export type AccountApiConfigUpdate = {
   maxTokens: number;
 };
 
+export type AccountApiConfigTestResult = {
+  modelType: "CHAT" | "EMBEDDING" | "IMAGE";
+  status: string;
+  message: string;
+};
+
 export type LoginLogEntry = {
   loginIp: string;
   userAgent: string;
@@ -51,5 +57,7 @@ export const accountApi = {
     apiRequest<LoginLogResponse>(`/account/login-logs?pageNo=${pageNo}&pageSize=${pageSize}`, {}, accessToken),
   getApiConfig: (accessToken: string) => apiRequest<AccountApiConfig>("/account/api-config", {}, accessToken),
   updateApiConfig: (accessToken: string, payload: AccountApiConfigUpdate) =>
-    apiRequest<AccountApiConfig>("/account/api-config", { method: "PUT", body: JSON.stringify(payload) }, accessToken)
+    apiRequest<AccountApiConfig>("/account/api-config", { method: "PUT", body: JSON.stringify(payload) }, accessToken),
+  testApiConfig: (accessToken: string, modelType: AccountApiConfigTestResult["modelType"]) =>
+    apiRequest<AccountApiConfigTestResult>("/account/api-config/test", { method: "POST", body: JSON.stringify({ modelType }) }, accessToken)
 };

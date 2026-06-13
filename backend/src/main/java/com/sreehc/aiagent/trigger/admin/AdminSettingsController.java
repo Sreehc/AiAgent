@@ -16,7 +16,10 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -61,6 +64,68 @@ public class AdminSettingsController {
         )));
     }
 
+    @PutMapping("/models/{modelCode}")
+    public ApiResponse<ModelConfigResponse> updateModel(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable String modelCode,
+            @Valid @RequestBody UpdateModelRequest request
+    ) {
+        return ApiResponse.success(toModelConfigResponse(adminSettingsService.updateModel(
+                currentUser,
+                modelCode,
+                new AdminSettingsService.UpdateModelCommand(
+                        request.name(),
+                        request.provider(),
+                        request.modelType(),
+                        request.baseUrl(),
+                        request.apiKey(),
+                        request.enabled()
+                )
+        )));
+    }
+
+    @PostMapping("/models/{modelCode}/enable")
+    public ApiResponse<ModelConfigResponse> enableModel(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable String modelCode
+    ) {
+        return ApiResponse.success(toModelConfigResponse(adminSettingsService.setModelEnabled(currentUser, modelCode, true)));
+    }
+
+    @PostMapping("/models/{modelCode}/disable")
+    public ApiResponse<ModelConfigResponse> disableModel(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable String modelCode
+    ) {
+        return ApiResponse.success(toModelConfigResponse(adminSettingsService.setModelEnabled(currentUser, modelCode, false)));
+    }
+
+    @DeleteMapping("/models/{modelCode}")
+    public ApiResponse<Void> deleteModel(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable String modelCode
+    ) {
+        adminSettingsService.deleteModel(currentUser, modelCode);
+        return ApiResponse.success(null);
+    }
+
+    @PostMapping("/models/{modelCode}/default")
+    public ApiResponse<ModelConfigResponse> setDefaultModel(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable String modelCode
+    ) {
+        return ApiResponse.success(toModelConfigResponse(adminSettingsService.setDefaultModel(currentUser, modelCode)));
+    }
+
+    @PostMapping("/models/{modelCode}/test")
+    public ApiResponse<ModelTestResponse> testModel(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable String modelCode
+    ) {
+        AdminSettingsService.ModelTestResult result = adminSettingsService.testModel(currentUser, modelCode);
+        return ApiResponse.success(new ModelTestResponse(result.modelCode(), result.status(), result.message()));
+    }
+
     @GetMapping("/invites")
     public ApiResponse<List<InviteResponse>> listInvites(
             @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
@@ -92,6 +157,10 @@ public class AdminSettingsController {
                 modelConfig.baseUrl(),
                 modelConfig.apiKeyMasked(),
                 modelConfig.enabled(),
+                modelConfig.defaultModel(),
+                modelConfig.lastTestStatus(),
+                modelConfig.lastTestMessage(),
+                modelConfig.lastTestedAt() == null ? null : modelConfig.lastTestedAt().toString(),
                 modelConfig.createdAt().toString(),
                 modelConfig.updatedAt().toString()
         );
@@ -117,6 +186,16 @@ public class AdminSettingsController {
     ) {
     }
 
+    public record UpdateModelRequest(
+            @NotBlank @Size(max = 128) String name,
+            @NotBlank @Size(max = 64) String provider,
+            @NotNull ModelType modelType,
+            @Size(max = 512) String baseUrl,
+            @Size(max = 255) String apiKey,
+            boolean enabled
+    ) {
+    }
+
     public record CreateInviteRequest(
             @Min(1) @Max(365) int expiresInDays
     ) {
@@ -131,8 +210,19 @@ public class AdminSettingsController {
             String baseUrl,
             String apiKeyMasked,
             boolean enabled,
+            boolean defaultModel,
+            String lastTestStatus,
+            String lastTestMessage,
+            String lastTestedAt,
             String createdAt,
             String updatedAt
+    ) {
+    }
+
+    public record ModelTestResponse(
+            String modelCode,
+            String status,
+            String message
     ) {
     }
 

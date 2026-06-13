@@ -51,18 +51,35 @@ public class OpenAiCompatibleEmbeddingProvider implements EmbeddingProvider {
                     .retrieve()
                     .body(EmbeddingResponse.class);
 
-            if (response == null || response.data() == null || response.data().isEmpty()) {
-                throw new EmbeddingProviderException("Embedding response is empty");
-            }
-            List<Double> vector = response.data().getFirst().embedding();
-            if (vector == null || vector.isEmpty()) {
-                throw new EmbeddingProviderException("Embedding vector is empty");
-            }
-            if (embeddingProperties.dimension() != null && vector.size() != embeddingProperties.dimension()) {
-                throw new EmbeddingProviderException("Embedding vector dimension " + vector.size()
-                        + " does not match configured dimension " + embeddingProperties.dimension());
-            }
-            return toVectorLiteral(vector);
+            return vectorLiteralFromResponse(response, embeddingProperties.dimension());
+        } catch (EmbeddingProviderException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new EmbeddingProviderException("Failed to call embedding provider", exception);
+        }
+    }
+
+    @Override
+    public String embed(String content, String modelCode, String baseUrl, String apiKey) {
+        if (isBlank(apiKey)) {
+            throw new EmbeddingProviderException("Embedding API key is not configured for openai-compatible provider");
+        }
+        if (isBlank(modelCode)) {
+            throw new EmbeddingProviderException("Embedding model code is not configured");
+        }
+        try {
+            EmbeddingResponse response = RestClient.builder()
+                    .baseUrl(normalizeBaseUrl(baseUrl))
+                    .build()
+                    .post()
+                    .uri("/embeddings")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .body(new EmbeddingRequest(modelCode, sanitizeInput(content)))
+                    .retrieve()
+                    .body(EmbeddingResponse.class);
+            return vectorLiteralFromResponse(response, null);
         } catch (EmbeddingProviderException exception) {
             throw exception;
         } catch (Exception exception) {
@@ -88,8 +105,30 @@ public class OpenAiCompatibleEmbeddingProvider implements EmbeddingProvider {
         if (appProperties.embedding() == null || isBlank(appProperties.embedding().baseUrl())) {
             throw new EmbeddingProviderException("Embedding base URL is not configured");
         }
-        String baseUrl = appProperties.embedding().baseUrl().trim();
+        return normalizeBaseUrl(appProperties.embedding().baseUrl());
+    }
+
+    private static String normalizeBaseUrl(String rawBaseUrl) {
+        if (isBlank(rawBaseUrl)) {
+            throw new EmbeddingProviderException("Embedding base URL is not configured");
+        }
+        String baseUrl = rawBaseUrl.trim();
         return baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+    }
+
+    private static String vectorLiteralFromResponse(EmbeddingResponse response, Integer expectedDimension) {
+        if (response == null || response.data() == null || response.data().isEmpty()) {
+            throw new EmbeddingProviderException("Embedding response is empty");
+        }
+        List<Double> vector = response.data().getFirst().embedding();
+        if (vector == null || vector.isEmpty()) {
+            throw new EmbeddingProviderException("Embedding vector is empty");
+        }
+        if (expectedDimension != null && vector.size() != expectedDimension) {
+            throw new EmbeddingProviderException("Embedding vector dimension " + vector.size()
+                    + " does not match configured dimension " + expectedDimension);
+        }
+        return toVectorLiteral(vector);
     }
 
     private static String sanitizeInput(String content) {

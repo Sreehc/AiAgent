@@ -27,7 +27,7 @@ public class AuthService {
     private final SessionStore sessionStore;
     private final AppProperties appProperties;
     private final LoginRateLimiter loginRateLimiter;
-    private final NoopEmailSender emailSender;
+    private final EmailSender emailSender;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     public AuthService(
@@ -35,7 +35,7 @@ public class AuthService {
             SessionStore sessionStore,
             AppProperties appProperties,
             LoginRateLimiter loginRateLimiter,
-            NoopEmailSender emailSender
+            EmailSender emailSender
     ) {
         this.accountRepository = accountRepository;
         this.sessionStore = sessionStore;
@@ -154,4 +154,3 @@ public class AuthService {
         }
     }
 }
-

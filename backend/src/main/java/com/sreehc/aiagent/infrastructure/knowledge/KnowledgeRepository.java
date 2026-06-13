@@ -54,6 +54,7 @@ public class KnowledgeRepository {
                         left join (
                             select knowledge_base_id, count(*) as document_count
                             from knowledge_document
+                            where deleted_at is null
                             group by knowledge_base_id
                         ) doc_counts on doc_counts.knowledge_base_id = kb.id
                         where kb.user_id = :userId
@@ -71,6 +72,7 @@ public class KnowledgeRepository {
                         left join (
                             select knowledge_base_id, count(*) as document_count
                             from knowledge_document
+                            where deleted_at is null
                             group by knowledge_base_id
                         ) doc_counts on doc_counts.knowledge_base_id = kb.id
                         where kb.user_id = :userId and kb.kb_id = :kbId
@@ -90,6 +92,7 @@ public class KnowledgeRepository {
                         left join (
                             select knowledge_base_id, count(*) as document_count
                             from knowledge_document
+                            where deleted_at is null
                             group by knowledge_base_id
                         ) doc_counts on doc_counts.knowledge_base_id = kb.id
                         where kb.user_id = :userId and kb.kb_id in (:kbIds)
@@ -135,11 +138,11 @@ public class KnowledgeRepository {
         Long id = jdbcTemplate.queryForObject("""
                         insert into knowledge_document (
                             knowledge_base_id, document_id, file_name, file_type, storage_uri, parse_status, text_content,
-                            content_hash, index_version, last_error, created_at, updated_at
+                            content_hash, index_version, version_no, file_size, last_error, created_at, updated_at
                         )
                         values (
                             :knowledgeBaseId, :documentId, :fileName, :fileType, :storageUri, :parseStatus, :textContent,
-                            md5(coalesce(:textContent, '')), 0, null, now(), now()
+                            md5(coalesce(:textContent, '')), 0, :versionNo, :fileSize, null, now(), now()
                         )
                         returning id
                         """,
@@ -150,7 +153,9 @@ public class KnowledgeRepository {
                         .addValue("fileType", fileType)
                         .addValue("storageUri", storageUri)
                         .addValue("parseStatus", DocumentParseStatus.UPLOADED.name())
-                        .addValue("textContent", textContent),
+                        .addValue("textContent", textContent)
+                        .addValue("versionNo", nextDocumentVersion(knowledgeBaseId, fileName))
+                        .addValue("fileSize", textContent == null ? 0 : textContent.getBytes(java.nio.charset.StandardCharsets.UTF_8).length),
                 Long.class
         );
         if (id == null) {
@@ -162,7 +167,8 @@ public class KnowledgeRepository {
     public List<KnowledgeDocument> listDocuments(long userId, String kbId) {
         return jdbcTemplate.query("""
                         select d.id, d.knowledge_base_id, d.document_id, d.file_name, d.file_type, d.storage_uri,
-                               d.parse_status, d.text_content, d.content_hash, d.index_version, d.last_error,
+                               d.parse_status, d.text_content, d.content_hash, d.index_version, d.version_no,
+                               d.file_size, d.deleted_at, d.last_error,
                                d.created_at, d.updated_at,
                                coalesce(chunk_counts.chunk_count, 0) as chunk_count
                         from knowledge_document d
@@ -172,8 +178,8 @@ public class KnowledgeRepository {
                             from knowledge_chunk
                             group by knowledge_document_id
                         ) chunk_counts on chunk_counts.knowledge_document_id = d.id
-                        where kb.user_id = :userId and kb.kb_id = :kbId
-                        order by d.created_at desc
+                        where kb.user_id = :userId and kb.kb_id = :kbId and d.deleted_at is null
+                        order by d.file_name asc, d.version_no desc, d.created_at desc
                         """,
                 Map.of("userId", userId, "kbId", kbId),
                 (rs, rowNum) -> mapDocument(rs));
@@ -182,7 +188,8 @@ public class KnowledgeRepository {
     public Optional<KnowledgeDocument> findDocument(long userId, String kbId, String documentId) {
         return jdbcTemplate.query("""
                         select d.id, d.knowledge_base_id, d.document_id, d.file_name, d.file_type, d.storage_uri,
-                               d.parse_status, d.text_content, d.content_hash, d.index_version, d.last_error,
+                               d.parse_status, d.text_content, d.content_hash, d.index_version, d.version_no,
+                               d.file_size, d.deleted_at, d.last_error,
                                d.created_at, d.updated_at,
                                coalesce(chunk_counts.chunk_count, 0) as chunk_count
                         from knowledge_document d
@@ -192,7 +199,7 @@ public class KnowledgeRepository {
                             from knowledge_chunk
                             group by knowledge_document_id
                         ) chunk_counts on chunk_counts.knowledge_document_id = d.id
-                        where kb.user_id = :userId and kb.kb_id = :kbId and d.document_id = :documentId
+                        where kb.user_id = :userId and kb.kb_id = :kbId and d.document_id = :documentId and d.deleted_at is null
                         """,
                 Map.of("userId", userId, "kbId", kbId, "documentId", documentId),
                 rs -> rs.next() ? Optional.of(mapDocument(rs)) : Optional.empty());
@@ -247,7 +254,8 @@ public class KnowledgeRepository {
     public Optional<KnowledgeDocument> findDocumentByInternalId(long documentInternalId) {
         return jdbcTemplate.query("""
                         select d.id, d.knowledge_base_id, d.document_id, d.file_name, d.file_type, d.storage_uri,
-                               d.parse_status, d.text_content, d.content_hash, d.index_version, d.last_error,
+                               d.parse_status, d.text_content, d.content_hash, d.index_version, d.version_no,
+                               d.file_size, d.deleted_at, d.last_error,
                                d.created_at, d.updated_at,
                                coalesce(chunk_counts.chunk_count, 0) as chunk_count
                         from knowledge_document d
@@ -390,6 +398,41 @@ public class KnowledgeRepository {
                 Map.of("documentId", documentInternalId));
     }
 
+    public void softDeleteDocument(long userId, String kbId, String documentId) {
+        jdbcTemplate.update("""
+                        update knowledge_document d
+                        set deleted_at = now(),
+                            updated_at = now()
+                        from knowledge_base kb
+                        where kb.id = d.knowledge_base_id
+                          and kb.user_id = :userId
+                          and kb.kb_id = :kbId
+                          and d.document_id = :documentId
+                        """,
+                Map.of("userId", userId, "kbId", kbId, "documentId", documentId));
+    }
+
+    public List<KnowledgeDocument> listDocumentVersions(long userId, String kbId, String fileName) {
+        return jdbcTemplate.query("""
+                        select d.id, d.knowledge_base_id, d.document_id, d.file_name, d.file_type, d.storage_uri,
+                               d.parse_status, d.text_content, d.content_hash, d.index_version, d.version_no,
+                               d.file_size, d.deleted_at, d.last_error,
+                               d.created_at, d.updated_at,
+                               coalesce(chunk_counts.chunk_count, 0) as chunk_count
+                        from knowledge_document d
+                        join knowledge_base kb on kb.id = d.knowledge_base_id
+                        left join (
+                            select knowledge_document_id, count(*) as chunk_count
+                            from knowledge_chunk
+                            group by knowledge_document_id
+                        ) chunk_counts on chunk_counts.knowledge_document_id = d.id
+                        where kb.user_id = :userId and kb.kb_id = :kbId and d.file_name = :fileName
+                        order by d.version_no desc, d.created_at desc
+                        """,
+                Map.of("userId", userId, "kbId", kbId, "fileName", fileName),
+                (rs, rowNum) -> mapDocument(rs));
+    }
+
     public void createChunk(
             long documentInternalId,
             String chunkId,
@@ -440,7 +483,7 @@ public class KnowledgeRepository {
                         from knowledge_chunk c
                         join knowledge_document d on d.id = c.knowledge_document_id
                         join knowledge_base kb on kb.id = d.knowledge_base_id
-                        where kb.user_id = :userId and kb.kb_id in (:kbIds)
+                        where kb.user_id = :userId and kb.kb_id in (:kbIds) and d.deleted_at is null
                         order by c.embedding <=> cast(:embedding as vector) asc
                         limit :topK
                         """,
@@ -472,6 +515,7 @@ public class KnowledgeRepository {
                         join knowledge_base kb on kb.id = d.knowledge_base_id
                         where kb.user_id = :userId
                           and kb.kb_id in (:kbIds)
+                          and d.deleted_at is null
                           and (
                                 c.search_vector @@ websearch_to_tsquery('simple', :query)
                                 or lower(c.content_text) like '%' || lower(:query) || '%'
@@ -520,7 +564,7 @@ public class KnowledgeRepository {
                         select d.storage_uri
                         from knowledge_document d
                         join knowledge_base kb on kb.id = d.knowledge_base_id
-                        where kb.user_id = :userId and kb.kb_id = :kbId
+                        where kb.user_id = :userId and kb.kb_id = :kbId and d.deleted_at is null
                         """,
                 Map.of("userId", userId, "kbId", kbId),
                 (rs, rowNum) -> rs.getString("storage_uri"));
@@ -552,6 +596,9 @@ public class KnowledgeRepository {
                 rs.getString("text_content"),
                 rs.getString("content_hash"),
                 rs.getInt("index_version"),
+                rs.getInt("version_no"),
+                rs.getLong("file_size"),
+                toInstant(rs.getTimestamp("deleted_at")),
                 rs.getString("last_error"),
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant(),
@@ -609,5 +656,16 @@ public class KnowledgeRepository {
             return null;
         }
         return value.length() <= 500 ? value : value.substring(0, 500);
+    }
+
+    private int nextDocumentVersion(long knowledgeBaseId, String fileName) {
+        Integer version = jdbcTemplate.queryForObject("""
+                        select coalesce(max(version_no), 0) + 1
+                        from knowledge_document
+                        where knowledge_base_id = :knowledgeBaseId and file_name = :fileName
+                        """,
+                Map.of("knowledgeBaseId", knowledgeBaseId, "fileName", fileName),
+                Integer.class);
+        return version == null ? 1 : version;
     }
 }

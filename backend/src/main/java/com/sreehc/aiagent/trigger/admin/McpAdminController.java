@@ -103,7 +103,28 @@ public class McpAdminController {
             @PathVariable String serverCode
     ) {
         McpAdminService.HealthResult result = mcpAdminService.health(currentUser, serverCode);
-        return ApiResponse.success(new HealthResponse(result.serverCode(), result.status(), result.message()));
+        return ApiResponse.success(new HealthResponse(result.serverCode(), result.status(), result.message(), result.latencyMs(), result.toolCount(), result.transportType(), result.errorCode(), result.checkedAt()));
+    }
+
+    @PostMapping("/{serverCode}/tools/{toolName}/test")
+    public ApiResponse<ToolTestResponse> testTool(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable String serverCode,
+            @PathVariable String toolName,
+            @RequestBody(required = false) ToolTestRequest request
+    ) {
+        McpAdminService.ToolTestResult result = mcpAdminService.testTool(
+                currentUser,
+                serverCode,
+                toolName,
+                request == null ? "" : request.input()
+        );
+        return ApiResponse.success(new ToolTestResponse(
+                result.serverCode(),
+                result.toolName(),
+                result.resultText(),
+                result.responsePayload()
+        ));
     }
 
     private McpServerResponse toResponse(McpServerConfig config) {
@@ -166,7 +187,25 @@ public class McpAdminController {
     public record HealthResponse(
             String serverCode,
             String status,
-            String message
+            String message,
+            Long latencyMs,
+            int toolCount,
+            String transportType,
+            String errorCode,
+            String checkedAt
+    ) {
+    }
+
+    public record ToolTestRequest(
+            String input
+    ) {
+    }
+
+    public record ToolTestResponse(
+            String serverCode,
+            String toolName,
+            String resultText,
+            String responsePayload
     ) {
     }
 }

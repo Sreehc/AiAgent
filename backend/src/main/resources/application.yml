@@ -72,6 +72,22 @@ app:
     allowed-hosts: ${APP_MCP_ALLOWED_HOSTS:localhost}
     allow-private-network: ${APP_MCP_ALLOW_PRIVATE_NETWORK:true}
     allowed-stdio-executables: ${APP_MCP_ALLOWED_STDIO_EXECUTABLES:}
+  email:
+    provider: ${APP_EMAIL_PROVIDER:log}
+    from: ${APP_EMAIL_FROM:no-reply@aiagent.local}
+    reset-base-url: ${APP_RESET_PASSWORD_BASE_URL:http://localhost:5173/reset-password}
+    host: ${APP_SMTP_HOST:localhost}
+    port: ${APP_SMTP_PORT:1025}
+    username: ${APP_SMTP_USERNAME:}
+    password: ${APP_SMTP_PASSWORD:}
+    start-tls: ${APP_SMTP_STARTTLS:false}
+    ssl: ${APP_SMTP_SSL:false}
+    connect-timeout-millis: ${APP_SMTP_CONNECT_TIMEOUT_MILLIS:5000}
+    read-timeout-millis: ${APP_SMTP_READ_TIMEOUT_MILLIS:10000}
+  run:
+    max-planning-rounds: ${APP_RUN_MAX_PLANNING_ROUNDS:3}
+    max-plan-steps: ${APP_RUN_MAX_PLAN_STEPS:8}
+    stale-timeout-minutes: ${APP_RUN_STALE_TIMEOUT_MINUTES:10}
   bootstrap:
     demo-data-enabled: ${APP_BOOTSTRAP_DEMO_DATA_ENABLED:true}
   secret:

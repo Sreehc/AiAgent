@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { Alert } from "../components/ui";
+import { Alert, Button, EmptyState, Panel, StatusPill } from "../components/ui";
 import { DocumentTable } from "../features/knowledge/DocumentTable";
 import { KnowledgeBaseList } from "../features/knowledge/KnowledgeBaseList";
 import { KnowledgeBaseSummary } from "../features/knowledge/KnowledgeBaseSummary";
@@ -26,6 +26,8 @@ export function KnowledgeBasesPage() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [kbToDelete, setKbToDelete] = useState<KnowledgeBaseItem | null>(null);
+  const [versionSourceDocumentId, setVersionSourceDocumentId] = useState<string | null>(null);
+  const [documentVersions, setDocumentVersions] = useState<KnowledgeDocumentItem[]>([]);
 
   const selected = useMemo(() => knowledgeBases.find((item) => item.kbId === selectedKbId) ?? null, [knowledgeBases, selectedKbId]);
 
@@ -68,6 +70,8 @@ export function KnowledgeBasesPage() {
     setSelectedKbId(item.kbId);
     setKbForm({ name: item.name, description: item.description ?? "" });
     setSearchHits([]);
+    setVersionSourceDocumentId(null);
+    setDocumentVersions([]);
   }
 
   async function onCreate(event: FormEvent<HTMLFormElement>) {
@@ -177,6 +181,60 @@ export function KnowledgeBasesPage() {
     }
   }
 
+  async function onPreviewDocument(documentId: string) {
+    if (!session?.accessToken || !selectedKbId) return;
+    try {
+      const result = await knowledgeApi.getDocument(session.accessToken, selectedKbId, documentId);
+      setError(result.preview || "该文档没有可预览内容");
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
+    }
+  }
+
+  async function onDownloadDocument(documentId: string) {
+    if (!session?.accessToken || !selectedKbId) return;
+    try {
+      const result = await knowledgeApi.downloadDocument(session.accessToken, selectedKbId, documentId);
+      window.open(result.url, "_blank", "noreferrer");
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
+    }
+  }
+
+  async function onVersionsDocument(documentId: string) {
+    if (!session?.accessToken || !selectedKbId) return;
+    try {
+      const result = await knowledgeApi.listDocumentVersions(session.accessToken, selectedKbId, documentId);
+      setVersionSourceDocumentId(documentId);
+      setDocumentVersions(result);
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
+    }
+  }
+
+  async function onRestoreVersion(versionId: string) {
+    if (!session?.accessToken || !selectedKbId || !versionSourceDocumentId) return;
+    setError(null);
+    try {
+      await knowledgeApi.restoreDocumentVersion(session.accessToken, selectedKbId, versionSourceDocumentId, versionId);
+      setDocumentVersions([]);
+      setVersionSourceDocumentId(null);
+      await loadDocuments(selectedKbId);
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
+    }
+  }
+
+  async function onDeleteDocument(documentId: string) {
+    if (!session?.accessToken || !selectedKbId) return;
+    try {
+      await knowledgeApi.deleteDocument(session.accessToken, selectedKbId, documentId);
+      await Promise.all([loadKnowledgeBases(), loadDocuments(selectedKbId)]);
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
+    }
+  }
+
   async function onSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!session?.accessToken || !selectedKbId) return;
@@ -199,7 +257,13 @@ export function KnowledgeBasesPage() {
         <KnowledgeBaseList items={knowledgeBases} selectedId={selectedKbId} loading={loading} submitting={submitting} form={kbForm} onFormChange={setKbForm} onCreate={onCreate} onSelect={selectKnowledgeBase} onRefresh={() => void loadKnowledgeBases()} />
         <main className="stack">
           <KnowledgeBaseSummary item={selected} form={kbForm} submitting={submitting} onFormChange={setKbForm} onSave={() => void onSave()} onDelete={() => selected && setKbToDelete(selected)} />
-          <DocumentTable selectedKbId={selectedKbId} documents={documents} uploading={uploading} indexingActions={indexingActions} onUpload={onUpload} onIndex={(documentId) => void onIndex(documentId)} onReindex={(documentId) => void onReindex(documentId)} />
+          <DocumentTable selectedKbId={selectedKbId} documents={documents} uploading={uploading} indexingActions={indexingActions} onUpload={onUpload} onIndex={(documentId) => void onIndex(documentId)} onReindex={(documentId) => void onReindex(documentId)} onPreview={(documentId) => void onPreviewDocument(documentId)} onDownload={(documentId) => void onDownloadDocument(documentId)} onVersions={(documentId) => void onVersionsDocument(documentId)} onDelete={(documentId) => void onDeleteDocument(documentId)} />
+          {versionSourceDocumentId ? <Panel title="文档版本" eyebrow="Versions" action={<Button type="button" variant="ghost" size="sm" onClick={() => { setVersionSourceDocumentId(null); setDocumentVersions([]); }}>关闭</Button>}>
+            <div className="table-list">
+              {documentVersions.map((item, index) => <article key={item.documentId} className="table-row"><div><strong>{item.fileName}</strong><br /><small>v{item.versionNo} · {item.fileSize} bytes · {item.documentId}{index === 0 ? " · 当前最高版本" : ""}</small></div><StatusPill status={item.parseStatus} /><Button type="button" variant="secondary" size="sm" onClick={() => void onRestoreVersion(item.documentId)}>恢复为新版本</Button></article>)}
+              {documentVersions.length === 0 ? <EmptyState message="暂无版本记录。" /> : null}
+            </div>
+          </Panel> : null}
           <SearchTestPanel selected={selectedKbId !== null} query={searchQuery} hits={searchHits} searching={searching} onQueryChange={setSearchQuery} onSearch={onSearch} />
         </main>
       </div>

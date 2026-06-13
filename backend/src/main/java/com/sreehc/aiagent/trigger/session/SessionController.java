@@ -17,6 +17,7 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import org.springframework.http.MediaType;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -79,6 +80,15 @@ public class SessionController {
             @PathVariable("sessionId") String sessionId
     ) {
         return ApiResponse.success(toSessionDetailResponse(sessionService.getSessionDetail(currentUser, sessionId)));
+    }
+
+    @DeleteMapping("/{sessionId}")
+    public ApiResponse<Void> deleteSession(
+            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
+            @PathVariable("sessionId") String sessionId
+    ) {
+        sessionService.deleteSession(currentUser, sessionId);
+        return ApiResponse.success(null);
     }
 
     @PostMapping("/{sessionId}/runs")

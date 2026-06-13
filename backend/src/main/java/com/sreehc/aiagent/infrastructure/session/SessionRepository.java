@@ -90,6 +90,14 @@ public class SessionRepository {
                 rs -> rs.next() ? Optional.of(mapSession(rs)) : Optional.empty());
     }
 
+    public boolean deleteSession(long userId, String sessionCode) {
+        return jdbcTemplate.update("""
+                        delete from agent_session
+                        where user_id = :userId and session_code = :sessionCode
+                        """,
+                Map.of("userId", userId, "sessionCode", sessionCode)) == 1;
+    }
+
     public long createRun(
             String runCode,
             long sessionId,

@@ -9,7 +9,9 @@ import com.sreehc.aiagent.domain.session.AgentSession;
 import com.sreehc.aiagent.domain.session.ArtifactRecord;
 import com.sreehc.aiagent.domain.session.ExecutionPlanStep;
 import com.sreehc.aiagent.domain.session.ExecutionRun;
+import com.sreehc.aiagent.domain.session.SessionStatus;
 import com.sreehc.aiagent.infrastructure.session.SessionRepository;
+import com.sreehc.aiagent.infrastructure.storage.ObjectStorageService;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,17 +24,20 @@ public class SessionService {
     private final KnowledgeBaseService knowledgeBaseService;
     private final McpExecutionService mcpExecutionService;
     private final SessionRunExecutor sessionRunExecutor;
+    private final ObjectStorageService objectStorageService;
 
     public SessionService(
             SessionRepository sessionRepository,
             KnowledgeBaseService knowledgeBaseService,
             McpExecutionService mcpExecutionService,
-            SessionRunExecutor sessionRunExecutor
+            SessionRunExecutor sessionRunExecutor,
+            ObjectStorageService objectStorageService
     ) {
         this.sessionRepository = sessionRepository;
         this.knowledgeBaseService = knowledgeBaseService;
         this.mcpExecutionService = mcpExecutionService;
         this.sessionRunExecutor = sessionRunExecutor;
+        this.objectStorageService = objectStorageService;
     }
 
     @Transactional
@@ -66,6 +71,21 @@ public class SessionService {
                 .map(message -> message.content())
                 .orElse(null);
         return new SessionDetail(session, runs, planSteps, toolInvocations, artifacts, summary, boundKnowledgeBaseIds);
+    }
+
+    @Transactional
+    public void deleteSession(SessionUser currentUser, String sessionCode) {
+        AgentSession session = loadOwnedSession(currentUser, sessionCode);
+        if (session.status() == SessionStatus.RUNNING) {
+            throw new AppException("SESSION_RUNNING", "Running session cannot be deleted", HttpStatus.CONFLICT);
+        }
+        sessionRepository.listArtifacts(session.id()).stream()
+                .map(ArtifactRecord::storageUri)
+                .filter(storageUri -> storageUri != null && !storageUri.isBlank())
+                .forEach(objectStorageService::delete);
+        if (!sessionRepository.deleteSession(currentUser.id(), sessionCode)) {
+            throw new AppException("SESSION_NOT_FOUND", "Session not found", HttpStatus.NOT_FOUND);
+        }
     }
 
     @Transactional

@@ -17,13 +17,22 @@ export type ModelConfigPayload = {
   enabled: boolean;
 };
 
-export type McpServerPayload = {
+export type McpTransportType = "SSE" | "STDIO" | "STREAMABLE_HTTP";
+
+export type CreateMcpServerPayload = {
   name: string;
-  serverCode?: string;
-  transportType: "SSE" | "STDIO" | "STREAMABLE_HTTP";
-  endpoint: string;
+  serverCode: string;
+  transportType: McpTransportType;
+  endpoint: string | null;
   commandLine: string | null;
-  active?: boolean;
+};
+
+export type UpdateMcpServerPayload = {
+  name: string;
+  transportType: McpTransportType;
+  endpoint: string | null;
+  commandLine: string | null;
+  active: boolean;
 };
 
 export const adminApi = {
@@ -39,9 +48,9 @@ export const adminApi = {
       accessToken
     ),
   listMcpServers: (accessToken: string) => apiRequest<McpServerItem[]>("/admin/mcp-servers", {}, accessToken),
-  createMcpServer: (accessToken: string, payload: McpServerPayload) =>
+  createMcpServer: (accessToken: string, payload: CreateMcpServerPayload) =>
     apiRequest<McpServerItem>("/admin/mcp-servers", { method: "POST", body: JSON.stringify(payload) }, accessToken),
-  updateMcpServer: (accessToken: string, serverCode: string, payload: McpServerPayload) =>
+  updateMcpServer: (accessToken: string, serverCode: string, payload: UpdateMcpServerPayload) =>
     apiRequest<McpServerItem>(
       `/admin/mcp-servers/${serverCode}`,
       { method: "PUT", body: JSON.stringify(payload) },

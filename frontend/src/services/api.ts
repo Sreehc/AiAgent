@@ -104,7 +104,7 @@ export type McpServerItem = {
   serverCode: string;
   name: string;
   transportType: "SSE" | "STDIO" | "STREAMABLE_HTTP";
-  endpoint: string;
+  endpoint: string | null;
   commandLine: string | null;
   status: "ACTIVE" | "INACTIVE";
   createdAt: string;

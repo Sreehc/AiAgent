@@ -32,12 +32,13 @@ public class McpAdminService {
     @Transactional
     public McpServerConfig createServer(SessionUser currentUser, CreateServerCommand command) {
         adminAuthorizationService.ensureAdmin(currentUser);
+        validateTransportConfig(command.transportType(), command.endpoint(), command.commandLine());
         long id = mcpServerRepository.createServer(
                 command.serverCode(),
                 command.name(),
                 command.transportType(),
-                command.endpoint(),
-                command.commandLine(),
+                normalizeOptional(command.endpoint()),
+                normalizeOptional(command.commandLine()),
                 currentUser.id()
         );
         return mcpServerRepository.findById(id)
@@ -52,13 +53,14 @@ public class McpAdminService {
     @Transactional
     public McpServerConfig updateServer(SessionUser currentUser, String serverCode, UpdateServerCommand command) {
         adminAuthorizationService.ensureAdmin(currentUser);
+        validateTransportConfig(command.transportType(), command.endpoint(), command.commandLine());
         loadServer(serverCode);
         mcpServerRepository.updateServer(
                 serverCode,
                 command.name(),
                 command.transportType(),
-                command.endpoint(),
-                command.commandLine(),
+                normalizeOptional(command.endpoint()),
+                normalizeOptional(command.commandLine()),
                 command.active()
         );
         mcpRuntimeGateway.evict(serverCode);
@@ -90,6 +92,23 @@ public class McpAdminService {
     private McpServerConfig loadServer(String serverCode) {
         return mcpServerRepository.findByServerCode(serverCode)
                 .orElseThrow(() -> new AppException("MCP_SERVER_NOT_FOUND", "MCP server not found", HttpStatus.NOT_FOUND));
+    }
+
+    private void validateTransportConfig(McpTransportType transportType, String endpoint, String commandLine) {
+        if (transportType == McpTransportType.STDIO && isBlank(commandLine)) {
+            throw new AppException("MCP_COMMAND_REQUIRED", "Command line is required for STDIO transport", HttpStatus.BAD_REQUEST);
+        }
+        if (transportType != McpTransportType.STDIO && isBlank(endpoint)) {
+            throw new AppException("MCP_ENDPOINT_REQUIRED", "Endpoint is required for HTTP transports", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private String normalizeOptional(String value) {
+        return isBlank(value) ? null : value.trim();
     }
 
     public record CreateServerCommand(

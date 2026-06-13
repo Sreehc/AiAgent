@@ -43,7 +43,7 @@ export function McpServersPage() {
 
   function selectServer(server: McpServerItem) {
     setSelectedCode(server.serverCode);
-    setForm({ name: server.name, serverCode: server.serverCode, transportType: server.transportType, endpoint: server.endpoint, commandLine: server.commandLine, active: server.status === "ACTIVE" });
+    setForm({ name: server.name, serverCode: server.serverCode, transportType: server.transportType, endpoint: server.endpoint ?? "", commandLine: server.commandLine, active: server.status === "ACTIVE" });
   }
 
   function resetSelection() {
@@ -57,7 +57,13 @@ export function McpServersPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const created = await adminApi.createMcpServer(session.accessToken, form);
+      const created = await adminApi.createMcpServer(session.accessToken, {
+        name: form.name,
+        serverCode: form.serverCode,
+        transportType: form.transportType,
+        endpoint: form.endpoint.trim() || null,
+        commandLine: form.commandLine?.trim() || null
+      });
       await loadServers();
       selectServer(created);
     } catch (requestError) {
@@ -72,7 +78,13 @@ export function McpServersPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const updated = await adminApi.updateMcpServer(session.accessToken, selectedCode, form);
+      const updated = await adminApi.updateMcpServer(session.accessToken, selectedCode, {
+        name: form.name,
+        transportType: form.transportType,
+        endpoint: form.endpoint.trim() || null,
+        commandLine: form.commandLine?.trim() || null,
+        active: form.active
+      });
       await loadServers();
       selectServer(updated);
     } catch (requestError) {

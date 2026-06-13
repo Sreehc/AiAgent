@@ -123,7 +123,7 @@ public class McpAdminController {
             @NotBlank @Size(max = 128) String name,
             @NotBlank @Size(max = 64) String serverCode,
             @NotNull McpTransportType transportType,
-            @NotBlank @Size(max = 512) String endpoint,
+            @Size(max = 512) String endpoint,
             @Size(max = 512) String commandLine
     ) {
     }
@@ -131,7 +131,7 @@ public class McpAdminController {
     public record UpdateMcpServerRequest(
             @NotBlank @Size(max = 128) String name,
             @NotNull McpTransportType transportType,
-            @NotBlank @Size(max = 512) String endpoint,
+            @Size(max = 512) String endpoint,
             @Size(max = 512) String commandLine,
             boolean active
     ) {

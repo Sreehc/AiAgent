@@ -22,6 +22,7 @@ export function KnowledgeBasesPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [indexingActions, setIndexingActions] = useState<Record<string, "index" | "reindex">>({});
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [kbToDelete, setKbToDelete] = useState<KnowledgeBaseItem | null>(null);
@@ -142,7 +143,7 @@ export function KnowledgeBasesPage() {
 
   async function onIndex(documentId: string) {
     if (!session?.accessToken || !selectedKbId) return;
-    setUploading(true);
+    setIndexingActions((current) => ({ ...current, [documentId]: "index" }));
     setError(null);
     try {
       await knowledgeApi.indexDocument(session.accessToken, selectedKbId, documentId);
@@ -150,7 +151,29 @@ export function KnowledgeBasesPage() {
     } catch (requestError) {
       setError((requestError as ApiError).message);
     } finally {
-      setUploading(false);
+      setIndexingActions((current) => {
+        const next = { ...current };
+        delete next[documentId];
+        return next;
+      });
+    }
+  }
+
+  async function onReindex(documentId: string) {
+    if (!session?.accessToken || !selectedKbId) return;
+    setIndexingActions((current) => ({ ...current, [documentId]: "reindex" }));
+    setError(null);
+    try {
+      await knowledgeApi.reindexDocument(session.accessToken, selectedKbId, documentId);
+      await loadDocuments(selectedKbId);
+    } catch (requestError) {
+      setError((requestError as ApiError).message);
+    } finally {
+      setIndexingActions((current) => {
+        const next = { ...current };
+        delete next[documentId];
+        return next;
+      });
     }
   }
 
@@ -176,7 +199,7 @@ export function KnowledgeBasesPage() {
         <KnowledgeBaseList items={knowledgeBases} selectedId={selectedKbId} loading={loading} submitting={submitting} form={kbForm} onFormChange={setKbForm} onCreate={onCreate} onSelect={selectKnowledgeBase} onRefresh={() => void loadKnowledgeBases()} />
         <main className="stack">
           <KnowledgeBaseSummary item={selected} form={kbForm} submitting={submitting} onFormChange={setKbForm} onSave={() => void onSave()} onDelete={() => selected && setKbToDelete(selected)} />
-          <DocumentTable selectedKbId={selectedKbId} documents={documents} uploading={uploading} onUpload={onUpload} onIndex={(documentId) => void onIndex(documentId)} />
+          <DocumentTable selectedKbId={selectedKbId} documents={documents} uploading={uploading} indexingActions={indexingActions} onUpload={onUpload} onIndex={(documentId) => void onIndex(documentId)} onReindex={(documentId) => void onReindex(documentId)} />
           <SearchTestPanel selected={selectedKbId !== null} query={searchQuery} hits={searchHits} searching={searching} onQueryChange={setSearchQuery} onSearch={onSearch} />
         </main>
       </div>

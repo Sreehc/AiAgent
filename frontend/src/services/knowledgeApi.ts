@@ -23,6 +23,12 @@ export const knowledgeApi = {
       { method: "POST" },
       accessToken
     ),
+  reindexDocument: (accessToken: string, kbId: string, documentId: string) =>
+    apiRequest<KnowledgeDocumentItem>(
+      `/knowledge-bases/${kbId}/documents/${documentId}/reindex`,
+      { method: "POST" },
+      accessToken
+    ),
   searchTest: (accessToken: string, kbId: string, query: string, topK = 5) =>
     apiRequest<SearchHit[]>(
       `/knowledge-bases/${kbId}/search-test`,

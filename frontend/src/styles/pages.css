@@ -249,6 +249,13 @@
   color: var(--color-text-muted);
 }
 
+.document-error {
+  margin: var(--space-1) 0 0;
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
 .danger-zone {
   border-color: var(--color-danger-soft);
   background: var(--color-danger-soft);

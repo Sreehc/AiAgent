@@ -19,7 +19,7 @@ export function DocumentTable({ selectedKbId, documents, uploading, onUpload, on
           <Button type="submit" variant="primary" loading={uploading} disabled={!selectedKbId}>上传文档</Button>
         </form>
         <div className="table-list">
-          {documents.map((document) => <article key={document.documentId} className="table-row"><div><strong>{document.fileName}</strong><br /><small>{document.fileType} · {document.chunkCount} chunks</small></div><StatusPill status={document.parseStatus} /><Button type="button" variant="secondary" size="sm" disabled={uploading} onClick={() => onIndex(document.documentId)}>触发索引</Button></article>)}
+          {documents.map((document) => <article key={document.documentId} className="table-row"><div><strong>{document.fileName}</strong><br /><small>{document.fileType} · {document.chunkCount} chunks</small>{document.lastError ? <p className="document-error">{document.lastError}</p> : null}</div><StatusPill status={document.parseStatus} /><Button type="button" variant="secondary" size="sm" disabled={uploading} onClick={() => onIndex(document.documentId)}>触发索引</Button></article>)}
         </div>
         {selectedKbId && documents.length === 0 ? <EmptyState title="没有文档" message="上传文档后即可触发索引并参与检索。" /> : null}
       </div>

@@ -10,14 +10,17 @@ type ArtifactPanelProps = {
 
 export function ArtifactPanel({ detail, artifacts, onRestore, canRestore }: ArtifactPanelProps) {
   const report = artifacts.find((artifact) => artifact.artifactType === "REPORT");
+  const latestRun = detail?.runs[0];
   return (
     <Panel title="结果与产物" eyebrow="Artifacts" action={<Button type="button" variant="ghost" size="sm" disabled={!canRestore} onClick={onRestore}>恢复历史</Button>}>
       <div className="stack">
         <div className="meta-grid">
-          <div className="meta-card"><span>最近执行</span><strong>{detail?.runs[0]?.runId ?? "-"}</strong></div>
-          <div className="meta-card"><span>模式</span><strong>{detail?.runs[0]?.executionMode ?? "-"}</strong></div>
+          <div className="meta-card"><span>最近执行</span><strong>{latestRun?.runId ?? "-"}</strong></div>
+          <div className="meta-card"><span>模式</span><strong>{latestRun?.executionMode ?? "-"}</strong></div>
           <div className="meta-card"><span>产物数</span><strong>{artifacts.length}</strong></div>
         </div>
+        {latestRun?.retrievalQuery ? <div><small className="muted">检索查询</small><p>{latestRun.retrievalQuery}</p></div> : null}
+        {latestRun?.finalEvidenceSet.length ? <div className="stack"><strong>最终证据</strong>{latestRun.finalEvidenceSet.map((evidence) => <article key={`${evidence.chunkId}-${evidence.rank}`} className="list-item"><div className="split"><strong>#{evidence.rank} {evidence.fileName}</strong><span className="badge badge--neutral">{evidence.score.toFixed(4)}</span></div><small>{evidence.citationId} · {evidence.retrievalStrategy}{evidence.sectionTitle ? ` · ${evidence.sectionTitle}` : ""}</small><p>{evidence.contentPreview}</p></article>)}</div> : null}
         <div className="markdown-block">{detail?.summary ?? report?.content ?? "暂无报告内容。"}</div>
         <div className="artifact-list">
           {artifacts.map((artifact) => <article key={artifact.artifactId} className="list-item"><div className="split"><strong>{artifact.title}</strong><span className="badge">{artifact.artifactType}</span></div><small>{artifact.mimeType ?? "artifact"}</small>{artifact.resultUrl ? <a href={artifact.resultUrl} target="_blank" rel="noreferrer">打开产物</a> : null}</article>)}

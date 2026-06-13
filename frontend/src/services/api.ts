@@ -21,9 +21,12 @@ export type SessionListResponse = {
 export type RunItem = {
   runId: string;
   query: string;
+  retrievalQuery: string | null;
   executionMode: "REACT" | "PLAN_EXECUTE";
   status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
   knowledgeBaseIds: string[];
+  recallSet: EvidenceItem[];
+  finalEvidenceSet: EvidenceItem[];
   startedAt: string | null;
   completedAt: string | null;
   errorMessage: string | null;
@@ -76,17 +79,28 @@ export type KnowledgeDocumentItem = {
   parseStatus: string;
   storageUri: string;
   chunkCount: number;
+  lastError: string | null;
   createdAt: string;
 };
 
-export type SearchHit = {
+export type EvidenceItem = {
+  citationId: string;
   kbId: string;
   documentId: string;
   fileName: string;
   chunkId: string;
   chunkNo: number;
-  contentPreview: string;
+  sourceOffset: number;
+  rank: number;
+  sectionTitle: string | null;
+  headingPath: string | null;
+  retrievalStrategy: string;
   score: number;
+  contentPreview: string;
+};
+
+export type SearchHit = EvidenceItem & {
+  tokenCount: number;
 };
 
 export type ToolInvocationItem = {

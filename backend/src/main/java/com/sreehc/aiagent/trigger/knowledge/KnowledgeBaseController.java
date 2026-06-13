@@ -116,7 +116,7 @@ public class KnowledgeBaseController {
     }
 
     @PostMapping("/{kbId}/search-test")
-    public ApiResponse<List<SearchHit>> searchTest(
+    public ApiResponse<List<SearchHitResponse>> searchTest(
             @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
             @PathVariable String kbId,
             @Valid @RequestBody SearchTestRequest request
@@ -125,7 +125,7 @@ public class KnowledgeBaseController {
                 currentUser,
                 kbId,
                 new KnowledgeBaseService.SearchCommand(request.query(), request.topK())
-        ));
+        ).stream().map(this::toSearchHitResponse).toList());
     }
 
     private KnowledgeBaseResponse toKnowledgeBaseResponse(KnowledgeBase knowledgeBase) {
@@ -150,6 +150,25 @@ public class KnowledgeBaseController {
                 document.chunkCount(),
                 document.lastError(),
                 document.createdAt().toString()
+        );
+    }
+
+    private SearchHitResponse toSearchHitResponse(SearchHit hit) {
+        return new SearchHitResponse(
+                hit.citationId(),
+                hit.kbId(),
+                hit.documentId(),
+                hit.fileName(),
+                hit.chunkId(),
+                hit.chunkNo(),
+                hit.sourceOffset(),
+                hit.rank(),
+                hit.sectionTitle(),
+                hit.headingPath(),
+                hit.tokenCount(),
+                hit.retrievalStrategy(),
+                hit.score(),
+                hit.contentPreview()
         );
     }
 
@@ -191,6 +210,24 @@ public class KnowledgeBaseController {
             int chunkCount,
             String lastError,
             String createdAt
+    ) {
+    }
+
+    public record SearchHitResponse(
+            String citationId,
+            String kbId,
+            String documentId,
+            String fileName,
+            String chunkId,
+            int chunkNo,
+            int sourceOffset,
+            int rank,
+            String sectionTitle,
+            String headingPath,
+            int tokenCount,
+            String retrievalStrategy,
+            double score,
+            String contentPreview
     ) {
     }
 }

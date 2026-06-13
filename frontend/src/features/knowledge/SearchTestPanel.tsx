@@ -19,7 +19,7 @@ export function SearchTestPanel({ selected, query, hits, searching, onQueryChang
         <Button type="submit" variant="primary" loading={searching} disabled={!selected}>开始检索</Button>
       </form>
       <div className="timeline search-hit-list">
-        {hits.map((hit) => <article key={hit.chunkId} className="timeline-item"><div className="timeline-item__header"><strong>{hit.fileName}</strong><span className="badge badge--neutral">{hit.score.toFixed(4)}</span></div><p className="muted">chunk {hit.chunkNo} · {hit.documentId}</p><p>{hit.contentPreview}</p></article>)}
+        {hits.map((hit) => <article key={hit.chunkId} className="timeline-item"><div className="timeline-item__header"><strong>#{hit.rank} {hit.fileName}</strong><span className="badge badge--neutral">{hit.score.toFixed(4)}</span></div><div className="cluster"><span className="badge badge--neutral">{hit.retrievalStrategy}</span><span className="badge badge--neutral">{hit.citationId}</span>{hit.sectionTitle ? <span className="badge badge--neutral">{hit.sectionTitle}</span> : null}</div><p className="muted">chunk {hit.chunkNo} · offset {hit.sourceOffset} · {hit.headingPath || hit.documentId}</p><p>{hit.contentPreview}</p></article>)}
         {hits.length === 0 ? <EmptyState message="输入问题后可验证当前知识库的召回片段。" /> : null}
       </div>
     </Panel>

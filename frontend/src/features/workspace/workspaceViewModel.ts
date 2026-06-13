@@ -64,9 +64,11 @@ function mapRun(run: RunItem): ExecutionTimelineItem {
     detail: run.errorMessage,
     metadata: [
       { label: "模式", value: run.executionMode },
-      { label: "知识库", value: `${run.knowledgeBaseIds.length}` }
+      { label: "知识库", value: `${run.knowledgeBaseIds.length}` },
+      { label: "召回", value: `${run.recallSet.length}` },
+      { label: "最终证据", value: `${run.finalEvidenceSet.length}` }
     ],
-    payload: null
+    payload: previewPayload(run.retrievalQuery)
   };
 }
 

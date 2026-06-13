@@ -88,13 +88,6 @@ public class SessionService {
         }
     }
 
-    @Transactional
-    public RunCreated createRun(SessionUser currentUser, String sessionCode, CreateRunCommand command) {
-        AgentSession session = loadOwnedSession(currentUser, sessionCode);
-        ExecutionRun run = getOrCreatePendingRun(currentUser, session, command);
-        return new RunCreated(run.runCode());
-    }
-
     public SseEmitter streamRun(SessionUser currentUser, String sessionCode, CreateRunCommand command) {
         AgentSession session = loadOwnedSession(currentUser, sessionCode);
         SseEmitter emitter = new SseEmitter(0L);
@@ -111,33 +104,6 @@ public class SessionService {
                 .orElseThrow(() -> new AppException("SESSION_NOT_FOUND", "Session not found", HttpStatus.NOT_FOUND));
     }
 
-    private ExecutionRun getOrCreatePendingRun(SessionUser currentUser, AgentSession session, CreateRunCommand command) {
-        return sessionRepository.findLatestPendingRun(session.id())
-                .map(existing -> {
-                    sessionRepository.refreshPendingRun(
-                            existing.id(),
-                            command.query(),
-                            command.executionMode(),
-                            command.knowledgeBaseIds()
-                    );
-                    return sessionRepository.findRunById(session.id(), existing.id())
-                            .orElseThrow(() -> new IllegalStateException("Failed to reload pending run"));
-                })
-                .orElseGet(() -> {
-                    String runCode = nextCode("run");
-                    long runId = sessionRepository.createRun(
-                            runCode,
-                            session.id(),
-                            currentUser.id(),
-                            command.query(),
-                            command.executionMode(),
-                            command.knowledgeBaseIds()
-                    );
-                    return sessionRepository.findRunById(session.id(), runId)
-                            .orElseThrow(() -> new IllegalStateException("Failed to load created run"));
-                });
-    }
-
     private String nextCode(String prefix) {
         return prefix + "_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
     }
@@ -152,11 +118,6 @@ public class SessionService {
             String query,
             AgentMode executionMode,
             List<String> knowledgeBaseIds
-    ) {
-    }
-
-    public record RunCreated(
-            String runId
     ) {
     }
 

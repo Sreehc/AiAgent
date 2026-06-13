@@ -93,20 +93,6 @@ public class SessionController {
         return ApiResponse.success(null);
     }
 
-    @PostMapping("/{sessionId}/runs")
-    public ApiResponse<RunCreatedResponse> createRun(
-            @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
-            @PathVariable("sessionId") String sessionId,
-            @Valid @RequestBody CreateRunRequest request
-    ) {
-        SessionService.RunCreated created = sessionService.createRun(currentUser, sessionId, new SessionService.CreateRunCommand(
-                request.query(),
-                request.executionMode(),
-                request.knowledgeBaseIds()
-        ));
-        return ApiResponse.success(new RunCreatedResponse(created.runId()));
-    }
-
     @PostMapping(
             path = "/{sessionId}/stream",
             produces = MediaType.TEXT_EVENT_STREAM_VALUE
@@ -248,11 +234,6 @@ public class SessionController {
             int pageNo,
             int pageSize,
             List<SessionResponse> items
-    ) {
-    }
-
-    public record RunCreatedResponse(
-            String runId
     ) {
     }
 

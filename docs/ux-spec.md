@@ -335,6 +335,37 @@ SSE 执行过程
 - 管理员能力与普通用户能力在导航和页面级都要隔离
 - 历史与产物的入口必须稳定可见，避免结果生成后丢失
 
+### 8.1 页面模式
+
+| 分类 | 页面 | 模式 |
+| --- | --- | --- |
+| Auth | 登录、注册、找回密码、重置密码 | 双栏认证表单，移动端单列 |
+| Work | 研究工作台 | 三栏/双栏执行工作区 |
+| Knowledge | 知识库 | 资源列表 + 详情/文档/检索测试 |
+| Studio | 图片工作室 | 参数面板 + 结果画廊 + 历史 |
+| Observability | 历史回放 | 过滤列表 + 执行详情 + 产物 |
+| System | 模型配置、MCP 服务器、系统审计、RAG 评估 | 配置资源管理页 |
+| Account | 账号中心 | 分区设置页 |
+
+### 8.2 视觉系统约束
+
+风格：浅色、克制、信息密度较高的 AI operations console；视觉质量来自清晰层级、稳定布局、低噪声色彩和准确状态表达。
+
+禁止：
+
+- 大面积紫蓝渐变背景
+- 毛玻璃 / backdrop filter 装饰
+- 装饰性光斑、漂浮粒子
+- 超大圆角卡片堆叠
+- 营销页式 hero 区
+- 每页独立色彩主题
+
+设计 token 必须涵盖 color、typography、spacing（4px 基础网格）、radius（6/8/12/16/pill）、shadow（仅 dialog/popover/toast/command palette）、z-index（shell/overlay/modal/toast）。
+
+### 8.3 组件状态
+
+通用组件必须覆盖 default、hover、active、focus、disabled、loading、error 状态；status 颜色不得作为唯一信息来源，须配合文本或图标。
+
 ## 9. 当前产品能力边界
 
 - 会话历史可回放，历史产物可作为新任务上下文复用。

@@ -25,8 +25,7 @@ AiAgent 是一个面向研究、知识检索和多工具调用的智能体工作
 frontend/                    React + TypeScript + Vite 前端
 backend/                     Spring Boot 后端
   src/main/resources/db/     Flyway 数据库迁移
-docs/                        PRD、技术设计、API、数据库和 UX 文档
-docs/archive/                历史实施记录与阶段归档
+docs/                        PRD、技术设计、API、数据库、UX 与项目历史文档
 infra/env/                   本地和生产环境变量模板
 infra/sql/                   数据库扩展初始化脚本
 infra/scripts/               服务检查、冒烟测试、RAG 评估和远端部署脚本
@@ -186,7 +185,7 @@ chmod +x ./infra/scripts/smoke-test.sh
 
 ## API 概览
 
-详细接口见 `docs/api-spec-aiagent-v1.md`。当前后端主要路由：
+详细接口见 `docs/api-spec.md`。当前后端主要路由：
 
 - `GET /api/v1/health`
 - `/api/v1/auth/*`：注册、登录、登出、忘记密码、重置密码。
@@ -210,13 +209,12 @@ chmod +x ./infra/scripts/smoke-test.sh
 
 ## 文档
 
-- `docs/prd-aiagent-v1.md`：产品需求。
-- `docs/tech-design-aiagent-v1.md`：技术设计。
-- `docs/api-spec-aiagent-v1.md`：API 规格。
-- `docs/database-design-aiagent-v1.md`：数据库设计。
-- `docs/ux-spec-aiagent-v1.md`：UX 规格。
-- `docs/frontend-ui-rebuild-plan-aiagent-v1.md`：前端 UI 重建计划。
-- `docs/archive/README.md`：历史阶段归档索引。
+- `docs/prd.md`：产品需求。
+- `docs/tech-design.md`：技术设计。
+- `docs/api-spec.md`：API 规格。
+- `docs/database-design.md`：数据库设计。
+- `docs/ux-spec.md`：UX 规格。
+- `docs/history.md`：项目演进与关键技术决策。
 
 ## CI
 

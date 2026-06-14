@@ -14,7 +14,7 @@
 
 ## 1. 概述
 
-本文档基于 `prd-aiagent-v1.md`，定义 AiAgent V1 的整体技术实现方案。目标是给研发一个可直接开工的结构化实现基线，覆盖服务边界、核心数据流、认证模型、主要模块、可靠性要求和演进路径。
+本文档基于 `prd.md`，定义 AiAgent V1 的整体技术实现方案。目标是给研发一个可直接开工的结构化实现基线，覆盖服务边界、核心数据流、认证模型、主要模块、可靠性要求和演进路径。
 
 V1 产品基线：
 
@@ -51,6 +51,27 @@ V1 产品基线：
 - 工作台：聊天工作台、研究结果、知识库工作区、图片生成工作区、历史会话页
 - 用户中心：个人资料、修改密码、登录日志
 - 配置中心：模型配置、MCP 配置、知识库基础配置。模型配置按 `CHAT`、`EMBEDDING`、`IMAGE` 三类接入运行时 provider；管理接口只展示脱敏密钥，运行时通过密钥解密服务读取真实凭证，本地可使用 `local-mock`，生产不得静默使用 mock provider。
+
+### 2.4 前端分层架构
+
+```text
+React Router
+  -> ProtectedRoute / Auth routes
+  -> AppShell（Sidebar + Topbar + UserMenu + MobileNav + CommandPalette）
+  -> Page containers（pages/）
+  -> Feature components（features/{workspace, knowledge, image, history, system, account}）
+  -> UI primitives（components/ui）
+  -> API service modules（services/{auth, sessions, knowledge, images, admin, account, artifacts}Api.ts）
+  -> apiRequest / streamRequest（services/api.ts）
+```
+
+约束：
+
+- 页面容器只组合 feature 组件并发起数据加载，不写大段业务逻辑。
+- API 端点字符串只能出现在 `services/*.ts` 中，页面通过 typed wrapper 调用。
+- 共享 UI primitive（Button、Field、Dialog、Tabs、StatusPill、EmptyState 等）不允许夹带业务逻辑。
+- 工作台和历史回放使用统一的 `workspaceViewModel`，把 `SessionDetailResponse` 与 SSE `SessionStreamEvent[]` 合并为执行时间线 item（run / plan-step / tool / artifact / stream-event）。
+- 视觉系统受设计 token 收敛：颜色、间距、圆角、阴影、z-index 通过 `styles/tokens.css` 统一来源；禁用大面积紫蓝渐变、毛玻璃、装饰性光斑、营销页式 hero。
 
 ### 2.4 开发基线与约束
 

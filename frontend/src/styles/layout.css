@@ -123,47 +123,6 @@
   gap: var(--space-3);
 }
 
-.user-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: var(--space-3);
-  align-items: center;
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface-subtle);
-}
-
-.user-card__avatar {
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-md);
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  font-size: var(--text-sm);
-  font-weight: 800;
-}
-
-.user-card__copy {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.user-card__copy strong,
-.user-card__copy small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.user-card__copy small {
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
-}
-
 .app-main {
   min-width: 0;
   display: grid;

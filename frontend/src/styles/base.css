@@ -110,10 +110,6 @@ img {
   color: var(--color-text-muted);
 }
 
-.soft {
-  color: var(--color-text-soft);
-}
-
 .eyebrow {
   margin: 0 0 var(--space-1);
   color: var(--color-text-soft);

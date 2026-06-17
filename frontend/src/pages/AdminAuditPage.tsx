@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Button, EmptyState, Field, Input, Panel, Select, Tabs } from "../components/ui";
+import { Alert, Badge, Button, EmptyState, Field, Input, Panel, Select, Tabs } from "../components/ui";
 import { useAuthSession } from "../hooks/useAuthSession";
 import { adminApi } from "../services/adminApi";
 import { AdminAuditRow, ApiError } from "../services/api";
@@ -41,11 +41,11 @@ export function AdminAuditPage() {
     }
   }
 
-  if (!session?.user.roles.includes("ADMIN")) return <section className="page"><header className="page-header"><h1>审计</h1><span className="badge badge--neutral">Admin only</span></header><EmptyState message="当前账号没有管理员权限。" /></section>;
+  if (!session?.user.roles.includes("ADMIN")) return <section className="page"><header className="page-header"><h1>审计</h1><Badge tone="neutral">Admin only</Badge></header><EmptyState message="当前账号没有管理员权限。" /></section>;
 
   return (
     <section className="page">
-      <header className="page-header"><div><h1>审计</h1><p>查看用户、任务、工具调用和登录记录。</p></div><span className="badge">{rows.length} 条</span></header>
+      <header className="page-header"><div><h1>审计</h1><p>查看用户、任务、工具调用和登录记录。</p></div><Badge>{rows.length} 条</Badge></header>
       {error ? <Alert tone="error">{error}</Alert> : null}
       <Panel title="审计记录" eyebrow="Audit" action={<Button type="button" variant="secondary" size="sm" loading={loading} onClick={() => void loadRows()}>刷新</Button>}>
         <div className="stack">
@@ -76,7 +76,7 @@ export function AdminAuditPage() {
           </div>
           <div className="button-row button-row--between">
             <Button type="button" variant="secondary" disabled={pageNo <= 1 || loading} onClick={() => setPageNo((current) => Math.max(1, current - 1))}>上一页</Button>
-            <span className="badge">第 {pageNo} 页</span>
+            <Badge>第 {pageNo} 页</Badge>
             <Button type="button" variant="secondary" disabled={rows.length < 50 || loading} onClick={() => setPageNo((current) => current + 1)}>下一页</Button>
           </div>
           {!loading && rows.length === 0 ? <EmptyState message="暂无审计记录。" /> : null}

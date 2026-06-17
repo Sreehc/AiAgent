@@ -1,9 +1,9 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Alert, EmptyState, StatusPill } from "../components/ui";
+import { Alert, Badge, EmptyState, StatusPill } from "../components/ui";
 import { ApiConfigForm } from "../features/account/ApiConfigForm";
 import { LoginLogTable } from "../features/account/LoginLogTable";
 import { ProfileForm } from "../features/account/ProfileForm";
-import { SecurityForm } from "../features/account/SecurityForm";
+import { SecurityForm, SecurityFormState } from "../features/account/SecurityForm";
 import { useAuthSession } from "../hooks/useAuthSession";
 import { AccountApiConfigTestResult, AccountApiConfigUpdate, AccountProfile, accountApi, LoginLogEntry } from "../services/accountApi";
 import { ApiError } from "../services/api";
@@ -21,6 +21,7 @@ export function AccountPage() {
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState<SecurityFormState>({ oldPassword: "", newPassword: "" });
   const [savingApiConfig, setSavingApiConfig] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -67,13 +68,12 @@ export function AccountPage() {
   async function submitPassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!accessToken) return;
-    const form = new FormData(event.currentTarget);
     setSavingPassword(true);
     setPasswordError(null);
     setPasswordMessage(null);
     try {
-      await accountApi.changePassword(accessToken, { oldPassword: form.get("oldPassword"), newPassword: form.get("newPassword") });
-      event.currentTarget.reset();
+      await accountApi.changePassword(accessToken, { oldPassword: passwordForm.oldPassword, newPassword: passwordForm.newPassword });
+      setPasswordForm({ oldPassword: "", newPassword: "" });
       setPasswordMessage("密码已更新。");
     } catch (requestError) {
       setPasswordError((requestError as ApiError).message || "密码更新失败。");
@@ -122,10 +122,10 @@ export function AccountPage() {
 
   return (
     <section className="page">
-      <header className="page-header"><div><h1>账号中心</h1><p>维护个人资料、账号安全、个人 API 配置和登录审计记录。</p></div><div className="page-header__meta"><span className="badge badge--neutral">{logs.length} 条登录记录</span><span className="badge badge--neutral">{profile?.roles.join(", ") ?? "账户"}</span></div><StatusPill status="ACTIVE" label="登录态受保护" /></header>
+      <header className="page-header"><div><h1>账号中心</h1><p>维护个人资料、账号安全、个人 API 配置和登录审计记录。</p></div><div className="page-header__meta"><Badge tone="neutral">{logs.length} 条登录记录</Badge><Badge tone="neutral">{profile?.roles.join(", ") ?? "账户"}</Badge></div><StatusPill status="ACTIVE" label="登录态受保护" /></header>
       {profileError ? <Alert tone="error">{profileError}</Alert> : null}
       {loading ? <EmptyState message="账号信息加载中..." /> : null}
-      {!loading && profile ? <div className="stack-lg"><ApiConfigForm config={apiConfig} apiKeyMasked={apiKeyMasked} configured={apiConfigured} saving={savingApiConfig} message={apiConfigMessage} error={apiConfigError} onChange={setApiConfig} onSubmit={submitApiConfig} onTest={testApiConfig} /><div className="content-grid content-grid--two"><ProfileForm profile={profile} saving={savingProfile} success={profileSuccess} onChange={setProfile} onSubmit={submitProfile} /><SecurityForm saving={savingPassword} message={passwordMessage} error={passwordError} onSubmit={submitPassword} /></div><LoginLogTable logs={logs} /></div> : null}
+      {!loading && profile ? <div className="stack-lg"><ApiConfigForm config={apiConfig} apiKeyMasked={apiKeyMasked} configured={apiConfigured} saving={savingApiConfig} message={apiConfigMessage} error={apiConfigError} onChange={setApiConfig} onSubmit={submitApiConfig} onTest={testApiConfig} /><div className="content-grid content-grid--two"><ProfileForm profile={profile} saving={savingProfile} success={profileSuccess} onChange={setProfile} onSubmit={submitProfile} /><SecurityForm form={passwordForm} saving={savingPassword} message={passwordMessage} error={passwordError} onChange={setPasswordForm} onSubmit={submitPassword} /></div><LoginLogTable logs={logs} /></div> : null}
     </section>
   );
 }

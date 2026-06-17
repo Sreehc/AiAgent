@@ -1,5 +1,5 @@
 import { ArtifactItem, SessionDetailResponse } from "../../services/api";
-import { Button, EmptyState, Panel, Skeleton, StatusPill } from "../../components/ui";
+import { Badge, Button, EmptyState, Panel, Skeleton, StatusPill } from "../../components/ui";
 import { ExecutionTimeline } from "../workspace/ExecutionTimeline";
 import { buildExecutionTimeline } from "../workspace/workspaceViewModel";
 
@@ -27,9 +27,9 @@ export function ReplayDetail({ detail, loading, failed, onRetry, onUseArtifact }
         </div>
       </Panel>
       <ExecutionTimeline items={buildExecutionTimeline(detail)} />
-      <Panel title="产物引用" eyebrow="Artifacts" action={<span className="badge">{references.length} refs</span>}>
+      <Panel title="产物引用" eyebrow="Artifacts" action={<Badge>{references.length} refs</Badge>}>
         <div className="artifact-list">
-          {references.map((artifact) => <article key={artifact.artifactId} className="list-item"><div className="split"><strong>{artifact.title}</strong><span className="badge">{artifact.artifactType}</span></div><small>{artifact.mimeType ?? "artifact"}</small><div className="cluster">{artifact.resultUrl ? <a href={artifact.resultUrl} target="_blank" rel="noreferrer">打开产物</a> : <span className="muted">该产物无外部文件链接。</span>}<Button type="button" variant="secondary" size="sm" disabled={artifact.reusable === false} onClick={() => onUseArtifact(artifact)}>作为上下文使用</Button></div></article>)}
+          {references.map((artifact) => <article key={artifact.artifactId} className="list-item"><div className="split"><strong>{artifact.title}</strong><Badge>{artifact.artifactType}</Badge></div><small>{artifact.mimeType ?? "artifact"}</small><div className="cluster">{artifact.resultUrl ? <a href={artifact.resultUrl} target="_blank" rel="noreferrer">打开产物</a> : <span className="muted">该产物无外部文件链接。</span>}<Button type="button" variant="secondary" size="sm" disabled={artifact.reusable === false} onClick={() => onUseArtifact(artifact)}>作为上下文使用</Button></div></article>)}
           {references.length === 0 ? <EmptyState message="该会话暂无图片或附件产物。" /> : null}
         </div>
       </Panel>

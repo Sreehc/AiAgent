@@ -1,5 +1,5 @@
 import { SessionItem } from "../../services/api";
-import { EmptyState, Panel, Skeleton, StatusPill } from "../../components/ui";
+import { Badge, EmptyState, Panel, Skeleton, StatusPill } from "../../components/ui";
 
 type HistoryListProps = {
   items: SessionItem[];
@@ -10,7 +10,7 @@ type HistoryListProps = {
 
 export function HistoryList({ items, selectedId, loading, onSelect }: HistoryListProps) {
   return (
-    <Panel title="历史会话" eyebrow="Sessions" action={<span className="badge">{loading ? "加载中" : `${items.length} 条`}</span>}>
+    <Panel title="历史会话" eyebrow="Sessions" action={<Badge>{loading ? "加载中" : `${items.length} 条`}</Badge>}>
       <div className="list">
         {loading ? <Skeleton lines={5} compact /> : null}
         {!loading && items.map((item) => <button key={item.sessionId} type="button" className={`list-item ${selectedId === item.sessionId ? "list-item--active" : ""}`} onClick={() => onSelect(item.sessionId)}><div className="split"><strong>{item.title}</strong><StatusPill status={item.status} /></div><span>{item.sessionId}</span><small>{item.agentMode} · {formatDateTime(item.createdAt)}</small></button>)}

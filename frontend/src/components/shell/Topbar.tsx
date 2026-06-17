@@ -1,7 +1,9 @@
 import { useLocation } from "react-router-dom";
-import { Button } from "../ui";
+import { Moon, Sun } from "lucide-react";
+import { Badge, Button, IconButton } from "../ui";
 import { allNavigation } from "./navigation";
 import { openCommandPalette } from "../command/commandEvents";
+import { useTheme } from "../../hooks/useTheme";
 
 type TopbarProps = {
   onOpenMenu: () => void;
@@ -11,6 +13,7 @@ type TopbarProps = {
 export function Topbar({ onOpenMenu, roleLabel }: TopbarProps) {
   const location = useLocation();
   const current = allNavigation.find((item) => item.to === location.pathname);
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <header className="topbar">
@@ -25,7 +28,13 @@ export function Topbar({ onOpenMenu, roleLabel }: TopbarProps) {
         <button type="button" className="command-trigger" aria-label="打开命令面板" onClick={openCommandPalette}>
           <span>搜索与跳转</span><kbd>⌘ K</kbd>
         </button>
-        <span className="badge badge--neutral">{roleLabel}</span>
+        <IconButton
+          label={theme === "dark" ? "切换到亮色主题" : "切换到暗色主题"}
+          onClick={toggleTheme}
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
+        </IconButton>
+        <Badge tone="neutral">{roleLabel}</Badge>
       </div>
     </header>
   );

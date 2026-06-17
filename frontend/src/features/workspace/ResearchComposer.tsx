@@ -1,7 +1,7 @@
 import { FormEvent } from "react";
 import { ArtifactItem, KnowledgeBaseItem } from "../../services/api";
 import { AgentMode, StrategyMode } from "../../services/sessionsApi";
-import { Alert, Button, EmptyState, Field, Panel, StatusPill, Tabs, Textarea } from "../../components/ui";
+import { Alert, Badge, Button, EmptyState, Field, Panel, StatusPill, Tabs, Textarea } from "../../components/ui";
 
 type ResearchComposerProps = {
   selected: boolean;
@@ -32,11 +32,11 @@ export function ResearchComposer({ selected, sessionStatus, form, selectedArtifa
         <Tabs ariaLabel="策略选择" value={form.strategyMode} items={[{ id: "AUTO", label: "自动策略" }, { id: "MANUAL", label: "手动模式" }]} onChange={(strategyMode) => onFormChange({ ...form, strategyMode })} />
         <Tabs ariaLabel="执行模式" value={form.executionMode} items={[{ id: "REACT", label: "ReAct" }, { id: "PLAN_EXECUTE", label: "Plan Execute" }]} onChange={(executionMode) => onFormChange({ ...form, executionMode })} />
         <div className="stack">
-          <div className="split"><strong>复用产物</strong><span className="badge badge--neutral">{selectedArtifacts.length} 个</span></div>
+          <div className="split"><strong>复用产物</strong><Badge tone="neutral">{selectedArtifacts.length} 个</Badge></div>
           <div className="artifact-list">
             {selectedArtifacts.map((artifact) => (
               <article key={artifact.artifactId} className="list-item">
-                <div className="split"><strong>{artifact.title}</strong><span className="badge">{artifact.artifactType}</span></div>
+                <div className="split"><strong>{artifact.title}</strong><Badge>{artifact.artifactType}</Badge></div>
                 <small>{artifact.mimeType ?? "artifact"} · {artifact.artifactId}</small>
                 <Button type="button" variant="ghost" size="sm" onClick={() => onRemoveArtifact(artifact.artifactId)}>移除</Button>
               </article>

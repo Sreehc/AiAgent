@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { Alert, StatusPill } from "../components/ui";
+import { Alert, Badge, StatusPill } from "../components/ui";
 import { ArtifactPanel } from "../features/workspace/ArtifactPanel";
 import { ExecutionTimeline } from "../features/workspace/ExecutionTimeline";
 import { MemoryPanel } from "../features/workspace/MemoryPanel";
@@ -297,7 +297,7 @@ export function WorkspacePage() {
     <section className="page">
       <header className="page-header">
         <div><h1>研究工作台</h1><p>发起研究任务，并查看规划、工具调用和最终产物。</p></div>
-        <div className="page-header__meta"><span className="badge badge--neutral">{sessions.length} 个会话</span><span className="badge badge--neutral">{parseIds(runForm.knowledgeBaseIds).length} 个知识库</span></div>
+        <div className="page-header__meta"><Badge tone="neutral">{sessions.length} 个会话</Badge><Badge tone="neutral">{parseIds(runForm.knowledgeBaseIds).length} 个知识库</Badge></div>
         <StatusPill status={runningTask ? "RUNNING" : sessionDetail?.session.status ?? "IDLE"} />
       </header>
       {error ? <Alert tone="error">{error}</Alert> : null}

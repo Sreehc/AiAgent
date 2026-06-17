@@ -1,11 +1,36 @@
 import { LoginLogEntry } from "../../services/accountApi";
-import { EmptyState, Panel, StatusPill } from "../../components/ui";
+import { EmptyState, Panel, StatusPill, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui";
 
 export function LoginLogTable({ logs }: { logs: LoginLogEntry[] }) {
   return (
     <Panel title="最近登录日志" eyebrow="Audit" description="仅展示当前登录用户最近的访问记录。">
-      <div className="table-list">{logs.map((log) => <article key={`${log.loginAt}-${log.loginIp}`} className="table-row"><div><strong>{new Date(log.loginAt).toLocaleString("zh-CN", { hour12: false })}</strong><br /><small>{log.userAgent}</small></div><span>{log.loginIp}</span><StatusPill status={log.loginResult} /></article>)}</div>
-      {logs.length === 0 ? <EmptyState message="暂无登录记录。" /> : null}
+      {logs.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>时间 / 客户端</TableHead>
+              <TableHead>IP</TableHead>
+              <TableHead>结果</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {logs.map((log) => (
+              <TableRow key={`${log.loginAt}-${log.loginIp}`}>
+                <TableCell>
+                  <strong>{new Date(log.loginAt).toLocaleString("zh-CN", { hour12: false })}</strong>
+                  <div className="text-xs text-muted-foreground">{log.userAgent}</div>
+                </TableCell>
+                <TableCell className="font-mono text-sm">{log.loginIp}</TableCell>
+                <TableCell>
+                  <StatusPill status={log.loginResult} />
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <EmptyState message="暂无登录记录。" />
+      )}
     </Panel>
   );
 }

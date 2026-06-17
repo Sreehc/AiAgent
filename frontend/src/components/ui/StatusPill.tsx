@@ -1,15 +1,39 @@
+import { Badge } from "./Badge";
+
 type StatusPillProps = {
   status?: string | null;
   label?: string;
 };
 
+type Tone = "success" | "info" | "danger" | "warning" | "neutral";
+
 export function StatusPill({ status, label }: StatusPillProps) {
   const normalized = (status ?? "UNKNOWN").toUpperCase();
   const tone = getTone(normalized);
-  return <span className={`status-pill status-pill--${tone}`}>{label ?? formatStatus(normalized)}</span>;
+  return (
+    <Badge tone={tone} className="gap-1.5">
+      <span className={`h-1.5 w-1.5 rounded-full ${dotClass(tone)}`} aria-hidden="true" />
+      {label ?? formatStatus(normalized)}
+    </Badge>
+  );
 }
 
-function getTone(status: string) {
+function dotClass(tone: Tone) {
+  switch (tone) {
+    case "success":
+      return "bg-success";
+    case "info":
+      return "bg-info";
+    case "danger":
+      return "bg-destructive";
+    case "warning":
+      return "bg-warning";
+    default:
+      return "bg-muted-foreground";
+  }
+}
+
+function getTone(status: string): Tone {
   if (["COMPLETED", "SUCCESS", "ACTIVE", "HEALTHY"].includes(status)) {
     return "success";
   }

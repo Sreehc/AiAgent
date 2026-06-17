@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { Alert, EmptyState } from "../components/ui";
+import { Alert, Badge, EmptyState } from "../components/ui";
+import { showToast } from "../components/Toast";
 import { McpFormState, McpServerForm } from "../features/system/McpServerForm";
 import { McpServerRegistry } from "../features/system/McpServerRegistry";
 import { McpToolList } from "../features/system/McpToolList";
@@ -136,17 +137,17 @@ export function McpServersPage() {
     if (!session?.accessToken || !selectedCode) return;
     try {
       const result = await adminApi.testMcpTool(session.accessToken, selectedCode, toolName, "AiAgent admin smoke test");
-      setError(`${result.toolName}: ${result.resultText}`);
+      showToast("success", `${result.toolName}: ${result.resultText}`);
     } catch (requestError) {
       setError((requestError as ApiError).message);
     }
   }
 
-  if (!session?.user.roles.includes("ADMIN")) return <section className="page"><header className="page-header"><h1>MCP 服务器</h1><span className="badge badge--neutral">Admin only</span></header><EmptyState message="当前账号没有管理员权限，无法访问 MCP 配置。" /></section>;
+  if (!session?.user.roles.includes("ADMIN")) return <section className="page"><header className="page-header"><h1>MCP 服务器</h1><Badge tone="neutral">Admin only</Badge></header><EmptyState message="当前账号没有管理员权限，无法访问 MCP 配置。" /></section>;
 
   return (
     <section className="page">
-      <header className="page-header"><div><h1>MCP 服务器</h1><p>注册外部工具服务，检查健康状态并审计发现到的工具清单。</p></div><div className="page-header__meta"><span className="badge badge--neutral">{servers.filter((item) => item.status === "ACTIVE").length} 个活跃</span><span className="badge badge--neutral">{selected?.transportType ?? "未选择"}</span></div><span className="badge">{servers.length} 个服务</span></header>
+      <header className="page-header"><div><h1>MCP 服务器</h1><p>注册外部工具服务，检查健康状态并审计发现到的工具清单。</p></div><div className="page-header__meta"><Badge tone="neutral">{servers.filter((item) => item.status === "ACTIVE").length} 个活跃</Badge><Badge tone="neutral">{selected?.transportType ?? "未选择"}</Badge></div><Badge>{servers.length} 个服务</Badge></header>
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="content-grid content-grid--wide-side">
         <aside className="stack">{selected ? <button type="button" className="text-action" onClick={resetSelection}>+ 注册新服务</button> : null}<McpServerForm form={form} editing={selected !== null} submitting={submitting} onChange={setForm} onCreate={onCreate} onUpdate={() => void onUpdate()} onDelete={() => selected && setServerToDelete(selected)} /><McpServerRegistry servers={servers} selectedCode={selectedCode} healthChecks={healthChecks} loading={loading} onSelect={selectServer} onRefresh={() => void loadServers()} /></aside>

@@ -1,6 +1,6 @@
 import { FormEvent } from "react";
 import { ArtifactItem, SessionDetailResponse } from "../../services/api";
-import { Button, EmptyState, Field, Input, Panel } from "../../components/ui";
+import { Badge, Button, EmptyState, Field, Input, Panel } from "../../components/ui";
 
 type ArtifactPanelProps = {
   detail: SessionDetailResponse | null;
@@ -27,10 +27,10 @@ export function ArtifactPanel({ detail, artifacts, onRestore, canRestore, onUseA
           <Button type="submit" variant="secondary" disabled={!canRestore}>上传附件</Button>
         </form> : null}
         {latestRun?.retrievalQuery ? <div><small className="muted">检索查询</small><p>{latestRun.retrievalQuery}</p></div> : null}
-        {latestRun?.finalEvidenceSet.length ? <div className="stack"><strong>最终证据</strong>{latestRun.finalEvidenceSet.map((evidence) => <article key={`${evidence.chunkId}-${evidence.rank}`} className="list-item"><div className="split"><strong>#{evidence.rank} {evidence.fileName}</strong><span className="badge badge--neutral">{evidence.score.toFixed(4)}</span></div><small>{evidence.citationId} · {evidence.retrievalStrategy}{evidence.sectionTitle ? ` · ${evidence.sectionTitle}` : ""}</small><p>{evidence.contentPreview}</p></article>)}</div> : null}
+        {latestRun?.finalEvidenceSet.length ? <div className="stack"><strong>最终证据</strong>{latestRun.finalEvidenceSet.map((evidence) => <article key={`${evidence.chunkId}-${evidence.rank}`} className="list-item"><div className="split"><strong>#{evidence.rank} {evidence.fileName}</strong><Badge tone="neutral">{evidence.score.toFixed(4)}</Badge></div><small>{evidence.citationId} · {evidence.retrievalStrategy}{evidence.sectionTitle ? ` · ${evidence.sectionTitle}` : ""}</small><p>{evidence.contentPreview}</p></article>)}</div> : null}
         <div className="markdown-block">{detail?.summary ?? report?.content ?? "暂无报告内容。"}</div>
         <div className="artifact-list">
-          {artifacts.map((artifact) => <article key={artifact.artifactId} className="list-item"><div className="split"><strong>{artifact.title}</strong><span className="badge">{artifact.artifactType}</span></div><small>{artifact.mimeType ?? "artifact"}</small><div className="cluster">{artifact.resultUrl ? <a href={artifact.resultUrl} target="_blank" rel="noreferrer">打开产物</a> : null}<Button type="button" variant="secondary" size="sm" disabled={artifact.reusable === false} onClick={() => onUseArtifact?.(artifact)}>作为上下文使用</Button></div></article>)}
+          {artifacts.map((artifact) => <article key={artifact.artifactId} className="list-item"><div className="split"><strong>{artifact.title}</strong><Badge>{artifact.artifactType}</Badge></div><small>{artifact.mimeType ?? "artifact"}</small><div className="cluster">{artifact.resultUrl ? <a href={artifact.resultUrl} target="_blank" rel="noreferrer">打开产物</a> : null}<Button type="button" variant="secondary" size="sm" disabled={artifact.reusable === false} onClick={() => onUseArtifact?.(artifact)}>作为上下文使用</Button></div></article>)}
           {artifacts.length === 0 ? <EmptyState message="任务完成后，报告、图片或附件会显示在这里。" /> : null}
         </div>
       </div>

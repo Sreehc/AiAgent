@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { Alert, Button, EmptyState, Panel, StatusPill } from "../components/ui";
+import { Alert, Badge, Button, EmptyState, Panel, StatusPill } from "../components/ui";
+import { showToast } from "../components/Toast";
 import { DocumentTable } from "../features/knowledge/DocumentTable";
 import { KnowledgeBaseList } from "../features/knowledge/KnowledgeBaseList";
 import { KnowledgeBaseSummary } from "../features/knowledge/KnowledgeBaseSummary";
@@ -185,7 +186,7 @@ export function KnowledgeBasesPage() {
     if (!session?.accessToken || !selectedKbId) return;
     try {
       const result = await knowledgeApi.getDocument(session.accessToken, selectedKbId, documentId);
-      setError(result.preview || "该文档没有可预览内容");
+      showToast("info", result.preview || "该文档没有可预览内容");
     } catch (requestError) {
       setError((requestError as ApiError).message);
     }
@@ -251,7 +252,7 @@ export function KnowledgeBasesPage() {
 
   return (
     <section className="page">
-      <header className="page-header"><div><h1>知识库</h1><p>管理私有文档、索引状态，并在投入研究任务前验证召回质量。</p></div><div className="page-header__meta"><span className="badge badge--neutral">{knowledgeBases.length} 个知识库</span><span className="badge badge--neutral">{documents.length} 个文档</span></div><span className="badge">{searchHits.length} 个命中</span></header>
+      <header className="page-header"><div><h1>知识库</h1><p>管理私有文档、索引状态，并在投入研究任务前验证召回质量。</p></div><div className="page-header__meta"><Badge tone="neutral">{knowledgeBases.length} 个知识库</Badge><Badge tone="neutral">{documents.length} 个文档</Badge></div><Badge>{searchHits.length} 个命中</Badge></header>
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="content-grid">
         <KnowledgeBaseList items={knowledgeBases} selectedId={selectedKbId} loading={loading} submitting={submitting} form={kbForm} onFormChange={setKbForm} onCreate={onCreate} onSelect={selectKnowledgeBase} onRefresh={() => void loadKnowledgeBases()} />

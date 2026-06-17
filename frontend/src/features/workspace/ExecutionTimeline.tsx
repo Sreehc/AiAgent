@@ -1,5 +1,6 @@
-import { EmptyState, Panel, StatusPill } from "../../components/ui";
+import { Badge, EmptyState, Panel, StatusPill } from "../../components/ui";
 import { ExecutionTimelineItem } from "./workspaceViewModel";
+import { JsonBlock } from "./JsonBlock";
 
 type ExecutionTimelineProps = {
   items: ExecutionTimelineItem[];
@@ -7,14 +8,14 @@ type ExecutionTimelineProps = {
 
 export function ExecutionTimeline({ items }: ExecutionTimelineProps) {
   return (
-    <Panel title="执行时间线" eyebrow="Trace" action={<span className="badge">{items.length} events</span>}>
+    <Panel title="执行时间线" eyebrow="Trace" action={<Badge>{items.length} events</Badge>}>
       <div className="timeline">
         {items.map((item) => (
           <article key={item.id} className={`timeline-item timeline-item--${item.kind}`}>
             <div className="timeline-item__header"><strong>{item.title}</strong><StatusPill status={item.status} /></div>
             <div className="timeline-item__meta"><span>{formatKind(item.kind)}</span>{item.timestamp ? <time>{formatDateTime(item.timestamp)}</time> : null}{item.detail ? <span>{item.detail}</span> : null}</div>
-            {item.metadata.length ? <div className="cluster">{item.metadata.map((entry) => <span key={`${item.id}-${entry.label}`} className="badge badge--neutral">{entry.label}: {entry.value}</span>)}</div> : null}
-            {item.payload ? <pre className="json-block">{item.payload}</pre> : null}
+            {item.metadata.length ? <div className="cluster">{item.metadata.map((entry) => <Badge key={`${item.id}-${entry.label}`} tone="neutral">{entry.label}: {entry.value}</Badge>)}</div> : null}
+            {item.payload ? <JsonBlock payload={item.payload} /> : null}
           </article>
         ))}
         {items.length === 0 ? <EmptyState title="暂无执行记录" message="运行研究任务后，计划、工具和产物会按时间显示在这里。" /> : null}

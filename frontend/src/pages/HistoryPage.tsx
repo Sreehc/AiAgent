@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Alert } from "../components/ui";
+import { Alert, Badge } from "../components/ui";
 import { HistoryFilters } from "../features/history/HistoryFilters";
 import { HistoryList } from "../features/history/HistoryList";
 import { ReplayDetail } from "../features/history/ReplayDetail";
@@ -80,7 +80,7 @@ export function HistoryPage() {
 
   return (
     <section className="page">
-      <header className="page-header"><div><h1>历史回放</h1><p>审计研究任务的原始输入、执行步骤、工具调用和最终产物。</p></div><div className="page-header__meta"><span className="badge badge--neutral">{detail?.planSteps.length ?? 0} steps</span><span className="badge badge--neutral">{detail?.toolInvocations.length ?? 0} calls</span></div><span className="badge">{filtered.length} sessions</span></header>
+      <header className="page-header"><div><h1>历史回放</h1><p>审计研究任务的原始输入、执行步骤、工具调用和最终产物。</p></div><div className="page-header__meta"><Badge tone="neutral">{detail?.planSteps.length ?? 0} steps</Badge><Badge tone="neutral">{detail?.toolInvocations.length ?? 0} calls</Badge></div><Badge>{filtered.length} sessions</Badge></header>
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="content-grid">
         <aside className="stack"><HistoryFilters keyword={keyword} status={status} onKeywordChange={setKeyword} onStatusChange={setStatus} onRefresh={() => void loadSessions()} /><HistoryList items={filtered} selectedId={selectedSessionId} loading={loading} onSelect={setSelectedSessionId} /></aside>

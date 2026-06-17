@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Alert } from "../components/ui";
+import { Alert, Badge } from "../components/ui";
 import { ImageGenerationForm, ImageFormState } from "../features/image/ImageGenerationForm";
 import { ImageGallery } from "../features/image/ImageGallery";
 import { ImageHistoryPanel } from "../features/image/ImageHistoryPanel";
@@ -88,7 +88,7 @@ export function ImageGenerationPage() {
 
   return (
     <section className="page">
-      <header className="page-header"><div><h1>图片工作室</h1><p>生成研究配图，或基于参考图片进行编辑并关联到会话产物。</p></div><div className="page-header__meta"><span className="badge badge--neutral">{form.size}</span><span className="badge badge--neutral">{history.length} 条历史</span></div><span className="badge">{form.mode === "IMAGES" ? "文本生图" : "参考图编辑"}</span></header>
+      <header className="page-header"><div><h1>图片工作室</h1><p>生成研究配图，或基于参考图片进行编辑并关联到会话产物。</p></div><div className="page-header__meta"><Badge tone="neutral">{form.size}</Badge><Badge tone="neutral">{history.length} 条历史</Badge></div><Badge>{form.mode === "IMAGES" ? "文本生图" : "参考图编辑"}</Badge></header>
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="content-grid content-grid--wide-side">
         <aside><ImageGenerationForm form={form} sessions={sessions} referenceFile={referenceFile} submitting={submitting} onFormChange={setForm} onReferenceFileChange={setReferenceFile} onSubmit={onSubmit} /></aside>

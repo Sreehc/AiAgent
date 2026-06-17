@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Alert, Button, EmptyState, Field, Input, Panel, Switch, Textarea } from "../components/ui";
+import { Alert, Badge, Button, EmptyState, Field, Input, Panel, Switch, Textarea } from "../components/ui";
 import { useAuthSession } from "../hooks/useAuthSession";
 import { adminApi } from "../services/adminApi";
 import { ApiError, RagEvaluationCaseItem, RagEvaluationItem } from "../services/api";
@@ -113,18 +113,18 @@ export function RagEvaluationPage() {
     setCaseEnabled(true);
   }
 
-  if (!session?.user.roles.includes("ADMIN")) return <section className="page"><header className="page-header"><h1>RAG 评估</h1><span className="badge badge--neutral">Admin only</span></header><EmptyState message="当前账号没有管理员权限。" /></section>;
+  if (!session?.user.roles.includes("ADMIN")) return <section className="page"><header className="page-header"><h1>RAG 评估</h1><Badge tone="neutral">Admin only</Badge></header><EmptyState message="当前账号没有管理员权限。" /></section>;
 
   return (
     <section className="page">
-      <header className="page-header"><div><h1>RAG 评估</h1><p>运行检索回归用例并查看召回质量指标。</p></div><span className="badge">{items.length} 次评估</span></header>
+      <header className="page-header"><div><h1>RAG 评估</h1><p>运行检索回归用例并查看召回质量指标。</p></div><Badge>{items.length} 次评估</Badge></header>
       {error ? <Alert tone="error">{error}</Alert> : null}
       <div className="content-grid">
         <div className="stack">
-          <Panel title="评估用例" eyebrow="Cases"><form className="form-grid" onSubmit={onCreateCase}><Field label="Query"><Input value={caseQuery} onChange={(event) => setCaseQuery(event.target.value)} required /></Field><Field label="期望文本，逗号分隔"><Textarea rows={3} value={caseExpectedText} onChange={(event) => setCaseExpectedText(event.target.value)} /></Field><Switch label="启用用例" checked={caseEnabled} onChange={(event) => setCaseEnabled(event.target.checked)} /><div className="button-row"><Button type="submit" variant="primary" loading={loading}>{editingCaseId ? "保存用例" : "新增用例"}</Button>{editingCaseId ? <Button type="button" variant="secondary" onClick={onCancelEdit}>取消编辑</Button> : null}</div></form><div className="table-list">{cases.map((item) => <article key={item.caseId} className="list-item"><div className="split"><strong>{item.query}</strong><span className="badge">{item.enabled ? "enabled" : "disabled"}</span></div><small>{item.expectedTextContains.join(", ") || "未配置期望文本"}</small><div className="button-row"><Button type="button" variant="secondary" size="sm" onClick={() => onEditCase(item)}>编辑</Button><Button type="button" variant="ghost" size="sm" onClick={() => void onDeleteCase(item.caseId)}>删除</Button></div></article>)}</div>{cases.length === 0 ? <EmptyState message="暂无评估用例。" /> : null}</Panel>
+          <Panel title="评估用例" eyebrow="Cases"><form className="form-grid" onSubmit={onCreateCase}><Field label="Query"><Input value={caseQuery} onChange={(event) => setCaseQuery(event.target.value)} required /></Field><Field label="期望文本，逗号分隔"><Textarea rows={3} value={caseExpectedText} onChange={(event) => setCaseExpectedText(event.target.value)} /></Field><Switch label="启用用例" checked={caseEnabled} onChange={(event) => setCaseEnabled(event.target.checked)} /><div className="button-row"><Button type="submit" variant="primary" loading={loading}>{editingCaseId ? "保存用例" : "新增用例"}</Button>{editingCaseId ? <Button type="button" variant="secondary" onClick={onCancelEdit}>取消编辑</Button> : null}</div></form><div className="table-list">{cases.map((item) => <article key={item.caseId} className="list-item"><div className="split"><strong>{item.query}</strong><Badge>{item.enabled ? "enabled" : "disabled"}</Badge></div><small>{item.expectedTextContains.join(", ") || "未配置期望文本"}</small><div className="button-row"><Button type="button" variant="secondary" size="sm" onClick={() => onEditCase(item)}>编辑</Button><Button type="button" variant="ghost" size="sm" onClick={() => void onDeleteCase(item.caseId)}>删除</Button></div></article>)}</div>{cases.length === 0 ? <EmptyState message="暂无评估用例。" /> : null}</Panel>
           <Panel title="新建评估" eyebrow="Evaluation"><form className="form-grid" onSubmit={onSubmit}><Field label="Knowledge Base IDs" description="逗号分隔，留空表示当前用户全部知识库。"><Input value={knowledgeBaseIds} onChange={(event) => setKnowledgeBaseIds(event.target.value)} placeholder="kb_xxx, kb_yyy" /></Field><Field label="Top K"><Input type="number" min={1} max={20} value={topK} onChange={(event) => setTopK(Number(event.target.value) || 10)} /></Field><Button type="submit" variant="primary" loading={loading}>使用已启用用例运行评估</Button></form></Panel>
         </div>
-        <Panel title="评估历史" eyebrow="Metrics"><div className="table-list">{items.map((item) => <article key={item.evalId} className="list-item"><div className="split"><strong>{item.evalId}</strong><span className="badge">{item.status}</span></div><pre>{item.metrics}</pre><small>{item.createdAt}</small></article>)}</div>{items.length === 0 ? <EmptyState message="暂无评估记录。" /> : null}</Panel>
+        <Panel title="评估历史" eyebrow="Metrics"><div className="table-list">{items.map((item) => <article key={item.evalId} className="list-item"><div className="split"><strong>{item.evalId}</strong><Badge>{item.status}</Badge></div><pre>{item.metrics}</pre><small>{item.createdAt}</small></article>)}</div>{items.length === 0 ? <EmptyState message="暂无评估记录。" /> : null}</Panel>
       </div>
     </section>
   );

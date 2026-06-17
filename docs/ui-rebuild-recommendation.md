@@ -97,7 +97,34 @@
 
 ---
 
-## 2. 总体策略
+## 实施状态(2026-06 落地记录)
+
+> 分支 `ui-rebuild-shadcn`,提交 `b5907d9`→`0f97256`。每个 Phase 结束 `pnpm build`(tsc + vite)通过、`tsc --noUnusedLocals` 干净、dev server 可启动。环境无浏览器,运行时视觉(尤其暗色对比度)需人工复核。
+
+| 任务 | 状态 | 说明 |
+|---|---|---|
+| Phase 0(T0.1–0.6) | ✅ 完成 | 用 Tailwind 3 + 手写 shadcn 风格组件替代交互式 CLI(headless 环境更稳),其余等价 |
+| Phase 1(T1.1–1.6) | ✅ 完成 | 亮/暗双套 HSL 变量 + 暗色桥接进 `tokens.css`,遗留样式同步翻转 |
+| Phase 2(T2.1–2.10) | ✅ 完成(T2.8 例外) | Dialog/Tabs 换 Radix;新增 Table/DropdownMenu/Popover/Tooltip/Sheet/Pagination;Toast 换 sonner |
+| ┗ T2.8 Select | ⚠️ 部分 | 保留并样式化原生 `<select>`(保 `onChange` API),**未**换 Radix Select —— 换 `onValueChange` 涉及 13 文件、无浏览器验证风险高 |
+| Phase 3(T3.1–3.4) | ✅ 完成(T3.2 替代实现) | 命令面板换 cmdk;UserMenu 换 DropdownMenu;主题切换入 Topbar |
+| ┗ T3.2 移动抽屉 | ⚠️ 替代 | 保留原 CSS 驱动的侧栏滑出(工作正常),未改为 Sheet —— 改造需搬整个 Sidebar,回归风险高 |
+| Phase 4 债务 1/2/3/5/7 | ✅ 完成 | badge 清零、表格换 Table、setError→Toast、SecurityForm 受控、抽 InviteCodePanel |
+| ┗ 债务 4(StatusPill) | ✅ 完成 | 统一为数据驱动;AccountPage 装饰性用法改 Badge |
+| ┗ 债务 6(分页) | ✅ 完成 | 新增 Pagination 原语,替换 ImageHistory/AdminAudit 启发式 |
+| ┗ T4.8 KB 页拆分 | ✅ 完成 | 抽出 DocumentVersionsPanel |
+| Phase 4 页面整体迁 Tailwind 布局 | ⚠️ 部分 | 页面级结构类(`page`/`content-grid`/`stack`)保留(绞杀者策略),组件内部已 Tailwind 化 |
+| Phase 5 T5.2/5.3/5.4 | ✅ 完成 | StatusPill/Badge 统一;JsonBlock 可折叠;ResearchComposer 用新 Tabs |
+| ┗ T5.1 assistant-ui | ❌ 未做 | 文档原文为「**评估**引入」;重依赖 + 改写 SSE 富流,无浏览器验证,暂缓 |
+| ┗ T5.5 TanStack Query | ❌ 未做 | 文档标「(可选)」;与第 6 节同属数据层重构,暂缓 |
+| Phase 6 | ✅ 完成 | 解析式删除死规则:`components.css` 849→279 行,打包 CSS 50.5→39.3kB |
+| 第 6 节 数据层 | ⚠️ 部分 | 已加 **401→登出拦截器**(`apiRequest`/`streamRequest`);TanStack Query/拦截器全套未做(标为独立可选轨道) |
+
+**明确暂缓(需产品/技术确认后再排期)**:T2.8 Radix Select、T3.2 Sheet 抽屉、T5.1 assistant-ui、T5.5 + 数据层 TanStack Query。理由统一:重依赖或大范围改写工作中的逻辑,且当前环境无法做浏览器级回归验证。
+
+---
+
+
 
 - **绞杀者模式**:新底座(Tailwind + shadcn)与旧 CSS(`styles/*.css`)并存,按"原语→Shell→页面"逐块替换,每步独立验证、可回滚。
 - **自下而上**:token/原语稳定后,业务页迁移退化为机械替换。

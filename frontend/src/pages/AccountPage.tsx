@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Alert, Badge, EmptyState, StatusPill } from "../components/ui";
+import { Alert, Badge, EmptyState } from "../components/ui";
 import { ApiConfigForm } from "../features/account/ApiConfigForm";
 import { LoginLogTable } from "../features/account/LoginLogTable";
 import { ProfileForm } from "../features/account/ProfileForm";
@@ -122,7 +122,7 @@ export function AccountPage() {
 
   return (
     <section className="page">
-      <header className="page-header"><div><h1>账号中心</h1><p>维护个人资料、账号安全、个人 API 配置和登录审计记录。</p></div><div className="page-header__meta"><Badge tone="neutral">{logs.length} 条登录记录</Badge><Badge tone="neutral">{profile?.roles.join(", ") ?? "账户"}</Badge></div><StatusPill status="ACTIVE" label="登录态受保护" /></header>
+      <header className="page-header"><div><h1>账号中心</h1><p>维护个人资料、账号安全、个人 API 配置和登录审计记录。</p></div><div className="page-header__meta"><Badge tone="neutral">{logs.length} 条登录记录</Badge><Badge tone="neutral">{profile?.roles.join(", ") ?? "账户"}</Badge></div><Badge tone="success">登录态受保护</Badge></header>
       {profileError ? <Alert tone="error">{profileError}</Alert> : null}
       {loading ? <EmptyState message="账号信息加载中..." /> : null}
       {!loading && profile ? <div className="stack-lg"><ApiConfigForm config={apiConfig} apiKeyMasked={apiKeyMasked} configured={apiConfigured} saving={savingApiConfig} message={apiConfigMessage} error={apiConfigError} onChange={setApiConfig} onSubmit={submitApiConfig} onTest={testApiConfig} /><div className="content-grid content-grid--two"><ProfileForm profile={profile} saving={savingProfile} success={profileSuccess} onChange={setProfile} onSubmit={submitProfile} /><SecurityForm form={passwordForm} saving={savingPassword} message={passwordMessage} error={passwordError} onChange={setPasswordForm} onSubmit={submitPassword} /></div><LoginLogTable logs={logs} /></div> : null}

@@ -8,6 +8,7 @@ export { Field } from "./Field";
 export { Input, Select, Textarea } from "./FormControls";
 export { IconButton } from "./IconButton";
 export { Panel } from "./Panel";
+export { Pagination } from "./Pagination";
 export { Popover } from "./Popover";
 export { Sheet } from "./Sheet";
 export { Skeleton } from "./Skeleton";

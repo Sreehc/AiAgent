@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Badge, Button, EmptyState, Field, Input, Panel, Select, Tabs } from "../components/ui";
+import { Alert, Badge, Button, EmptyState, Field, Input, Pagination, Panel, Select, Tabs } from "../components/ui";
 import { useAuthSession } from "../hooks/useAuthSession";
 import { adminApi } from "../services/adminApi";
 import { AdminAuditRow, ApiError } from "../services/api";
@@ -74,11 +74,7 @@ export function AdminAuditPage() {
           <div className="table-list">
             {rows.map((row, index) => <article key={index} className="list-item"><pre>{JSON.stringify(row, null, 2)}</pre></article>)}
           </div>
-          <div className="button-row button-row--between">
-            <Button type="button" variant="secondary" disabled={pageNo <= 1 || loading} onClick={() => setPageNo((current) => Math.max(1, current - 1))}>上一页</Button>
-            <Badge>第 {pageNo} 页</Badge>
-            <Button type="button" variant="secondary" disabled={rows.length < 50 || loading} onClick={() => setPageNo((current) => current + 1)}>下一页</Button>
-          </div>
+          <Pagination pageNo={pageNo} hasMore={rows.length >= 50} loading={loading} onChange={(page) => setPageNo(page)} />
           {!loading && rows.length === 0 ? <EmptyState message="暂无审计记录。" /> : null}
         </div>
       </Panel>

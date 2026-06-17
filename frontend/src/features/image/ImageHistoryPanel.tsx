@@ -1,5 +1,5 @@
 import { ImageHistoryItem } from "../../services/api";
-import { Badge, Button, EmptyState, Panel, Skeleton, StatusPill } from "../../components/ui";
+import { Badge, EmptyState, Pagination, Panel, Skeleton, StatusPill } from "../../components/ui";
 
 type ImageHistoryPanelProps = {
   items: ImageHistoryItem[];
@@ -12,7 +12,7 @@ type ImageHistoryPanelProps = {
 export function ImageHistoryPanel({ items, pageNo, loading, hasMore, onPageChange }: ImageHistoryPanelProps) {
   return (
     <Panel title="历史记录" eyebrow="History" action={<Badge>第 {pageNo} 页</Badge>}>
-      <div className="cluster image-history-actions"><Button type="button" variant="secondary" disabled={pageNo <= 1 || loading} onClick={() => onPageChange(pageNo - 1)}>上一页</Button><Button type="button" variant="secondary" disabled={!hasMore || loading} onClick={() => onPageChange(pageNo + 1)}>下一页</Button></div>
+      <Pagination pageNo={pageNo} hasMore={hasMore} loading={loading} onChange={onPageChange} />
       {loading ? <Skeleton lines={3} /> : (
         <div className="image-gallery">
           {items.map((item) => <article key={item.jobId} className="image-card">{item.resultUrl ? <img className="image-card__preview" src={item.resultUrl} alt={item.prompt} /> : <div className="image-card__placeholder">暂无预览</div>}<div className="image-card__body"><div className="split"><strong>{item.mode === "IMAGES" ? "文本生图" : "参考图编辑"}</strong><StatusPill status={item.status} /></div><p>{item.prompt}</p><small className="muted">{item.size} · {formatDateTime(item.createdAt)}</small><small className="muted">会话：{item.sessionId ?? "未挂接"}</small>{item.errorMessage ? <small className="field__error">失败原因：{item.errorMessage}</small> : null}{item.resultUrl ? <a href={item.resultUrl} target="_blank" rel="noreferrer">打开结果</a> : null}</div></article>)}

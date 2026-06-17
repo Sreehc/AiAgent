@@ -1,8 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { Alert, Badge, Button, EmptyState, Panel, StatusPill } from "../components/ui";
+import { Alert, Badge } from "../components/ui";
 import { showToast } from "../components/Toast";
 import { DocumentTable } from "../features/knowledge/DocumentTable";
+import { DocumentVersionsPanel } from "../features/knowledge/DocumentVersionsPanel";
 import { KnowledgeBaseList } from "../features/knowledge/KnowledgeBaseList";
 import { KnowledgeBaseSummary } from "../features/knowledge/KnowledgeBaseSummary";
 import { SearchTestPanel } from "../features/knowledge/SearchTestPanel";
@@ -259,12 +260,7 @@ export function KnowledgeBasesPage() {
         <main className="stack">
           <KnowledgeBaseSummary item={selected} form={kbForm} submitting={submitting} onFormChange={setKbForm} onSave={() => void onSave()} onDelete={() => selected && setKbToDelete(selected)} />
           <DocumentTable selectedKbId={selectedKbId} documents={documents} uploading={uploading} indexingActions={indexingActions} onUpload={onUpload} onIndex={(documentId) => void onIndex(documentId)} onReindex={(documentId) => void onReindex(documentId)} onPreview={(documentId) => void onPreviewDocument(documentId)} onDownload={(documentId) => void onDownloadDocument(documentId)} onVersions={(documentId) => void onVersionsDocument(documentId)} onDelete={(documentId) => void onDeleteDocument(documentId)} />
-          {versionSourceDocumentId ? <Panel title="文档版本" eyebrow="Versions" action={<Button type="button" variant="ghost" size="sm" onClick={() => { setVersionSourceDocumentId(null); setDocumentVersions([]); }}>关闭</Button>}>
-            <div className="table-list">
-              {documentVersions.map((item, index) => <article key={item.documentId} className="table-row"><div><strong>{item.fileName}</strong><br /><small>v{item.versionNo} · {item.fileSize} bytes · {item.documentId}{index === 0 ? " · 当前最高版本" : ""}</small></div><StatusPill status={item.parseStatus} /><Button type="button" variant="secondary" size="sm" onClick={() => void onRestoreVersion(item.documentId)}>恢复为新版本</Button></article>)}
-              {documentVersions.length === 0 ? <EmptyState message="暂无版本记录。" /> : null}
-            </div>
-          </Panel> : null}
+          {versionSourceDocumentId ? <DocumentVersionsPanel versions={documentVersions} onRestore={(versionId) => void onRestoreVersion(versionId)} onClose={() => { setVersionSourceDocumentId(null); setDocumentVersions([]); }} /> : null}
           <SearchTestPanel selected={selectedKbId !== null} query={searchQuery} hits={searchHits} searching={searching} onQueryChange={setSearchQuery} onSearch={onSearch} />
         </main>
       </div>

@@ -262,6 +262,23 @@ type ApiResponse<T> = {
 
 const API_PREFIX = "/api/v1";
 
+const SESSION_STORAGE_KEY = "aiagent.auth.session";
+const SESSION_CHANGE_EVENT = "aiagent.auth.sessionchange";
+let unauthorizedHandled = false;
+
+function handleUnauthorized() {
+  if (unauthorizedHandled) return;
+  unauthorizedHandled = true;
+  try {
+    window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    window.dispatchEvent(new Event(SESSION_CHANGE_EVENT));
+  } finally {
+    window.setTimeout(() => {
+      unauthorizedHandled = false;
+    }, 0);
+  }
+}
+
 function isApiError(value: unknown): value is ApiError {
   return (
     typeof value === "object" &&
@@ -305,6 +322,9 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
+    if (response.status === 401 && accessToken) {
+      handleUnauthorized();
+    }
     const errorPayload = await response.json().catch(() => null);
     throw toApiError(errorPayload, {
       code: "NETWORK_ERROR",
@@ -345,6 +365,9 @@ export async function streamRequest(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      handleUnauthorized();
+    }
     const errorPayload = await response.json().catch(() => null);
     throw toApiError(errorPayload, {
       code: "NETWORK_ERROR",

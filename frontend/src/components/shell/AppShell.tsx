@@ -11,6 +11,7 @@ export function AppShell() {
   const navigate = useNavigate();
   const { session, setSession } = useAuthSession();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   async function logout() {
     if (session?.accessToken) {
@@ -25,10 +26,16 @@ export function AppShell() {
   }
 
   return (
-    <div className={`app-shell ${sidebarOpen ? "sidebar-open" : ""}`}>
+    <div className={`app-shell ${sidebarOpen ? "sidebar-open" : ""} ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <a className="skip-link" href="#main-content">跳到主要内容</a>
       <MobileNav isOpen={sidebarOpen} onClose={closeSidebar} />
-      <Sidebar isAdmin={session?.user.roles.includes("ADMIN") ?? false} onNavigate={closeSidebar} footer={<UserMenu session={session} onLogout={() => void logout()} />} />
+      <Sidebar
+        isAdmin={session?.user.roles.includes("ADMIN") ?? false}
+        collapsed={sidebarCollapsed}
+        onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
+        onNavigate={closeSidebar}
+        footer={<UserMenu session={session} onLogout={() => void logout()} />}
+      />
 
       <main className="app-main">
         <Topbar onOpenMenu={() => setSidebarOpen(true)} roleLabel={session?.user.roles.join(", ") ?? "USER"} />

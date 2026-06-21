@@ -1,6 +1,7 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Command } from "cmdk";
+import { Alert } from "../ui";
 import { useAuthSession } from "../../hooks/useAuthSession";
 import { authApi } from "../../services/authApi";
 
@@ -31,18 +32,26 @@ const COMMANDS: CommandEntry[] = [
   { id: "logout", label: "退出登录", description: "结束当前 session 并返回登录页", keywords: ["logout", "sign out", "退出"], action: "logout", group: "账户" }
 ];
 
+const COMMAND_GROUPS = ["工作区", "账户", "系统"];
+
 export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const navigate = useNavigate();
   const { session, setSession } = useAuthSession();
   const isAdmin = session?.user.roles.includes("ADMIN") ?? false;
+  const [search, setSearch] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const available = COMMANDS.filter(
+  const availableCommands = useMemo(() => COMMANDS.filter(
     (command) => (!command.adminOnly || isAdmin) && (command.action !== "logout" || session)
-  );
-  const groups = Array.from(new Set(available.map((command) => command.group)));
+  ), [isAdmin, session]);
+  const groups = COMMAND_GROUPS
+    .map((group) => ({ group, commands: availableCommands.filter((command) => command.group === group) }))
+    .filter((entry) => entry.commands.length > 0);
 
   useEffect(() => {
     if (!isOpen) return;
+    setSearch("");
+    setError(null);
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -53,9 +62,19 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
+  async function executeCommand(command: CommandEntry) {
+    setError(null);
+    try {
+      await runCommand(command);
+    } catch (commandError) {
+      setError(commandError instanceof Error ? commandError.message : "命令执行失败，请稍后重试。");
+    }
+  }
+
   async function runCommand(command: CommandEntry) {
     if (command.action === "logout") {
-      if (session?.accessToken) await authApi.logout(session.accessToken).catch(() => undefined);
+      if (!session?.accessToken) throw new Error("当前没有可退出的登录会话。");
+      await authApi.logout(session.accessToken);
       setSession(null);
       navigate("/login", { replace: true });
       onClose();
@@ -64,14 +83,17 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     if (command.path) {
       navigate(command.path);
       onClose();
+      return;
     }
+
+    throw new Error("该命令暂不可用。");
   }
 
   if (!isOpen) return null;
 
   return (
     <div
-      className="fixed inset-0 z-[50] flex items-start justify-center bg-foreground/40 px-4 pt-[12vh] backdrop-blur-sm"
+      className="fixed inset-0 z-[50] flex items-start justify-center bg-[var(--color-overlay)] px-4 pt-[12vh] backdrop-blur-sm"
       onMouseDown={onClose}
       role="presentation"
     >
@@ -82,32 +104,33 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       >
         <Command.Input
           autoFocus
+          value={search}
+          onValueChange={setSearch}
           placeholder="搜索页面或操作"
           className="w-full border-b border-border bg-transparent px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground"
         />
+        {error ? <Alert tone="error" className="m-2">{error}</Alert> : null}
         <Command.List className="max-h-80 overflow-y-auto p-2">
           <Command.Empty className="px-3 py-6 text-center text-sm text-muted-foreground">
-            没有匹配的命令。
+            {search.trim() ? `没有匹配“${search.trim()}”的命令。` : "没有匹配的命令。"}
           </Command.Empty>
-          {groups.map((group) => (
+          {groups.map(({ group, commands }) => (
             <Command.Group
               key={group}
               heading={group}
               className="text-xs font-semibold text-muted-foreground [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5"
             >
-              {available
-                .filter((command) => command.group === group)
-                .map((command) => (
-                  <Command.Item
-                    key={command.id}
-                    value={`${command.label} ${command.description} ${command.keywords.join(" ")}`}
-                    onSelect={() => void runCommand(command)}
-                    className="flex cursor-pointer flex-col gap-0.5 rounded-md px-3 py-2 text-sm text-foreground outline-none data-[selected=true]:bg-muted"
-                  >
-                    <strong className="font-medium">{command.label}</strong>
-                    <span className="text-xs text-muted-foreground">{command.description}</span>
-                  </Command.Item>
-                ))}
+              {commands.map((command) => (
+                <Command.Item
+                  key={command.id}
+                  value={`${command.label} ${command.description} ${command.keywords.join(" ")}`}
+                  onSelect={() => void executeCommand(command)}
+                  className="flex cursor-pointer flex-col gap-0.5 rounded-md px-3 py-2 text-sm text-foreground outline-none transition-colors data-[selected=true]:bg-primary/10 data-[selected=true]:text-primary"
+                >
+                  <strong className="font-medium">{command.label}</strong>
+                  <span className="text-xs text-muted-foreground">{command.description}</span>
+                </Command.Item>
+              ))}
             </Command.Group>
           ))}
         </Command.List>

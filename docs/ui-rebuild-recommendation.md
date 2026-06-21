@@ -8,7 +8,7 @@
 
 ## 0. 结论与核查更正
 
-**采用 shadcn/ui + Radix + Tailwind 的增量(绞杀者)迁移,不推倒重建。** 现有信息架构(IA)、导航数据、设计 token 语义、数据层均贴合目标,重建投入产出比低于增量。
+**采用 Radix + Tailwind + internal UI primitives 的增量(绞杀者)迁移,不推倒重建。** 现有信息架构(IA)、导航数据、设计 token 语义、数据层均贴合目标,重建投入产出比低于增量。
 
 本次核查对旧文档的更正(影响计划准确性):
 
@@ -26,7 +26,7 @@
 
 ### 1.1 UI 原语(`src/components/ui/`,13 个,经 `index.ts` 统一导出)
 
-| 文件 | 导出 | 当前实现 | shadcn 对应 | 关键迁移点 |
+| 文件 | 导出 | 当前实现 | Radix-style 对应 | 关键迁移点 |
 |---|---|---|---|---|
 | `Button.tsx` | `Button` | `variant: primary/secondary/ghost/danger`、`size: sm/md`、`fullWidth`、`loading`(内置 `.spinner`),class 字符串拼接 | `button` | variant 映射:primary→default、danger→destructive;`loading`/`fullWidth` 需薄封装保留 |
 | `Dialog.tsx` | `Dialog` | **手写** `createPortal` + 焦点陷阱(Tab 循环首尾)+ Esc + `body.overflow` 锁 + 关闭恢复焦点;props `isOpen/title/description/footer/onClose` | Radix `dialog` | 删手写焦点逻辑;保留 `title/description/footer` 插槽形态 |
@@ -51,13 +51,13 @@
 - `Sidebar.tsx`:`NavLink` + 分组 `工作区/系统/账户`,admin 组按 `isAdmin` 渲染。
 - `Topbar.tsx`:含 `command-trigger`(⌘K 提示)+ 角色 `badge`(裸 span)+ 移动端菜单按钮。
 - `UserMenu.tsx`:**当前不是下拉**,是侧栏底部固定的 `user-card` + 退出按钮 → Phase 3 改 DropdownMenu。
-- `MobileNav.tsx`:仅一个全屏 backdrop 按钮(手写遮罩)→ 改 shadcn Sheet。
+- `MobileNav.tsx`:仅一个全屏 backdrop 按钮(手写遮罩)→ 改 Radix-style Sheet。
 
 ### 1.3 命令面板(`src/components/command/`)
 
 - `CommandPalette.tsx`(111):**手写** combobox,`COMMANDS` 静态数组 8 项(workspace/knowledge/images/history/account/settings/mcp/logout),`adminOnly` 与 `action:"logout"` 过滤,手写 Arrow/Enter/Esc + `role="listbox/option"`。
 - `commandEvents.ts`:`window` 自定义事件 `aiagent.command-palette.open` 解耦触发;⌘K 在 `App.tsx` 经 `useKeyboard` 绑定。
-- 迁移:换 cmdk-based shadcn `Command`,**保留事件解耦与 ⌘K**,扩展动态命令(跳转具体 session/最近项)。
+- 迁移:换 cmdk-based cmdk Command,**保留事件解耦与 ⌘K**,扩展动态命令(跳转具体 session/最近项)。
 
 ### 1.4 Workspace(核心,`src/pages/WorkspacePage.tsx` 324 + `src/features/workspace/`)
 
@@ -88,22 +88,22 @@
 - `stores/auth.ts`:localStorage(`aiagent.auth.session`)+ `expiresAt` 校验;`useAuthSession` 经自定义事件 `aiagent.auth.sessionchange` + `storage` 事件跨标签同步。
 - `components/Toast.tsx`:模块级 `listeners/store` 发布订阅,**`showToast` 全仓 0 调用 → 死代码**。
 
-### 1.7 工程约束(接入 shadcn 的前置障碍)
+### 1.7 工程约束(接入 Radix-style 的前置障碍)
 
-- `tsconfig.app.json`:`moduleResolution: "Node"`、`module: "ESNext"`、`target: ES2022`、**无 `@/*` 别名**。shadcn CLI 需 `Bundler` 解析 + `@` 别名 → **Phase 0 必改**。
+- `tsconfig.app.json`:`moduleResolution: "Node"`、`module: "ESNext"`、`target: ES2022`、**无 `@/*` 别名**。internal component scaffolding 需 `Bundler` 解析 + `@` 别名 → **Phase 0 必改**。
 - `vite.config.ts`:仅 `react()` 插件 + `/api`→`:8080` 代理,**无 alias**。
 - **无** `tailwind.config.*` / `postcss.config.*` / `components.json` → 全部新建。
-- `package.json` 依赖极简:仅 react/react-dom/react-router-dom + 构建链。Tailwind/shadcn/Radix/cva/lucide **均未安装**。
+- `package.json` 依赖极简:仅 react/react-dom/react-router-dom + 构建链。Tailwind/Radix-style/Radix/cva/lucide **均未安装**。
 
 ---
 
 ## 实施状态(2026-06 落地记录)
 
-> 分支 `ui-rebuild-shadcn`,提交 `b5907d9`→`0f97256`。每个 Phase 结束 `pnpm build`(tsc + vite)通过、`tsc --noUnusedLocals` 干净、dev server 可启动。环境无浏览器,运行时视觉(尤其暗色对比度)需人工复核。
+> 分支 `ui-visual-upgrade`,提交 `b5907d9`→`0f97256`。每个 Phase 结束 `pnpm build`(tsc + vite)通过、`tsc --noUnusedLocals` 干净、dev server 可启动。环境无浏览器,运行时视觉(尤其暗色对比度)需人工复核。
 
 | 任务 | 状态 | 说明 |
 |---|---|---|
-| Phase 0(T0.1–0.6) | ✅ 完成 | 用 Tailwind 3 + 手写 shadcn 风格组件替代交互式 CLI(headless 环境更稳),其余等价 |
+| Phase 0(T0.1–0.6) | ✅ 完成 | 用 Tailwind 3 + 手写 Radix-style 风格组件替代交互式 CLI(headless 环境更稳),其余等价 |
 | Phase 1(T1.1–1.6) | ✅ 完成 | 亮/暗双套 HSL 变量 + 暗色桥接进 `tokens.css`,遗留样式同步翻转 |
 | Phase 2(T2.1–2.10) | ✅ 完成(T2.8 例外) | Dialog/Tabs 换 Radix;新增 Table/DropdownMenu/Popover/Tooltip/Sheet/Pagination;Toast 换 sonner |
 | ┗ T2.8 Select | ⚠️ 部分 | 保留并样式化原生 `<select>`(保 `onChange` API),**未**换 Radix Select —— 换 `onValueChange` 涉及 13 文件、无浏览器验证风险高 |
@@ -126,7 +126,7 @@
 
 
 
-- **绞杀者模式**:新底座(Tailwind + shadcn)与旧 CSS(`styles/*.css`)并存,按"原语→Shell→页面"逐块替换,每步独立验证、可回滚。
+- **绞杀者模式**:新底座(Tailwind + Radix-style)与旧 CSS(`styles/*.css`)并存,按"原语→Shell→页面"逐块替换,每步独立验证、可回滚。
 - **自下而上**:token/原语稳定后,业务页迁移退化为机械替换。
 - **保持可发布**:每个 Phase 结束 `pnpm build` 通过且功能不退化。
 - **债务随迁清理**:第 6 节债务在对应 Phase 顺带收敛,不单开重构。
@@ -137,22 +137,22 @@
 
 ## 3. 任务划分(分阶段 + 文件级清单 + 验收)
 
-### Phase 0 — 工程基建(接入 shadcn 前置)
+### Phase 0 — 工程基建(接入 Radix-style 前置)
 
-> 目标:让 shadcn/Tailwind 能正确生成与解析组件。**全程不动业务代码**。
+> 目标:让 Radix-style/Tailwind 能正确生成与解析组件。**全程不动业务代码**。
 
 - [ ] **T0.1** 安装 `tailwindcss postcss autoprefixer`;新建 `tailwind.config.ts`(`content: ["./index.html","./src/**/*.{ts,tsx}"]`、`darkMode: "class"`)与 `postcss.config.js`。
 - [ ] **T0.2** 改 `tsconfig.app.json`:`moduleResolution: "Bundler"`,`paths: { "@/*": ["./src/*"] }`,`baseUrl: "."`。
 - [ ] **T0.3** 改 `vite.config.ts`:加 `resolve.alias { "@": path.resolve(__dirname, "src") }`(保留现有 `/api` 代理不变)。
 - [ ] **T0.4** 安装 `class-variance-authority clsx tailwind-merge lucide-react`;新建 `src/lib/utils.ts` 导出 `cn()`。
-- [ ] **T0.5** `pnpm dlx shadcn@latest init` 生成 `components.json`;**输出目录冲突处理**:现有 `src/components/ui/`(大驼峰文件名)与 shadcn 习惯(小写)冲突 → 暂将 shadcn 产物落到 `src/components/ui/`,以小写文件名与旧大驼峰文件共存,旧文件在 Phase 2 逐个删除。
-- [ ] **T0.6** 在 `tailwind.config` 与 shadcn `:root` 中**映射 `tokens.css` 语义变量**(见 Phase 1),不在本阶段删 `tokens.css`。
+- [ ] **T0.5** `establish internal UI primitive structure` 生成 `components.json`;**输出目录冲突处理**:现有 `src/components/ui/`(大驼峰文件名)与 internal primitive convention(小写)冲突 → 暂将 Radix-style 产物落到 `src/components/ui/`,以小写文件名与旧大驼峰文件共存,旧文件在 Phase 2 逐个删除。
+- [ ] **T0.6** 在 `tailwind.config` 与 Radix-style `:root` 中**映射 `tokens.css` 语义变量**(见 Phase 1),不在本阶段删 `tokens.css`。
 
-**验收**:`pnpm dlx shadcn@latest add button` 成功生成,在一处临时挂载渲染正常;`pnpm build` 通过;旧 UI 与样式零回归。
+**验收**:`create a temporary Button primitive` 成功生成,在一处临时挂载渲染正常;`pnpm build` 通过;旧 UI 与样式零回归。
 
 ### Phase 1 — 设计 token 与暗色模式
 
-- [ ] **T1.1** 把 `tokens.css` 的语义变量映射进 shadcn 变量:`--color-surface→--card/--background`、`--color-border→--border`、`--color-primary→--primary`、`--color-text→--foreground`、`--color-text-muted→--muted-foreground`、`--color-danger→--destructive`、各 `*-soft` 作为 accent/muted 变体。
+- [ ] **T1.1** 把 `tokens.css` 的语义变量映射进 internal UI variables:`--color-surface→--card/--background`、`--color-border→--border`、`--color-primary→--primary`、`--color-text→--foreground`、`--color-text-muted→--muted-foreground`、`--color-danger→--destructive`、各 `*-soft` 作为 accent/muted 变体。
 - [ ] **T1.2** **新增 `.dark` 变量集**(当前 `color-scheme: light`,无暗色)——这是从零新建,需为上表每个变量给暗色值。
 - [ ] **T1.3** 保留 IBM Plex Sans/Mono → 接入 Tailwind `theme.fontFamily`。
 - [ ] **T1.4** 间距(`--space-*`)、圆角(`--radius-*`)、阴影、`--z-*`、`--focus-ring` 对齐 Tailwind 主题。
@@ -163,7 +163,7 @@
 
 ### Phase 2 — UI 原语迁移(逐个,保 API 形态)
 
-> 策略:每个 shadcn 原语提供与旧 props 等价的薄封装,降低业务页改动面;旧大驼峰文件逐个删除并更新 `index.ts`。
+> 策略:每个 Radix-style 原语提供与旧 props 等价的薄封装,降低业务页改动面;旧大驼峰文件逐个删除并更新 `index.ts`。
 
 直接映射(换实现,保 API):
 - [ ] **T2.1** Button(primary→default、secondary、ghost、danger→destructive;size sm/md;封装 `loading`/`fullWidth`)
@@ -174,19 +174,19 @@
 - [ ] **T2.6** EmptyState / IconButton / Panel(→ Card,保 4 variant 与全部插槽)
 
 新增缺口原语:
-- [ ] **T2.7** Table(shadcn Table)—— 替换 `table-row`/`list-item` 手写表(`DocumentTable`/`ModelRegistry`/`LoginLogTable`/`KnowledgeBasesPage`/`AdminSettingsPage`)。
+- [ ] **T2.7** Table(internal Table primitive)—— 替换 `table-row`/`list-item` 手写表(`DocumentTable`/`ModelRegistry`/`LoginLogTable`/`KnowledgeBasesPage`/`AdminSettingsPage`)。
 - [ ] **T2.8** Select(Radix)—— 替换 13 文件中包原生 `<select>` 的旧 `Select`,**逐处适配**(原 `onChange(event)` → Radix `onValueChange(value)`,改动面较大,单列子任务)。
 - [ ] **T2.9** DropdownMenu、Popover、Tooltip(为 Phase 3 UserMenu/命令做准备)。
-- [ ] **T2.10** Toast → shadcn/sonner Toast,**替换 `Toast.tsx` 死代码并真正接线**(见债务 3)。
+- [ ] **T2.10** Toast → sonner Toast,**替换 `Toast.tsx` 死代码并真正接线**(见债务 3)。
 
 **验收**:`index.ts` 导出口径稳定;旧 `Dialog.tsx`/`Tabs.tsx` 手写逻辑删除;Badge/Toast 真正被使用;`pnpm build` 通过。
 
 ### Phase 3 — App Shell、导航与命令面板
 
-- [ ] **T3.1** AppShell/Sidebar/Topbar 换 shadcn 视觉,**保留 `navigation.ts` 数据结构与 work/admin/account 分组及 admin 条件渲染**。
-- [ ] **T3.2** MobileNav 用 shadcn **Sheet** 替换手写 backdrop。
+- [ ] **T3.1** AppShell/Sidebar/Topbar 换 Radix-style 视觉,**保留 `navigation.ts` 数据结构与 work/admin/account 分组及 admin 条件渲染**。
+- [ ] **T3.2** MobileNav 用 Radix Sheet 替换手写 backdrop。
 - [ ] **T3.3** UserMenu 从侧栏固定卡片升级为 **DropdownMenu**;Topbar 角色裸 span 换 Badge。
-- [ ] **T3.4** Command Palette 换 cmdk-based shadcn `Command`,**保留 `commandEvents` 解耦与 ⌘K(`App.tsx`+`useKeyboard`)**,扩展动态命令(跳转具体 session、最近项、分组)。
+- [ ] **T3.4** Command Palette 换 cmdk-based cmdk Command,**保留 `commandEvents` 解耦与 ⌘K(`App.tsx`+`useKeyboard`)**,扩展动态命令(跳转具体 session、最近项、分组)。
 
 **验收**:导航/快捷键(⌘K)/移动端抽屉行为不退化;命令面板支持动态项。
 
@@ -227,8 +227,8 @@
 
 ## 4. 推荐技术栈(锁定版)
 
-- 主底座:`shadcn/ui` + `Radix` + `Tailwind` + `class-variance-authority` + `clsx` + `tailwind-merge` + `lucide-react`。
-- 表格:`shadcn Table`,数据量大时叠加 `TanStack Table`。
+- 主底座:`Radix + Tailwind primitives` + `Radix` + `Tailwind` + `class-variance-authority` + `clsx` + `tailwind-merge` + `lucide-react`。
+- 表格:`internal Table primitive`,数据量大时叠加 `TanStack Table`。
 - 可选增强:`assistant-ui`(Phase 5 对话流)、`Recharts`(运行监控,若需要)。
 - 暂不引入:`CopilotKit`(当前无明确场景);TanStack Query(数据层改造,见第 7 节,与 UI 解耦)。
 

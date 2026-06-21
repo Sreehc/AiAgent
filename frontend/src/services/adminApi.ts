@@ -1,13 +1,14 @@
 import {
   apiRequest,
+  AdminOverviewResponse,
   AdminAuditRow,
   InviteItem,
   McpDiscoverResponse,
   McpHealthResponse,
   McpServerItem,
   ModelConfigItem,
+  RagEvaluationCaseItem,
   RagEvaluationItem
-  , RagEvaluationCaseItem
 } from "./api";
 
 export type ModelConfigPayload = {
@@ -57,6 +58,7 @@ function auditQuery(params: AuditQuery = {}) {
 }
 
 export const adminApi = {
+  getOverview: (accessToken: string) => apiRequest<AdminOverviewResponse>("/admin/overview", {}, accessToken),
   listModels: (accessToken: string) => apiRequest<ModelConfigItem[]>("/admin/models", {}, accessToken),
   createModel: (accessToken: string, payload: ModelConfigPayload) =>
     apiRequest<ModelConfigItem>("/admin/models", { method: "POST", body: JSON.stringify(payload) }, accessToken),

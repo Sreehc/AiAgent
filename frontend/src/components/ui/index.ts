@@ -14,6 +14,6 @@ export { Sheet } from "./Sheet";
 export { Skeleton } from "./Skeleton";
 export { StatusPill } from "./StatusPill";
 export { Switch } from "./Switch";
-export { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./Table";
-export { Tabs } from "./Tabs";
+export { Table, TableBody, TableCell, TableEmpty, TableError, TableExpandedRow, TableHead, TableHeader, TableLoading, TableRow } from "./Table";
+export { Tabs, TabsContent, TabsContentState } from "./Tabs";
 export { Tooltip } from "./Tooltip";

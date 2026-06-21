@@ -103,7 +103,7 @@ public class McpAdminController {
             @PathVariable String serverCode
     ) {
         McpAdminService.HealthResult result = mcpAdminService.health(currentUser, serverCode);
-        return ApiResponse.success(new HealthResponse(result.serverCode(), result.status(), result.message(), result.latencyMs(), result.toolCount(), result.transportType(), result.errorCode(), result.checkedAt()));
+        return ApiResponse.success(new HealthResponse(result.serverCode(), result.status(), result.healthState(), result.riskReason(), result.message(), result.latencyMs(), result.toolCount(), result.transportType(), result.errorCode(), result.checkedAt()));
     }
 
     @PostMapping("/{serverCode}/tools/{toolName}/test")
@@ -187,6 +187,8 @@ public class McpAdminController {
     public record HealthResponse(
             String serverCode,
             String status,
+            String healthState,
+            String riskReason,
             String message,
             Long latencyMs,
             int toolCount,

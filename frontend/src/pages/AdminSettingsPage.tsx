@@ -141,11 +141,20 @@ export function AdminSettingsPage() {
 
   if (!session?.user.roles.includes("ADMIN")) return <AdminDenied />;
 
+  const modelSummary = buildModelSummary(models);
+
   return (
     <section className="page">
-      <header className="page-header"><div><h1>模型配置</h1><p>管理 Chat、Embedding 和 Image 模型能力，以及工作台邀请码。</p></div><div className="page-header__meta"><Badge tone="neutral">{models.filter((model) => model.enabled).length} 个启用</Badge><Badge tone="neutral">{invites.length} 个邀请码</Badge></div><Badge>{loading ? "加载中" : `${models.length} models`}</Badge></header>
+      <header className="page-header"><div><h1>模型配置</h1><p>管理 Chat、Embedding 和 Image 模型能力，以及工作台邀请码。</p></div><div className="page-header__meta"><Badge tone={modelSummary.defaultModel ? "success" : "warning"}>{modelSummary.defaultModel ? "默认已设置" : "默认模型未设置"}</Badge><Badge tone={modelSummary.riskyModels.length > 0 ? "warning" : "success"}>{modelSummary.riskyModels.length} 个风险</Badge><Badge tone="neutral">{invites.length} 个邀请码</Badge></div><Badge>{loading ? "加载中" : `${models.length} models`}</Badge></header>
       {error ? <Alert tone="error">{error}</Alert> : null}
-      {models.some((model) => model.provider === "local-mock" && model.enabled) ? <Alert tone="error">检测到已启用的 local-mock provider。生产环境应停用该配置。</Alert> : null}
+      {!loading && !modelSummary.defaultModel ? <Alert tone="warning">默认模型未设置。建议为运行时指定一个稳定的 Chat 模型，避免任务调度时选择不明确。</Alert> : null}
+      {modelSummary.riskyModels.length > 0 ? <Alert tone="error" title="检测到模型风险配置">{modelSummary.riskyModels.length} 个启用模型使用 local-mock provider 或最近测试状态非 SUCCESS。请先处理生产风险，再开放给研究任务使用。</Alert> : null}
+      <div className="model-settings-summary">
+        <SummaryCard label="默认模型" value={modelSummary.defaultModel?.name ?? "未设置"} detail={modelSummary.defaultModel ? `${modelSummary.defaultModel.modelCode} · ${modelSummary.defaultModel.provider}` : "需要在注册表中设为默认"} tone={modelSummary.defaultModel ? "success" : "warning"} />
+        <SummaryCard label="启用模型" value={`${modelSummary.enabledModels}/${models.length}`} detail={`Chat ${modelSummary.chatModels} · Embedding ${modelSummary.embeddingModels} · Image ${modelSummary.imageModels}`} tone="neutral" />
+        <SummaryCard label="风险 provider" value={String(modelSummary.riskyModels.length)} detail={modelSummary.riskyModels.length > 0 ? "local-mock 或测试失败" : "未发现启用风险配置"} tone={modelSummary.riskyModels.length > 0 ? "danger" : "success"} />
+        <SummaryCard label="测试状态" value={String(modelSummary.failedTests.length)} detail={modelSummary.failedTests.length > 0 ? "最近测试非 SUCCESS" : "最近测试无失败样本"} tone={modelSummary.failedTests.length > 0 ? "warning" : "success"} />
+      </div>
       <div className="content-grid content-grid--wide-side">
         <aside className="stack">
           <ModelForm form={modelForm} submitting={submittingModel} editing={editingModelCode !== null} onChange={setModelForm} onSubmit={onSubmitModel} onCancelEdit={() => { setEditingModelCode(null); setModelForm(DEFAULT_MODEL_FORM); }} />
@@ -162,4 +171,31 @@ export function AdminSettingsPage() {
 
 function AdminDenied() {
   return <section className="page"><header className="page-header"><h1>模型配置</h1><Badge tone="neutral">Admin only</Badge></header><EmptyState message="当前账号没有管理员权限，无法访问该页面。" /></section>;
+}
+
+function SummaryCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: "neutral" | "success" | "warning" | "danger" }) {
+  return (
+    <div className="model-settings-summary__card" data-tone={tone}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </div>
+  );
+}
+
+function buildModelSummary(models: ModelConfigItem[]) {
+  const enabledModels = models.filter((model) => model.enabled);
+  const defaultModel = models.find((model) => model.defaultModel) ?? null;
+  const failedTests = models.filter((model) => model.riskCodes.includes("LAST_TEST_FAILED"));
+  const riskyModels = models.filter((model) => model.riskLevel !== "default");
+
+  return {
+    defaultModel,
+    enabledModels: enabledModels.length,
+    chatModels: models.filter((model) => model.modelType === "CHAT").length,
+    embeddingModels: models.filter((model) => model.modelType === "EMBEDDING").length,
+    imageModels: models.filter((model) => model.modelType === "IMAGE").length,
+    failedTests,
+    riskyModels
+  };
 }

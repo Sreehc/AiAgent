@@ -1,9 +1,11 @@
 import { Link, NavLink } from "react-router-dom";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Tooltip } from "../ui";
-import { accountNavigation, adminNavigation, NavigationItem, workNavigation } from "./navigation";
+import { cn } from "@/lib/utils";
+import { getNavigationSections, NavigationItem, NavigationSection } from "./navigation";
 
 type SidebarProps = {
+  id?: string;
   isAdmin: boolean;
   collapsed: boolean;
   onToggleCollapsed: () => void;
@@ -11,13 +13,22 @@ type SidebarProps = {
   footer: React.ReactNode;
 };
 
-function NavigationGroup({ label, items, collapsed, onNavigate }: { label: string; items: NavigationItem[]; collapsed: boolean; onNavigate: () => void }) {
+function NavigationGroup({ section, collapsed, onNavigate }: { section: NavigationSection; collapsed: boolean; onNavigate: () => void }) {
   return (
-    <div className="app-nav__group">
-      <span className="app-nav__label">{label}</span>
-      {items.map((item) => {
+    <section className="app-nav__group" data-admin-only={section.adminOnly || undefined} aria-label={section.label}>
+      <div className="app-nav__section-heading">
+        <span className="app-nav__label">{section.label}</span>
+        <span className="app-nav__count">{section.items.length}</span>
+      </div>
+      {section.items.map((item) => {
         const link = (
-          <NavLink key={item.to} to={item.to} className="app-nav__link" onClick={onNavigate} aria-label={item.label}>
+          <NavLink
+            key={item.to}
+            to={item.to}
+            className={({ isActive }) => cn("app-nav__link", isActive && "app-nav__link--active")}
+            onClick={onNavigate}
+            aria-label={collapsed ? item.label : undefined}
+          >
             <item.icon className="app-nav__icon" aria-hidden="true" />
             <span>{item.label}</span>
             <small>{item.shortLabel}</small>
@@ -25,13 +36,15 @@ function NavigationGroup({ label, items, collapsed, onNavigate }: { label: strin
         );
         return collapsed ? <Tooltip key={item.to} content={item.label} side="right">{link}</Tooltip> : link;
       })}
-    </div>
+    </section>
   );
 }
 
-export function Sidebar({ isAdmin, collapsed, onToggleCollapsed, onNavigate, footer }: SidebarProps) {
+export function Sidebar({ id, isAdmin, collapsed, onToggleCollapsed, onNavigate, footer }: SidebarProps) {
+  const sections = getNavigationSections(isAdmin);
+
   return (
-    <aside className="app-sidebar" aria-label="主导航">
+    <aside id={id} className="app-sidebar" aria-label="主导航" data-collapsed={collapsed || undefined}>
       <div className="app-sidebar__header">
         <Link className="app-brand" to="/workspace/chat" onClick={onNavigate} aria-label="AiAgent 研究工作台">
           <span className="app-brand__mark">AI</span>
@@ -44,9 +57,9 @@ export function Sidebar({ isAdmin, collapsed, onToggleCollapsed, onNavigate, foo
         </Tooltip>
       </div>
       <nav className="app-nav">
-        <NavigationGroup label="工作区" items={workNavigation} collapsed={collapsed} onNavigate={onNavigate} />
-        {isAdmin ? <NavigationGroup label="系统" items={adminNavigation} collapsed={collapsed} onNavigate={onNavigate} /> : null}
-        <NavigationGroup label="账户" items={accountNavigation} collapsed={collapsed} onNavigate={onNavigate} />
+        {sections.map((section) => (
+          <NavigationGroup key={section.id} section={section} collapsed={collapsed} onNavigate={onNavigate} />
+        ))}
       </nav>
       <div className="app-sidebar__footer">{footer}</div>
     </aside>

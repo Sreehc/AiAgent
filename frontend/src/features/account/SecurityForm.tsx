@@ -17,7 +17,7 @@ type SecurityFormProps = {
 
 export function SecurityForm({ form, saving, message, error, onChange, onSubmit }: SecurityFormProps) {
   return (
-    <Panel title="修改密码" eyebrow="Security">
+    <Panel className="account-security-card" title="修改密码" eyebrow="Security">
       <form className="form-grid" onSubmit={onSubmit}>
         <Field label="旧密码">
           <Input
@@ -28,7 +28,7 @@ export function SecurityForm({ form, saving, message, error, onChange, onSubmit 
             onChange={(event) => onChange({ ...form, oldPassword: event.target.value })}
           />
         </Field>
-        <Field label="新密码">
+        <Field label="新密码" description="至少 8 位，建议使用和其他服务不同的密码。">
           <Input
             type="password"
             autoComplete="new-password"

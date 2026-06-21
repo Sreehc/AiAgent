@@ -39,8 +39,9 @@ public class RagEvaluationService {
     }
 
     public Metrics evaluate(SessionUser currentUser, List<EvalCase> cases, int topK, List<String> requestedKnowledgeBaseIds) {
+        int effectiveTopK = Math.min(Math.max(topK, 1), 20);
         if (cases.isEmpty()) {
-            return new Metrics(0, 0, 0, 0, 0);
+            return new Metrics(effectiveTopK, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         }
         List<String> kbIds = resolveKnowledgeBaseIds(currentUser, requestedKnowledgeBaseIds);
         int recall5Hits = 0;
@@ -49,7 +50,7 @@ public class RagEvaluationService {
         int noResults = 0;
         double reciprocalRankTotal = 0;
         for (EvalCase evalCase : cases) {
-            List<SearchHit> hits = knowledgeBaseService.searchAcrossKnowledgeBases(currentUser, kbIds, evalCase.query(), Math.max(topK, 10));
+            List<SearchHit> hits = knowledgeBaseService.searchAcrossKnowledgeBases(currentUser, kbIds, evalCase.query(), Math.max(effectiveTopK, 10));
             if (hits.isEmpty()) {
                 noResults++;
                 continue;
@@ -68,6 +69,11 @@ public class RagEvaluationService {
         }
         double total = cases.size();
         return new Metrics(
+                effectiveTopK,
+                cases.size(),
+                citationHits,
+                cases.size() - citationHits,
+                noResults,
                 recall5Hits / total,
                 recall10Hits / total,
                 reciprocalRankTotal / total,
@@ -248,6 +254,11 @@ public class RagEvaluationService {
     }
 
     public record Metrics(
+            int topK,
+            int caseCount,
+            int passedCount,
+            int failedCount,
+            int noResultCount,
             double recallAt5,
             double recallAt10,
             double mrr,

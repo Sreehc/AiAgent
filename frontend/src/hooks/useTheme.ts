@@ -1,40 +1,52 @@
 import { useCallback, useEffect, useState } from "react";
-
-export type ThemeMode = "light" | "dark";
-
-const STORAGE_KEY = "aiagent.theme";
-
-function readInitialTheme(): ThemeMode {
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "light" || stored === "dark") {
-    return stored;
-  }
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-function applyTheme(theme: ThemeMode) {
-  document.documentElement.classList.toggle("dark", theme === "dark");
-}
+import {
+  applyTheme,
+  getSystemTheme,
+  persistThemePreference,
+  readThemePreference,
+  ResolvedTheme,
+  resolveTheme,
+  ThemePreference,
+  THEME_QUERY
+} from "../lib/theme";
 
 export function useTheme() {
-  const [theme, setThemeState] = useState<ThemeMode>(() => readInitialTheme());
+  const [preference, setPreferenceState] = useState<ThemePreference>(() => readThemePreference());
+  const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => getSystemTheme());
+  const theme = resolveTheme(preference, systemTheme);
 
   useEffect(() => {
     applyTheme(theme);
   }, [theme]);
 
-  const setTheme = useCallback((next: ThemeMode) => {
-    window.localStorage.setItem(STORAGE_KEY, next);
-    setThemeState(next);
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+
+    const mediaQuery = window.matchMedia(THEME_QUERY);
+    const handleChange = (event: MediaQueryListEvent) => {
+      setSystemTheme(event.matches ? "dark" : "light");
+    };
+
+    setSystemTheme(mediaQuery.matches ? "dark" : "light");
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", handleChange);
+      return () => mediaQuery.removeEventListener("change", handleChange);
+    }
+
+    mediaQuery.addListener(handleChange);
+    return () => mediaQuery.removeListener(handleChange);
+  }, []);
+
+  const setTheme = useCallback((next: ThemePreference) => {
+    persistThemePreference(next);
+    setPreferenceState(next);
+    setSystemTheme(getSystemTheme());
   }, []);
 
   const toggleTheme = useCallback(() => {
-    setThemeState((current) => {
-      const next = current === "dark" ? "light" : "dark";
-      window.localStorage.setItem(STORAGE_KEY, next);
-      return next;
-    });
-  }, []);
+    setTheme(theme === "dark" ? "light" : "dark");
+  }, [setTheme, theme]);
 
-  return { theme, setTheme, toggleTheme };
+  return { preference, systemTheme, theme, setTheme, toggleTheme };
 }

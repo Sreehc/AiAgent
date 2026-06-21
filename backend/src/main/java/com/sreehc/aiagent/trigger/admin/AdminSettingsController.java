@@ -148,6 +148,7 @@ public class AdminSettingsController {
     }
 
     private ModelConfigResponse toModelConfigResponse(ModelConfig modelConfig) {
+        AdminSettingsService.ModelRisk risk = AdminSettingsService.evaluateModelRisk(modelConfig);
         return new ModelConfigResponse(
                 modelConfig.id(),
                 modelConfig.modelCode(),
@@ -161,6 +162,9 @@ public class AdminSettingsController {
                 modelConfig.lastTestStatus(),
                 modelConfig.lastTestMessage(),
                 modelConfig.lastTestedAt() == null ? null : modelConfig.lastTestedAt().toString(),
+                risk.riskLevel(),
+                risk.riskCodes(),
+                risk.riskReasons(),
                 modelConfig.createdAt().toString(),
                 modelConfig.updatedAt().toString()
         );
@@ -214,6 +218,9 @@ public class AdminSettingsController {
             String lastTestStatus,
             String lastTestMessage,
             String lastTestedAt,
+            String riskLevel,
+            List<String> riskCodes,
+            List<String> riskReasons,
             String createdAt,
             String updatedAt
     ) {

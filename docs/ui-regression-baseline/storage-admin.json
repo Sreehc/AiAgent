@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://127.0.0.1:5173",
+      "localStorage": [
+        {
+          "name": "aiagent.auth.session",
+          "value": "{\"accessToken\":\"ui-baseline-token\",\"expiresIn\":31536000,\"expiresAt\":4102444800000,\"user\":{\"userId\":\"ui-baseline-admin\",\"username\":\"ui-baseline-admin\",\"displayName\":\"UI Baseline Admin\",\"roles\":[\"ADMIN\"]}}"
+        }
+      ]
+    }
+  ]
+}

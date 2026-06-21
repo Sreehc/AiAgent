@@ -22,16 +22,26 @@ export function KnowledgeBasesPage() {
   const [kbForm, setKbForm] = useState(DEFAULT_KB_FORM);
   const [searchQuery, setSearchQuery] = useState("储能成本下降趋势");
   const [loading, setLoading] = useState(true);
+  const [loadingDocuments, setLoadingDocuments] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [indexingActions, setIndexingActions] = useState<Record<string, "index" | "reindex">>({});
   const [searching, setSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [kbToDelete, setKbToDelete] = useState<KnowledgeBaseItem | null>(null);
   const [versionSourceDocumentId, setVersionSourceDocumentId] = useState<string | null>(null);
   const [documentVersions, setDocumentVersions] = useState<KnowledgeDocumentItem[]>([]);
 
   const selected = useMemo(() => knowledgeBases.find((item) => item.kbId === selectedKbId) ?? null, [knowledgeBases, selectedKbId]);
+  const cockpitStats = useMemo(() => {
+    const totalDocuments = knowledgeBases.reduce((sum, item) => sum + item.documentCount, 0);
+    const chunkCount = documents.reduce((sum, document) => sum + document.chunkCount, 0);
+    const indexedDocuments = documents.filter((document) => document.parseStatus === "INDEXED").length;
+    const failedDocuments = documents.filter((document) => isFailedDocument(document)).length;
+    const indexingDocuments = documents.filter((document) => document.documentId in indexingActions).length;
+    return { totalDocuments, chunkCount, indexedDocuments, failedDocuments, indexingDocuments };
+  }, [documents, indexingActions, knowledgeBases]);
 
   useEffect(() => {
     if (session?.accessToken) void loadKnowledgeBases();
@@ -40,6 +50,7 @@ export function KnowledgeBasesPage() {
   useEffect(() => {
     if (!session?.accessToken || !selectedKbId) {
       setDocuments([]);
+      setLoadingDocuments(false);
       return;
     }
     void loadDocuments(selectedKbId);
@@ -61,10 +72,13 @@ export function KnowledgeBasesPage() {
 
   async function loadDocuments(kbId: string) {
     if (!session?.accessToken) return;
+    setLoadingDocuments(true);
     try {
       setDocuments(await knowledgeApi.listDocuments(session.accessToken, kbId));
     } catch (requestError) {
       setError((requestError as ApiError).message);
+    } finally {
+      setLoadingDocuments(false);
     }
   }
 
@@ -72,6 +86,7 @@ export function KnowledgeBasesPage() {
     setSelectedKbId(item.kbId);
     setKbForm({ name: item.name, description: item.description ?? "" });
     setSearchHits([]);
+    setHasSearched(false);
     setVersionSourceDocumentId(null);
     setDocumentVersions([]);
   }
@@ -114,6 +129,7 @@ export function KnowledgeBasesPage() {
       await knowledgeApi.remove(session.accessToken, kbToDelete.kbId);
       setSelectedKbId(null);
       setSearchHits([]);
+      setHasSearched(false);
       setKbToDelete(null);
       setKbForm(DEFAULT_KB_FORM);
       await loadKnowledgeBases();
@@ -244,6 +260,7 @@ export function KnowledgeBasesPage() {
     setError(null);
     try {
       setSearchHits(await knowledgeApi.searchTest(session.accessToken, selectedKbId, searchQuery, 5));
+      setHasSearched(true);
     } catch (requestError) {
       setError((requestError as ApiError).message);
     } finally {
@@ -252,19 +269,26 @@ export function KnowledgeBasesPage() {
   }
 
   return (
-    <section className="page">
-      <header className="page-header"><div><h1>知识库</h1><p>管理私有文档、索引状态，并在投入研究任务前验证召回质量。</p></div><div className="page-header__meta"><Badge tone="neutral">{knowledgeBases.length} 个知识库</Badge><Badge tone="neutral">{documents.length} 个文档</Badge></div><Badge>{searchHits.length} 个命中</Badge></header>
+    <section className="page page--knowledge">
+      <header className="page-header"><div><h1>知识库</h1><p>管理私有文档、索引状态，并在投入研究任务前验证召回质量。</p></div><div className="page-header__meta"><Badge tone="neutral" className="tabular-nums">{knowledgeBases.length} 个知识库</Badge><Badge tone="neutral" className="tabular-nums">{cockpitStats.totalDocuments} 个文档</Badge><Badge tone="neutral" className="tabular-nums">{cockpitStats.chunkCount} chunks</Badge></div><Badge className="tabular-nums">{searchHits.length} 个命中</Badge></header>
       {error ? <Alert tone="error">{error}</Alert> : null}
-      <div className="content-grid">
-        <KnowledgeBaseList items={knowledgeBases} selectedId={selectedKbId} loading={loading} submitting={submitting} form={kbForm} onFormChange={setKbForm} onCreate={onCreate} onSelect={selectKnowledgeBase} onRefresh={() => void loadKnowledgeBases()} />
-        <main className="stack">
-          <KnowledgeBaseSummary item={selected} form={kbForm} submitting={submitting} onFormChange={setKbForm} onSave={() => void onSave()} onDelete={() => selected && setKbToDelete(selected)} />
-          <DocumentTable selectedKbId={selectedKbId} documents={documents} uploading={uploading} indexingActions={indexingActions} onUpload={onUpload} onIndex={(documentId) => void onIndex(documentId)} onReindex={(documentId) => void onReindex(documentId)} onPreview={(documentId) => void onPreviewDocument(documentId)} onDownload={(documentId) => void onDownloadDocument(documentId)} onVersions={(documentId) => void onVersionsDocument(documentId)} onDelete={(documentId) => void onDeleteDocument(documentId)} />
+      <div className="knowledge-cockpit">
+        <div className="knowledge-cockpit__rail">
+          <KnowledgeBaseList items={knowledgeBases} selectedId={selectedKbId} loading={loading} submitting={submitting} form={kbForm} onFormChange={setKbForm} onCreate={onCreate} onSelect={selectKnowledgeBase} onRefresh={() => void loadKnowledgeBases()} />
+        </div>
+        <main className="knowledge-cockpit__main" aria-label="RAG cockpit">
+          <KnowledgeBaseSummary item={selected} documents={documents} searchHitCount={searchHits.length} loading={loading || loadingDocuments} form={kbForm} submitting={submitting} onFormChange={setKbForm} onSave={() => void onSave()} onDelete={() => selected && setKbToDelete(selected)} />
+          <DocumentTable selectedKbId={selectedKbId} documents={documents} loading={loadingDocuments} uploading={uploading} indexingActions={indexingActions} onUpload={onUpload} onIndex={(documentId) => void onIndex(documentId)} onReindex={(documentId) => void onReindex(documentId)} onPreview={(documentId) => void onPreviewDocument(documentId)} onDownload={(documentId) => void onDownloadDocument(documentId)} onVersions={(documentId) => void onVersionsDocument(documentId)} onDelete={(documentId) => void onDeleteDocument(documentId)} />
           {versionSourceDocumentId ? <DocumentVersionsPanel versions={documentVersions} onRestore={(versionId) => void onRestoreVersion(versionId)} onClose={() => { setVersionSourceDocumentId(null); setDocumentVersions([]); }} /> : null}
-          <SearchTestPanel selected={selectedKbId !== null} query={searchQuery} hits={searchHits} searching={searching} onQueryChange={setSearchQuery} onSearch={onSearch} />
+          <SearchTestPanel selected={selectedKbId !== null} query={searchQuery} hits={searchHits} searching={searching} hasSearched={hasSearched} onQueryChange={setSearchQuery} onSearch={onSearch} />
         </main>
       </div>
       <ConfirmDialog isOpen={kbToDelete !== null} title="确认删除知识库" message={<>确定要删除知识库「<strong>{kbToDelete?.name}</strong>」吗？关联文档和索引会一并删除。</>} confirmText="删除知识库" cancelText="取消" onConfirm={onDelete} onCancel={() => setKbToDelete(null)} danger />
     </section>
   );
+}
+
+function isFailedDocument(document: KnowledgeDocumentItem) {
+  const status = document.parseStatus.toUpperCase();
+  return Boolean(document.lastError) || status.includes("FAILED") || status.includes("ERROR");
 }

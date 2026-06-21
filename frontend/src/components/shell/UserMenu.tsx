@@ -1,4 +1,4 @@
-import { ChevronsUpDown, LogOut } from "lucide-react";
+import { ChevronsUpDown, LogOut, UserCircle } from "lucide-react";
 import { AuthSession } from "../../stores/auth";
 import { DropdownMenu } from "../ui";
 
@@ -36,14 +36,37 @@ export function UserMenu({ session, onLogout }: UserMenuProps) {
       }
       items={[
         {
-          label: (
-            <span className="flex items-center gap-2">
-              <LogOut className="h-4 w-4" aria-hidden="true" />
-              退出登录
-            </span>
-          ),
-          tone: "danger",
-          onSelect: onLogout
+          type: "group",
+          label: "当前账号",
+          items: [
+            {
+              label: (
+                <span className="grid min-w-0 leading-tight">
+                  <span className="truncate">{displayName}</span>
+                  <span className="truncate text-xs text-muted-foreground">{roles || "USER"}</span>
+                </span>
+              ),
+              icon: <UserCircle className="h-4 w-4" aria-hidden="true" />,
+              selected: true
+            }
+          ]
+        },
+        { type: "separator" },
+        {
+          type: "group",
+          label: "会话",
+          items: [
+            {
+              label: (
+                <span className="flex items-center gap-2">
+                  <LogOut className="h-4 w-4" aria-hidden="true" />
+                  退出登录
+                </span>
+              ),
+              tone: "danger",
+              onSelect: onLogout
+            }
+          ]
         }
       ]}
     />

@@ -1,3 +1,94 @@
+.surface,
+.surface-subtle,
+.surface-inset,
+.surface-raised {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.surface {
+  background: var(--color-surface);
+  box-shadow: none;
+}
+
+.surface-subtle {
+  background: var(--color-surface-subtle);
+  box-shadow: none;
+}
+
+.surface-inset {
+  border-color: var(--color-border-soft);
+  background: var(--color-surface-inset);
+  box-shadow: none;
+}
+
+.surface-raised {
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-md);
+}
+
+.panel-action-wrap {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.table-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.table-state {
+  display: grid;
+  gap: var(--space-2);
+  place-items: center;
+  min-height: 104px;
+  padding: var(--space-5);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.table-state--error {
+  color: var(--color-danger);
+}
+
+.table-skeleton-bar {
+  display: block;
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+  animation: skeleton-pulse 1s ease-in-out infinite alternate;
+}
+
+.tabs-scroll {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.tabs-content-state {
+  display: grid;
+  gap: var(--space-2);
+  min-height: 96px;
+  align-content: center;
+  padding: var(--space-4);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.tabs-content-state--error {
+  border-color: color-mix(in srgb, var(--color-danger) 32%, transparent);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
 .btn {
   min-height: var(--control-height-md);
   display: inline-flex;

@@ -58,7 +58,7 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)"
       },
       fontFamily: {
-        sans: ["IBM Plex Sans", "Inter", "Segoe UI", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        sans: ["Geist Sans", "Inter", "Segoe UI", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
         mono: ["IBM Plex Mono", "SFMono-Regular", "Consolas", "monospace"]
       },
       keyframes: {

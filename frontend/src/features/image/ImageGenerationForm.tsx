@@ -1,6 +1,6 @@
 import { FormEvent } from "react";
 import { SessionItem } from "../../services/api";
-import { Alert, Button, Field, Input, Panel, Select, Tabs, Textarea } from "../../components/ui";
+import { Alert, Button, Field, FileInput, Panel, Select, Tabs, Textarea } from "../../components/ui";
 
 export type ImageMode = "IMAGES" | "EDITS";
 export type ImageFormState = { mode: ImageMode; prompt: string; size: string; sessionId: string };
@@ -28,7 +28,7 @@ export function ImageGenerationForm({ form, sessions, referenceFile, submitting,
           <Field label="尺寸"><Select value={form.size} onChange={(event) => onFormChange({ ...form, size: event.target.value })}><option value="1024x1024">1024x1024</option><option value="1536x1024">1536x1024</option><option value="1024x1536">1024x1536</option></Select></Field>
           <Field label="挂接会话"><Select value={form.sessionId} onChange={(event) => onFormChange({ ...form, sessionId: event.target.value })}><option value="">不挂接会话</option>{sessions.map((item) => <option key={item.sessionId} value={item.sessionId}>{item.title}</option>)}</Select></Field>
         </div>
-        {form.mode === "EDITS" ? <Field label="参考图" description={referenceFile ? `已选择：${referenceFile.name}` : "上传一张需要编辑的参考图片。"}><Input type="file" accept="image/*" disabled={submitting} onChange={(event) => onReferenceFileChange(event.target.files?.[0] ?? null)} required /></Field> : null}
+        {form.mode === "EDITS" ? <Field label="参考图" description="上传一张需要编辑的参考图片。"><FileInput accept="image/*" fileName={referenceFile?.name ?? null} disabled={submitting} clearKey={referenceFile?.name ?? null} onChange={(event) => onReferenceFileChange(event.target.files?.[0] ?? null)} required /></Field> : null}
         {selectedSession ? <Alert tone="info">结果会同步到会话「{selectedSession.title}」的产物区。</Alert> : null}
         <div className="image-generation-form__action">
           <Button type="submit" variant="primary" loading={submitting} fullWidth>{form.mode === "IMAGES" ? "生成图片" : "开始编辑"}</Button>

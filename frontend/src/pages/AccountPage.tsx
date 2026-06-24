@@ -1,5 +1,6 @@
 import { FormEvent, ReactNode, useEffect, useState } from "react";
-import { Alert, Badge, EmptyState } from "../components/ui";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Alert, Badge, EmptyState, Tabs, TabsContent } from "../components/ui";
 import { ApiConfigForm } from "../features/account/ApiConfigForm";
 import { LoginLogTable } from "../features/account/LoginLogTable";
 import { ProfileForm } from "../features/account/ProfileForm";
@@ -9,8 +10,18 @@ import { AccountApiConfigTestResult, AccountApiConfigUpdate, AccountProfile, acc
 import { ApiError } from "../services/api";
 
 const DEFAULT_API_CONFIG: AccountApiConfigUpdate = { baseUrl: "https://api.openai.com/v1", apiKey: "", model: "gpt-4o", temperature: 0.7, maxTokens: 2000 };
+type AccountSectionId = "account-api" | "account-profile" | "account-security" | "account-login-logs";
+const DEFAULT_ACCOUNT_SECTION: AccountSectionId = "account-api";
+const accountSectionItems: Array<{ id: AccountSectionId; label: string }> = [
+  { id: "account-api", label: "个人 API" },
+  { id: "account-profile", label: "资料" },
+  { id: "account-security", label: "安全" },
+  { id: "account-login-logs", label: "登录日志" }
+];
 
 export function AccountPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { session } = useAuthSession();
   const accessToken = session?.accessToken ?? null;
   const [profile, setProfile] = useState<AccountProfile | null>(null);
@@ -31,6 +42,11 @@ export function AccountPage() {
   const [apiConfigError, setApiConfigError] = useState<string | null>(null);
   const [activeApiTest, setActiveApiTest] = useState<AccountApiConfigTestResult["modelType"] | null>(null);
   const [lastApiTestResult, setLastApiTestResult] = useState<AccountApiConfigTestResult | null>(null);
+  const [activeSection, setActiveSection] = useState<AccountSectionId>(resolveAccountSection(location.hash));
+
+  useEffect(() => {
+    setActiveSection(resolveAccountSection(location.hash));
+  }, [location.hash]);
 
   useEffect(() => {
     if (!accessToken) {
@@ -125,6 +141,11 @@ export function AccountPage() {
     }
   }
 
+  function handleSectionChange(section: AccountSectionId) {
+    setActiveSection(section);
+    navigate({ hash: `#${section}` }, { replace: true });
+  }
+
   return (
     <section className="page">
       <header className="page-header">
@@ -143,26 +164,53 @@ export function AccountPage() {
         <div className="stack-lg">
           {renderAccountSummary({ profile, apiConfigured, apiKeyMasked, logs })}
           {renderAccountStatusAlerts({ profileSuccess, profileError, passwordMessage, passwordError, apiConfigMessage, apiConfigError })}
-          <nav className="account-section-nav" aria-label="账号中心分区">
-            <a href="#account-api">个人 API</a>
-            <a href="#account-profile">资料</a>
-            <a href="#account-security">安全</a>
-            <a href="#account-login-logs">登录日志</a>
-          </nav>
-          <div className="account-layout">
-            <section id="account-api" className="account-layout__primary">
-              <ApiConfigForm config={apiConfig} apiKeyMasked={apiKeyMasked} configured={apiConfigured} saving={savingApiConfig} testState={activeApiTest} lastTestResult={lastApiTestResult} message={apiConfigMessage} error={apiConfigError} onChange={setApiConfig} onSubmit={submitApiConfig} onTest={testApiConfig} />
-            </section>
-            <aside className="account-layout__side">
-              <section id="account-profile"><ProfileForm profile={profile} saving={savingProfile} success={profileSuccess} error={profileError} onChange={setProfile} onSubmit={submitProfile} /></section>
-              <section id="account-security"><SecurityForm form={passwordForm} saving={savingPassword} message={passwordMessage} error={passwordError} onChange={setPasswordForm} onSubmit={submitPassword} /></section>
-            </aside>
+          <div className="account-tabs">
+            <Tabs
+              ariaLabel="账号中心分区"
+              value={activeSection}
+              items={accountSectionItems}
+              variant="underline"
+              onChange={(section) => handleSectionChange(section)}
+            >
+              <TabsContent value="account-api" className="account-tab-content">
+                <div id="account-api" className="account-layout">
+                  <section className="account-layout__primary">
+                    <ApiConfigForm config={apiConfig} apiKeyMasked={apiKeyMasked} configured={apiConfigured} saving={savingApiConfig} testState={activeApiTest} lastTestResult={lastApiTestResult} message={apiConfigMessage} error={apiConfigError} onChange={setApiConfig} onSubmit={submitApiConfig} onTest={testApiConfig} />
+                  </section>
+                </div>
+              </TabsContent>
+              <TabsContent value="account-profile" className="account-tab-content">
+                <div id="account-profile" className="account-layout">
+                  <section className="account-layout__primary">
+                    <ProfileForm profile={profile} saving={savingProfile} success={profileSuccess} error={profileError} onChange={setProfile} onSubmit={submitProfile} />
+                  </section>
+                </div>
+              </TabsContent>
+              <TabsContent value="account-security" className="account-tab-content">
+                <div id="account-security" className="account-layout">
+                  <section className="account-layout__primary">
+                    <SecurityForm form={passwordForm} saving={savingPassword} message={passwordMessage} error={passwordError} onChange={setPasswordForm} onSubmit={submitPassword} />
+                  </section>
+                </div>
+              </TabsContent>
+              <TabsContent value="account-login-logs" className="account-tab-content">
+                <section id="account-login-logs" className="account-tab-content__logs">
+                  <LoginLogTable logs={logs} />
+                </section>
+              </TabsContent>
+            </Tabs>
           </div>
-          <section id="account-login-logs"><LoginLogTable logs={logs} /></section>
         </div>
       ) : null}
     </section>
   );
+}
+
+function resolveAccountSection(hash: string): AccountSectionId {
+  const normalized = hash.replace(/^#/, "");
+  return accountSectionItems.some((item) => item.id === normalized)
+    ? (normalized as AccountSectionId)
+    : DEFAULT_ACCOUNT_SECTION;
 }
 
 function renderAccountSummary({

@@ -1,6 +1,6 @@
-import { FormEvent } from "react";
+import { FormEvent, useState } from "react";
 import { ArtifactItem, SessionDetailResponse } from "../../services/api";
-import { Badge, Button, EmptyState, Field, Input, Panel } from "../../components/ui";
+import { Badge, Button, EmptyState, Field, FileInput, Panel } from "../../components/ui";
 
 type ArtifactPanelProps = {
   detail: SessionDetailResponse | null;
@@ -15,6 +15,8 @@ export function ArtifactPanel({ detail, artifacts, onRestore, canRestore, onUseA
   const report = artifacts.find((artifact) => artifact.artifactType === "REPORT");
   const latestRun = detail?.runs[0];
   const reportContent = detail?.summary ?? report?.content ?? "";
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+
   return (
     <Panel title="结果与产物" eyebrow="Artifacts" action={<Button type="button" variant="ghost" size="sm" disabled={!canRestore} onClick={onRestore}>恢复历史</Button>}>
       <div className="stack">
@@ -34,8 +36,17 @@ export function ArtifactPanel({ detail, artifacts, onRestore, canRestore, onUseA
           {latestRun?.retrievalQuery ? <small className="muted">检索查询：{latestRun.retrievalQuery}</small> : null}
           <div className="markdown-block">{reportContent || "暂无报告内容。"}</div>
         </section>
-        {onUpload ? <form className="upload-row" onSubmit={onUpload}>
-          <Field label="上传附件" description="文本类附件会登记为可复用产物。"><Input name="file" type="file" accept=".txt,.md,.csv,.json" disabled={!canRestore} /></Field>
+        {onUpload ? <form className="upload-row" onSubmit={onUpload} onReset={() => setSelectedFileName(null)}>
+          <Field label="上传附件" description="文本类附件会登记为可复用产物。">
+            <FileInput
+              name="file"
+              accept=".txt,.md,.csv,.json"
+              fileName={selectedFileName}
+              disabled={!canRestore}
+              clearKey={selectedFileName}
+              onChange={(event) => setSelectedFileName(event.target.files?.[0]?.name ?? null)}
+            />
+          </Field>
           <Button type="submit" variant="secondary" disabled={!canRestore}>上传附件</Button>
         </form> : null}
         <div className="artifact-list">

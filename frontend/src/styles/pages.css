@@ -1704,7 +1704,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-4);
-  align-items: end;
+  align-items: center;
 }
 
 .search-test-layout {
@@ -2450,9 +2450,41 @@
 
 .account-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
-  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
   align-items: start;
+}
+
+.account-tabs {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.account-tabs .tabs-scroll {
+  padding-bottom: 2px;
+}
+
+.account-tabs [role="tablist"] {
+  gap: var(--space-5);
+}
+
+.account-tabs [role="tab"] {
+  min-height: 34px;
+  padding-inline: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.account-tab-content {
+  margin-top: 0;
+}
+
+.account-tab-content[hidden] {
+  display: none;
+}
+
+.account-tab-content__logs {
+  display: grid;
 }
 
 .account-layout__primary,

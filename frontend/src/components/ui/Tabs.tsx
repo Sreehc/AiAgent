@@ -37,10 +37,12 @@ type TabsProps<T extends string> = {
   items: TabItem<T>[];
   value: T;
   onChange: (value: T) => void;
+  children?: ReactNode;
   variant?: "segmented" | "underline";
   className?: string;
   listClassName?: string;
   triggerClassName?: string;
+  contentClassName?: string;
 };
 
 type TabsContentStateProps = {
@@ -56,10 +58,12 @@ export function Tabs<T extends string>({
   items,
   value,
   onChange,
+  children,
   variant = "segmented",
   className,
   listClassName,
-  triggerClassName
+  triggerClassName,
+  contentClassName
 }: TabsProps<T>) {
   return (
     <RadixTabs.Root value={value} onValueChange={(next) => onChange(next as T)} className={className}>
@@ -80,6 +84,7 @@ export function Tabs<T extends string>({
           ))}
         </RadixTabs.List>
       </div>
+      {children ? <div className={cn("mt-4", contentClassName)}>{children}</div> : null}
     </RadixTabs.Root>
   );
 }

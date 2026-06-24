@@ -13,7 +13,6 @@ export function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const isAdmin = session?.user.roles.includes("ADMIN") ?? false;
-  const roleLabel = session?.user.roles.join(", ") ?? "USER";
 
   async function logout() {
     if (session?.accessToken) {
@@ -45,7 +44,7 @@ export function AppShell() {
       />
 
       <main className="app-main">
-        <Topbar onOpenMenu={() => setSidebarOpen(true)} menuOpen={sidebarOpen} roleLabel={roleLabel} isAdmin={isAdmin} />
+        <Topbar onOpenMenu={() => setSidebarOpen(true)} menuOpen={sidebarOpen} isAdmin={isAdmin} />
         <div id="main-content"><Outlet /></div>
       </main>
     </div>

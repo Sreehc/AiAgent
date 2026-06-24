@@ -30,8 +30,10 @@ function NavigationGroup({ section, collapsed, onNavigate }: { section: Navigati
             aria-label={collapsed ? item.label : undefined}
           >
             <item.icon className="app-nav__icon" aria-hidden="true" />
-            <span>{item.label}</span>
-            <small>{item.shortLabel}</small>
+            {collapsed ? null : <>
+              <span>{item.label}</span>
+              <small>{item.shortLabel}</small>
+            </>}
           </NavLink>
         );
         return collapsed ? <Tooltip key={item.to} content={item.label} side="right">{link}</Tooltip> : link;

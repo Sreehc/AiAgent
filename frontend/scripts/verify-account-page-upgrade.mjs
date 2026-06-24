@@ -18,12 +18,15 @@ function assertContains(filePath, pattern, message) {
 function main() {
   assertContains("src/pages/AccountPage.tsx", /account-summary-grid/, "Account page should expose a structured account summary grid");
   assertContains("src/pages/AccountPage.tsx", /account-layout/, "Account page should use a dedicated account layout");
-  assertContains("src/pages/AccountPage.tsx", /account-section-nav/, "Account page should provide section navigation for profile, API, security, and logs");
+  assertContains("src/pages/AccountPage.tsx", /account-tabs/, "Account page should provide tabs navigation for profile, API, security, and logs");
+  assertContains("src/pages/AccountPage.tsx", /variant="underline"/, "Account tabs should use the lighter underline tab treatment");
   assertContains("src/pages/AccountPage.tsx", /account-status-alerts/, "Account page should unify success and error feedback");
   assertContains("src/pages/AccountPage.tsx", /renderAccountSummary/, "Account summary should be rendered through a dedicated helper");
   assertContains("src/pages/AccountPage.tsx", /renderAccountStatusAlerts/, "Account alerts should be rendered through a dedicated helper");
   assertContains("src/pages/AccountPage.tsx", /activeApiTest/, "API config tests should track which model type is currently testing");
   assertContains("src/pages/AccountPage.tsx", /lastApiTestResult/, "API config tests should preserve the latest test result");
+  assertContains("src/pages/AccountPage.tsx", /activeSection/, "Account page should track which account tab is active");
+  assertContains("src/pages/AccountPage.tsx", /resolveAccountSection/, "Account page should derive the active tab from the URL hash");
   assertContains("src/pages/AccountPage.tsx", /profileError[\s\S]*passwordError[\s\S]*apiConfigError/, "Error feedback should include profile, password, and API config");
   assertContains("src/pages/AccountPage.tsx", /profileSuccess[\s\S]*passwordMessage[\s\S]*apiConfigMessage/, "Success feedback should include profile, password, and API config");
 
@@ -48,9 +51,14 @@ function main() {
   assertContains("src/styles/pages.css", /\.account-summary-grid\s*\{/, "Account summary should have dedicated styles");
   assertContains("src/styles/pages.css", /\.account-summary-card\s*\{/, "Account summary cards should have dedicated styles");
   assertContains("src/styles/pages.css", /\.account-layout\s*\{/, "Account layout should have dedicated styles");
-  assertContains("src/styles/pages.css", /\.account-section-nav\s*\{/, "Account section nav should have dedicated styles");
+  assertContains("src/styles/pages.css", /\.account-tabs\s*\{/, "Account tabs should have dedicated styles");
+  assertContains("src/styles/pages.css", /\.account-tab-content\s*\{/, "Account tab content should have dedicated styles");
   assertContains("src/styles/pages.css", /\.account-status-alerts\s*\{/, "Account status alerts should have dedicated styles");
   assertContains("src/styles/pages.css", /\.account-login-log-table\s*\{/, "Account login log table should have dedicated styles");
+  assertContains("src/styles/pages.css", /\.account-layout\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*minmax\(0, 1fr\);/, "Account layout should use a full-width single-column content area");
+  assertContains("src/styles/pages.css", /\.account-tabs\s*\{\s*display:\s*grid;\s*gap:\s*var\(--space-3\);\s*\}/, "Account tabs wrapper should not add an extra framed container around tab content");
+  assertContains("src/styles/pages.css", /\.account-tabs \.tabs-scroll \{\s*padding-bottom:\s*2px;/, "Account tabs should keep a subtle underline breathing room");
+  assertContains("src/styles/pages.css", /\.account-tabs \[role="tablist"\] \{\s*gap:\s*var\(--space-5\);/, "Account tabs should use lighter underline spacing");
 
   assertContains("package.json", /"test:account-page-upgrade":\s*"node scripts\/verify-account-page-upgrade\.mjs"/, "package script should expose the A06 verifier");
   assertContains("../docs/tasks.md", /\| A06 \| 已完成 \|[\s\S]*AccountPage[\s\S]*个人 API、资料、安全、登录日志[\s\S]*保存、测试、错误、成功反馈一致/, "docs/tasks.md should record A06 completion");

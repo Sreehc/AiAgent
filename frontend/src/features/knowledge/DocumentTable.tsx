@@ -1,6 +1,6 @@
-import { FormEvent } from "react";
+import { FormEvent, useState } from "react";
 import { KnowledgeDocumentItem } from "../../services/api";
-import { Badge, Button, EmptyState, Field, Input, Panel, StatusPill, Table, TableBody, TableCell, TableHead, TableHeader, TableLoading, TableRow } from "../../components/ui";
+import { Badge, Button, EmptyState, Field, FileInput, Panel, StatusPill, Table, TableBody, TableCell, TableHead, TableHeader, TableLoading, TableRow } from "../../components/ui";
 
 type DocumentTableProps = {
   selectedKbId: string | null;
@@ -18,11 +18,22 @@ type DocumentTableProps = {
 };
 
 export function DocumentTable({ selectedKbId, documents, loading, uploading, indexingActions, onUpload, onIndex, onReindex, onPreview, onDownload, onVersions, onDelete }: DocumentTableProps) {
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+
   return (
     <Panel title="文档与索引" eyebrow="Documents" className="rag-document-panel" state={loading ? "loading" : selectedKbId ? "default" : "empty"} action={<Badge className="tabular-nums">{documents.length} docs</Badge>}>
       <div className="stack">
-        <form className="upload-row" onSubmit={onUpload}>
-          <Field label="上传文档" description="支持 txt、md、csv、json 等文本类文件。"><Input name="file" type="file" accept=".txt,.md,.csv,.json" disabled={!selectedKbId || uploading} /></Field>
+        <form className="upload-row" onSubmit={onUpload} onReset={() => setSelectedFileName(null)}>
+          <Field label="上传文档" description="支持 txt、md、csv、json 等文本类文件。">
+            <FileInput
+              name="file"
+              accept=".txt,.md,.csv,.json"
+              fileName={selectedFileName}
+              disabled={!selectedKbId || uploading}
+              clearKey={selectedFileName}
+              onChange={(event) => setSelectedFileName(event.target.files?.[0]?.name ?? null)}
+            />
+          </Field>
           <Button type="submit" variant="primary" loading={uploading} disabled={!selectedKbId}>上传文档</Button>
         </form>
         {loading ? (

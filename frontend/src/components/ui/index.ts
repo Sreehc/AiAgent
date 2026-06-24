@@ -5,7 +5,7 @@ export { Dialog } from "./Dialog";
 export { DropdownMenu } from "./DropdownMenu";
 export { EmptyState } from "./EmptyState";
 export { Field } from "./Field";
-export { Input, Select, Textarea } from "./FormControls";
+export { FileInput, Input, Select, Textarea } from "./FormControls";
 export { IconButton } from "./IconButton";
 export { Panel } from "./Panel";
 export { Pagination } from "./Pagination";

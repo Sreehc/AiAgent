@@ -8,11 +8,10 @@ import { useTheme } from "../../hooks/useTheme";
 type TopbarProps = {
   onOpenMenu: () => void;
   menuOpen: boolean;
-  roleLabel: string;
   isAdmin: boolean;
 };
 
-export function Topbar({ onOpenMenu, menuOpen, roleLabel, isAdmin }: TopbarProps) {
+export function Topbar({ onOpenMenu, menuOpen, isAdmin }: TopbarProps) {
   const location = useLocation();
   const current = findNavigationItem(location.pathname);
   const section = findNavigationSection(location.pathname, isAdmin);
@@ -53,11 +52,11 @@ export function Topbar({ onOpenMenu, menuOpen, roleLabel, isAdmin }: TopbarProps
         </button>
         <IconButton
           label={themeToggleLabel}
+          className="topbar__theme-toggle"
           onClick={toggleTheme}
         >
           {theme === "dark" ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
         </IconButton>
-        <Badge tone={isAdmin ? "info" : "neutral"} className="topbar__role">{roleLabel}</Badge>
       </div>
     </header>
   );

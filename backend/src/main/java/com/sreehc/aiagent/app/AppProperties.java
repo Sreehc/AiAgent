@@ -1,6 +1,7 @@
 package com.sreehc.aiagent.app;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 @ConfigurationProperties(prefix = "app")
 public record AppProperties(
@@ -17,6 +18,10 @@ public record AppProperties(
         Bootstrap bootstrap,
         Secret secret
 ) {
+    @ConstructorBinding
+    public AppProperties {
+    }
+
     public AppProperties(
             Auth auth,
             Storage storage,

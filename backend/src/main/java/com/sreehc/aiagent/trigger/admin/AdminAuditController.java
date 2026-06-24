@@ -7,7 +7,6 @@ import com.sreehc.aiagent.trigger.AuthFilter;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.util.List;
-import java.util.Map;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -24,7 +23,7 @@ public class AdminAuditController {
     }
 
     @GetMapping("/users")
-    public ApiResponse<List<Map<String, Object>>> listUsers(
+    public ApiResponse<List<AdminAuditService.UserAuditRow>> listUsers(
             @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") @Min(1) int pageNo,
@@ -34,7 +33,7 @@ public class AdminAuditController {
     }
 
     @GetMapping("/runs")
-    public ApiResponse<List<Map<String, Object>>> listRuns(
+    public ApiResponse<List<AdminAuditService.RunAuditRow>> listRuns(
             @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
@@ -45,7 +44,7 @@ public class AdminAuditController {
     }
 
     @GetMapping("/tool-invocations")
-    public ApiResponse<List<Map<String, Object>>> listToolInvocations(
+    public ApiResponse<List<AdminAuditService.ToolInvocationAuditRow>> listToolInvocations(
             @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String keyword,
@@ -56,7 +55,7 @@ public class AdminAuditController {
     }
 
     @GetMapping("/login-logs")
-    public ApiResponse<List<Map<String, Object>>> listLoginLogs(
+    public ApiResponse<List<AdminAuditService.LoginAuditRow>> listLoginLogs(
             @RequestAttribute(AuthFilter.CURRENT_USER_ATTRIBUTE) SessionUser currentUser,
             @RequestParam(required = false) String result,
             @RequestParam(required = false) String keyword,

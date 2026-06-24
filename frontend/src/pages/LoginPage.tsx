@@ -33,15 +33,15 @@ export function LoginPage() {
 
   return (
     <AuthLayout eyebrow="Secure workspace" title="登录工作台" intro="使用邀请注册创建的账号进入研究工作台。" contextTitle="AI Agent Operations Console" contextDescription="用于发起研究任务、追踪执行计划、管理知识库和复用产物的工作台。" showCapabilities footer={<><Link to="/register/invite">邀请注册</Link><Link to="/forgot-password">找回密码</Link></>}>
-      <form className="form-grid" onSubmit={onSubmit}>
+      <form className="auth-form" onSubmit={onSubmit}>
         <Field label="用户名">
-          <Input value={username} onChange={(event) => setUsername(event.target.value)} type="text" autoComplete="username" placeholder="alice" />
+          <Input value={username} onChange={(event) => setUsername(event.target.value)} type="text" autoComplete="username" placeholder="alice" required />
         </Field>
         <Field label="密码">
-          <Input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" placeholder="输入密码" />
+          <Input value={password} onChange={(event) => setPassword(event.target.value)} type="password" autoComplete="current-password" placeholder="输入密码" required />
         </Field>
-        {error ? <Alert tone="error">{error}</Alert> : null}
-        <Button type="submit" variant="primary" loading={submitting} fullWidth>进入工作台</Button>
+        {error ? <Alert tone="error" title="登录失败">{error}</Alert> : null}
+        <Button type="submit" variant="primary" size="lg" loading={submitting} fullWidth>进入工作台</Button>
       </form>
     </AuthLayout>
   );

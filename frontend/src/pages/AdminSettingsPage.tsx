@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Alert, Button, EmptyState, Field, Input, Panel, StatusPill } from "../components/ui";
+import { Alert, Badge, Button, EmptyState, Field, Input, Panel } from "../components/ui";
+import { showToast } from "../components/Toast";
+import { InviteCodePanel } from "../features/system/InviteCodePanel";
 import { ModelForm } from "../features/system/ModelForm";
 import { ModelRegistry } from "../features/system/ModelRegistry";
 import { useAuthSession } from "../hooks/useAuthSession";
@@ -113,7 +115,7 @@ export function AdminSettingsPage() {
     if (!session?.accessToken) return;
     try {
       const result = await adminApi.testModel(session.accessToken, model.modelCode);
-      setError(`${result.modelCode}: ${result.status} - ${result.message}`);
+      showToast(result.status === "SUCCESS" ? "success" : "error", `${result.modelCode}: ${result.status} - ${result.message}`);
       await loadData();
     } catch (requestError) {
       setError((requestError as ApiError).message);
@@ -139,11 +141,20 @@ export function AdminSettingsPage() {
 
   if (!session?.user.roles.includes("ADMIN")) return <AdminDenied />;
 
+  const modelSummary = buildModelSummary(models);
+
   return (
     <section className="page">
-      <header className="page-header"><div><h1>模型配置</h1><p>管理 Chat、Embedding 和 Image 模型能力，以及工作台邀请码。</p></div><div className="page-header__meta"><span className="badge badge--neutral">{models.filter((model) => model.enabled).length} 个启用</span><span className="badge badge--neutral">{invites.length} 个邀请码</span></div><span className="badge">{loading ? "加载中" : `${models.length} models`}</span></header>
+      <header className="page-header"><div><h1>模型配置</h1><p>管理 Chat、Embedding 和 Image 模型能力，以及工作台邀请码。</p></div><div className="page-header__meta"><Badge tone={modelSummary.defaultModel ? "success" : "warning"}>{modelSummary.defaultModel ? "默认已设置" : "默认模型未设置"}</Badge><Badge tone={modelSummary.riskyModels.length > 0 ? "warning" : "success"}>{modelSummary.riskyModels.length} 个风险</Badge><Badge tone="neutral">{invites.length} 个邀请码</Badge></div><Badge>{loading ? "加载中" : `${models.length} models`}</Badge></header>
       {error ? <Alert tone="error">{error}</Alert> : null}
-      {models.some((model) => model.provider === "local-mock" && model.enabled) ? <Alert tone="error">检测到已启用的 local-mock provider。生产环境应停用该配置。</Alert> : null}
+      {!loading && !modelSummary.defaultModel ? <Alert tone="warning">默认模型未设置。建议为运行时指定一个稳定的 Chat 模型，避免任务调度时选择不明确。</Alert> : null}
+      {modelSummary.riskyModels.length > 0 ? <Alert tone="error" title="检测到模型风险配置">{modelSummary.riskyModels.length} 个启用模型使用 local-mock provider 或最近测试状态非 SUCCESS。请先处理生产风险，再开放给研究任务使用。</Alert> : null}
+      <div className="model-settings-summary">
+        <SummaryCard label="默认模型" value={modelSummary.defaultModel?.name ?? "未设置"} detail={modelSummary.defaultModel ? `${modelSummary.defaultModel.modelCode} · ${modelSummary.defaultModel.provider}` : "需要在注册表中设为默认"} tone={modelSummary.defaultModel ? "success" : "warning"} />
+        <SummaryCard label="启用模型" value={`${modelSummary.enabledModels}/${models.length}`} detail={`Chat ${modelSummary.chatModels} · Embedding ${modelSummary.embeddingModels} · Image ${modelSummary.imageModels}`} tone="neutral" />
+        <SummaryCard label="风险 provider" value={String(modelSummary.riskyModels.length)} detail={modelSummary.riskyModels.length > 0 ? "local-mock 或测试失败" : "未发现启用风险配置"} tone={modelSummary.riskyModels.length > 0 ? "danger" : "success"} />
+        <SummaryCard label="测试状态" value={String(modelSummary.failedTests.length)} detail={modelSummary.failedTests.length > 0 ? "最近测试非 SUCCESS" : "最近测试无失败样本"} tone={modelSummary.failedTests.length > 0 ? "warning" : "success"} />
+      </div>
       <div className="content-grid content-grid--wide-side">
         <aside className="stack">
           <ModelForm form={modelForm} submitting={submittingModel} editing={editingModelCode !== null} onChange={setModelForm} onSubmit={onSubmitModel} onCancelEdit={() => { setEditingModelCode(null); setModelForm(DEFAULT_MODEL_FORM); }} />
@@ -151,7 +162,7 @@ export function AdminSettingsPage() {
         </aside>
         <main className="stack">
           <ModelRegistry models={models} loading={loading} onToggle={onToggleModel} onEdit={onEditModel} onDelete={onDeleteModel} onTest={onTestModel} onDefault={onDefaultModel} />
-          <Panel title="最近邀请码" eyebrow="Invites" action={<span className="badge">{invites.length} 条</span>}><div className="table-list">{invites.map((invite) => <article key={`${invite.inviteToken}-${invite.createdAt}`} className="table-row"><div><strong className="mono">{invite.inviteToken}</strong><br /><small>过期：{formatDateTime(invite.expiresAt)}</small></div><StatusPill status={invite.status} /><Button type="button" variant="secondary" size="sm" onClick={() => copyInviteToken(invite.inviteToken)}>{copiedToken === invite.inviteToken ? "已复制" : "复制"}</Button></article>)}</div>{!loading && invites.length === 0 ? <EmptyState message="还没有新生成的邀请码。" /> : null}</Panel>
+          <InviteCodePanel invites={invites} loading={loading} copiedToken={copiedToken} onCopy={copyInviteToken} />
         </main>
       </div>
     </section>
@@ -159,9 +170,32 @@ export function AdminSettingsPage() {
 }
 
 function AdminDenied() {
-  return <section className="page"><header className="page-header"><h1>模型配置</h1><span className="badge badge--neutral">Admin only</span></header><EmptyState message="当前账号没有管理员权限，无法访问该页面。" /></section>;
+  return <section className="page"><header className="page-header"><h1>模型配置</h1><Badge tone="neutral">Admin only</Badge></header><EmptyState message="当前账号没有管理员权限，无法访问该页面。" /></section>;
 }
 
-function formatDateTime(value: string) {
-  return new Date(value).toLocaleString("zh-CN", { hour12: false });
+function SummaryCard({ label, value, detail, tone }: { label: string; value: string; detail: string; tone: "neutral" | "success" | "warning" | "danger" }) {
+  return (
+    <div className="model-settings-summary__card" data-tone={tone}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+      <small>{detail}</small>
+    </div>
+  );
+}
+
+function buildModelSummary(models: ModelConfigItem[]) {
+  const enabledModels = models.filter((model) => model.enabled);
+  const defaultModel = models.find((model) => model.defaultModel) ?? null;
+  const failedTests = models.filter((model) => model.riskCodes.includes("LAST_TEST_FAILED"));
+  const riskyModels = models.filter((model) => model.riskLevel !== "default");
+
+  return {
+    defaultModel,
+    enabledModels: enabledModels.length,
+    chatModels: models.filter((model) => model.modelType === "CHAT").length,
+    embeddingModels: models.filter((model) => model.modelType === "EMBEDDING").length,
+    imageModels: models.filter((model) => model.modelType === "IMAGE").length,
+    failedTests,
+    riskyModels
+  };
 }

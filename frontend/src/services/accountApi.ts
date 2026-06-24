@@ -51,7 +51,7 @@ export const accountApi = {
     accessToken: string,
     payload: Pick<AccountProfile, "displayName" | "email" | "phone">
   ) => apiRequest<AccountProfile>("/account/profile", { method: "PUT", body: JSON.stringify(payload) }, accessToken),
-  changePassword: (accessToken: string, payload: { oldPassword: FormDataEntryValue | null; newPassword: FormDataEntryValue | null }) =>
+  changePassword: (accessToken: string, payload: { oldPassword: string; newPassword: string }) =>
     apiRequest<void>("/account/change-password", { method: "POST", body: JSON.stringify(payload) }, accessToken),
   listLoginLogs: (accessToken: string, pageNo = 1, pageSize = 5) =>
     apiRequest<LoginLogResponse>(`/account/login-logs?pageNo=${pageNo}&pageSize=${pageSize}`, {}, accessToken),

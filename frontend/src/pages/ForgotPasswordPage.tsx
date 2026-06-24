@@ -28,12 +28,12 @@ export function ForgotPasswordPage() {
 
   return (
     <AuthLayout eyebrow="Password reset" title="找回密码" intro="输入用户名或邮箱，系统会记录找回密码请求。" contextTitle="Account Recovery" contextDescription="找回流程只处理账号访问，不改变已有会话、知识库或产物归属。" footer={<Link to="/login">返回登录</Link>}>
-      <form className="form-grid" onSubmit={onSubmit}>
-        <Field label="用户名或邮箱"><Input value={usernameOrEmail} onChange={(event) => setUsernameOrEmail(event.target.value)} placeholder="alice / alice@example.com" /></Field>
-        {error ? <Alert tone="error">{error}</Alert> : null}
-        {message ? <Alert tone="success">{message}</Alert> : null}
-        <EmptyState message={<span>已经拿到重置令牌？ <Link to="/reset-password">前往重置密码</Link></span>} />
-        <Button type="submit" variant="primary" loading={submitting} fullWidth>发起找回</Button>
+      <form className="auth-form" onSubmit={onSubmit}>
+        <Field label="用户名或邮箱"><Input value={usernameOrEmail} onChange={(event) => setUsernameOrEmail(event.target.value)} placeholder="alice / alice@example.com" required /></Field>
+        {error ? <Alert tone="error" title="找回失败">{error}</Alert> : null}
+        {message ? <Alert tone="success" title="请求已记录">{message}</Alert> : null}
+        <EmptyState variant="first-run" message={<span>已经拿到重置令牌？ <Link to="/reset-password">前往重置密码</Link></span>} />
+        <Button type="submit" variant="primary" size="lg" loading={submitting} fullWidth>发起找回</Button>
       </form>
     </AuthLayout>
   );

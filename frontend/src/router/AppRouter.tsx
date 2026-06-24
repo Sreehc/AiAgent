@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import { AppShell } from "../components/shell/AppShell";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import { AccountPage } from "../pages/AccountPage";
+import { AdminOverviewPage } from "../pages/AdminOverviewPage";
 import { AdminSettingsPage } from "../pages/AdminSettingsPage";
 import { AdminAuditPage } from "../pages/AdminAuditPage";
 import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
@@ -29,6 +30,7 @@ export function AppRouter() {
           <Route path="/workspace/knowledge-bases" element={<KnowledgeBasesPage />} />
           <Route path="/workspace/image-generation" element={<ImageGenerationPage />} />
           <Route path="/workspace/history" element={<HistoryPage />} />
+          <Route path="/admin/overview" element={<AdminOverviewPage />} />
           <Route path="/admin/settings" element={<AdminSettingsPage />} />
           <Route path="/admin/mcp-servers" element={<McpServersPage />} />
           <Route path="/admin/audit" element={<AdminAuditPage />} />

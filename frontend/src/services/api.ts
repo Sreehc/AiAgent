@@ -160,6 +160,8 @@ export type McpDiscoverResponse = {
 export type McpHealthResponse = {
   serverCode: string;
   status: string;
+  healthState: "healthy" | "unhealthy" | "unknown";
+  riskReason: string | null;
   message: string;
   latencyMs: number | null;
   toolCount: number;
@@ -181,17 +183,57 @@ export type ModelConfigItem = {
   lastTestStatus: string | null;
   lastTestMessage: string | null;
   lastTestedAt: string | null;
+  riskLevel: "default" | "warning" | "danger";
+  riskCodes: string[];
+  riskReasons: string[];
   createdAt: string;
   updatedAt: string;
 };
 
 export type AdminAuditRow = Record<string, unknown>;
 
+export type AdminOverviewResponse = {
+  enabledModels: number;
+  totalModels: number;
+  defaultModel: { modelCode: string; name: string; provider: string } | null;
+  modelRisks: number;
+  activeMcp: number;
+  totalMcp: number;
+  mcpRisks: number;
+  auditFailures: number;
+  failedRuns: number;
+  failedLogins: number;
+  ragFailures: number;
+  totalRisks: number;
+  hasAnyData: boolean;
+  risks: Array<{
+    id: string;
+    title: string;
+    description: string;
+    badge: string;
+    tone: "success" | "warning" | "danger";
+  }>;
+};
+
+export type RagMetricsSummary = {
+  topK: number | null;
+  caseCount: number | null;
+  passedCount: number | null;
+  failedCount: number | null;
+  noResultCount: number | null;
+  recallAt5: number | null;
+  recallAt10: number | null;
+  mrr: number | null;
+  citationHitRate: number | null;
+  noResultRate: number | null;
+};
+
 export type RagEvaluationItem = {
   evalId: string;
   knowledgeBaseIds: string;
   cases: string;
   metrics: string;
+  metricsSummary: RagMetricsSummary | null;
   status: string;
   errorMessage: string | null;
   createdAt: string;
@@ -262,6 +304,23 @@ type ApiResponse<T> = {
 
 const API_PREFIX = "/api/v1";
 
+const SESSION_STORAGE_KEY = "aiagent.auth.session";
+const SESSION_CHANGE_EVENT = "aiagent.auth.sessionchange";
+let unauthorizedHandled = false;
+
+function handleUnauthorized() {
+  if (unauthorizedHandled) return;
+  unauthorizedHandled = true;
+  try {
+    window.localStorage.removeItem(SESSION_STORAGE_KEY);
+    window.dispatchEvent(new Event(SESSION_CHANGE_EVENT));
+  } finally {
+    window.setTimeout(() => {
+      unauthorizedHandled = false;
+    }, 0);
+  }
+}
+
 function isApiError(value: unknown): value is ApiError {
   return (
     typeof value === "object" &&
@@ -305,6 +364,9 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
+    if (response.status === 401 && accessToken) {
+      handleUnauthorized();
+    }
     const errorPayload = await response.json().catch(() => null);
     throw toApiError(errorPayload, {
       code: "NETWORK_ERROR",
@@ -345,6 +407,9 @@ export async function streamRequest(
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      handleUnauthorized();
+    }
     const errorPayload = await response.json().catch(() => null);
     throw toApiError(errorPayload, {
       code: "NETWORK_ERROR",

@@ -13,6 +13,7 @@ import com.sreehc.aiagent.infrastructure.model.ImageGenerationProviderRouter;
 import com.sreehc.aiagent.infrastructure.model.ModelProviderException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -197,6 +198,27 @@ public class AdminSettingsService {
                 .orElseThrow(() -> new AppException("MODEL_NOT_FOUND", "Model config not found", HttpStatus.NOT_FOUND));
     }
 
+    public static ModelRisk evaluateModelRisk(ModelConfig modelConfig) {
+        List<String> riskCodes = new ArrayList<>();
+        List<String> riskReasons = new ArrayList<>();
+        String riskLevel = "default";
+        if (modelConfig.enabled() && "local-mock".equalsIgnoreCase(modelConfig.provider())) {
+            riskCodes.add("LOCAL_MOCK_ENABLED");
+            riskReasons.add("启用模型使用 local-mock provider");
+            riskLevel = "danger";
+        }
+        if (modelConfig.enabled()
+                && modelConfig.lastTestStatus() != null
+                && !"SUCCESS".equalsIgnoreCase(modelConfig.lastTestStatus())) {
+            riskCodes.add("LAST_TEST_FAILED");
+            riskReasons.add("最近连接测试非 SUCCESS");
+            if (!"danger".equals(riskLevel)) {
+                riskLevel = "warning";
+            }
+        }
+        return new ModelRisk(riskLevel, riskCodes, riskReasons);
+    }
+
     private String maskApiKey(String apiKey) {
         if (apiKey == null || apiKey.isBlank()) {
             return null;
@@ -232,6 +254,13 @@ public class AdminSettingsService {
             String modelCode,
             String status,
             String message
+    ) {
+    }
+
+    public record ModelRisk(
+            String riskLevel,
+            List<String> riskCodes,
+            List<String> riskReasons
     ) {
     }
 

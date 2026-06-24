@@ -7,11 +7,20 @@ import {
   ToolInvocationItem
 } from "../../services/api";
 
-export type TimelineStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED" | string;
+export type TimelineStatus = "PENDING" | "RUNNING" | "PAUSED" | "CANCEL_REQUESTED" | "CANCELLED" | "COMPLETED" | "FAILED" | "TIMED_OUT" | string;
+export type AgentFeedKind = "run" | "plan-step" | "tool" | "artifact" | "stream-event";
+
+export const AGENT_FEED_KIND_LABELS: Record<AgentFeedKind, string> = {
+  run: "Run",
+  "plan-step": "Plan step",
+  tool: "Tool",
+  artifact: "Artifact",
+  "stream-event": "Live event"
+};
 
 export type ExecutionTimelineItem = {
   id: string;
-  kind: "run" | "plan-step" | "tool" | "artifact" | "stream-event";
+  kind: AgentFeedKind;
   title: string;
   status: TimelineStatus;
   timestamp: string | null;
@@ -125,6 +134,10 @@ function mapLiveEvent(event: LiveStreamItem): ExecutionTimelineItem {
 }
 
 function inferEventStatus(eventName: string): TimelineStatus {
+  if (eventName.endsWith(".cancelled")) return "CANCELLED";
+  if (eventName.endsWith(".cancel_requested")) return "CANCEL_REQUESTED";
+  if (eventName.endsWith(".paused")) return "PAUSED";
+  if (eventName.endsWith(".timed_out")) return "TIMED_OUT";
   if (eventName.endsWith(".failed") || eventName.endsWith(".error")) return "FAILED";
   if (eventName.endsWith(".completed") || eventName.endsWith(".done")) return "COMPLETED";
   return "RUNNING";

@@ -1,12 +1,10 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ConfirmDialog } from "../components/ConfirmDialog";
-import { Alert, StatusPill } from "../components/ui";
-import { ArtifactPanel } from "../features/workspace/ArtifactPanel";
+import { Alert, Badge, Button, StatusPill } from "../components/ui";
 import { ExecutionTimeline } from "../features/workspace/ExecutionTimeline";
-import { MemoryPanel } from "../features/workspace/MemoryPanel";
 import { ResearchComposer } from "../features/workspace/ResearchComposer";
 import { SessionList } from "../features/workspace/SessionList";
-import { ToolInvocationList } from "../features/workspace/ToolInvocationList";
+import { WorkspaceInspector } from "../features/workspace/WorkspaceInspector";
 import { buildExecutionTimeline, LiveStreamItem, normalizeStreamEvent } from "../features/workspace/workspaceViewModel";
 import { useAuthSession } from "../hooks/useAuthSession";
 import { ApiError, ArtifactItem, KnowledgeBaseItem, SessionDetailResponse, SessionItem, SessionStreamEvent } from "../services/api";
@@ -17,6 +15,7 @@ import { AgentMode, StrategyMode, sessionsApi } from "../services/sessionsApi";
 const DEFAULT_SESSION_FORM = { title: "新能源市场研究", agentMode: "REACT" as AgentMode };
 const REUSE_ARTIFACTS_STORAGE_KEY = "aiagent.reuseArtifacts";
 type RunFormState = { query: string; executionMode: AgentMode; strategyMode: StrategyMode; knowledgeBaseIds: string; artifactIds: string };
+type RunControlAction = "pause" | "resume" | "cancel" | null;
 const DEFAULT_RUN_FORM: RunFormState = { query: "分析 2026 年储能行业竞争格局，并输出结构化报告", executionMode: "REACT", strategyMode: "AUTO", knowledgeBaseIds: "", artifactIds: "" };
 
 export function WorkspacePage() {
@@ -31,12 +30,15 @@ export function WorkspacePage() {
   const [liveEvents, setLiveEvents] = useState<LiveStreamItem[]>([]);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseItem[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
+  const [loadingSessionDetail, setLoadingSessionDetail] = useState(false);
   const [creatingSession, setCreatingSession] = useState(false);
   const [runningTask, setRunningTask] = useState(false);
   const [bindingKnowledgeBases, setBindingKnowledgeBases] = useState(false);
   const [savingMemory, setSavingMemory] = useState(false);
   const [streamDisconnected, setStreamDisconnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sessionDetailError, setSessionDetailError] = useState<string | null>(null);
+  const [controlRunAction, setControlRunAction] = useState<RunControlAction>(null);
   const [deletingSession, setDeletingSession] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<SessionItem | null>(null);
 
@@ -45,7 +47,12 @@ export function WorkspacePage() {
     () => sessionDetail?.runs.find((run) => ["RUNNING", "PENDING", "PAUSED", "CANCEL_REQUESTED"].includes(run.status)) ?? null,
     [sessionDetail?.runs]
   );
-  const isRunPaused = activeRun?.status === "PAUSED" || sessionDetail?.session.status === "PAUSED";
+  const activeRunStatus = activeRun?.status ?? null;
+  const displayRunStatus = activeRunStatus ?? (runningTask ? "RUNNING" : sessionDetail?.session.status ?? "IDLE");
+  const runLifecycleActive = runningTask || activeRun !== null;
+  const canPauseRun = isPausableRunStatus(activeRunStatus) && controlRunAction === null;
+  const canResumeRun = activeRunStatus === "PAUSED" && controlRunAction === null;
+  const canCancelRun = isCancelableRunStatus(activeRunStatus) && controlRunAction === null;
 
   useEffect(() => {
     if (!session?.accessToken) return;
@@ -58,6 +65,8 @@ export function WorkspacePage() {
     if (!session?.accessToken || !selectedSessionId) {
       setSessionDetail(null);
       setMemoryContent("");
+      setLoadingSessionDetail(false);
+      setSessionDetailError(null);
       return;
     }
     void loadSessionDetail(selectedSessionId);
@@ -85,10 +94,16 @@ export function WorkspacePage() {
 
   async function loadSessionDetail(sessionId: string) {
     if (!session?.accessToken) return;
+    setLoadingSessionDetail(true);
+    setSessionDetailError(null);
     try {
       setSessionDetail(await sessionsApi.get(session.accessToken, sessionId));
     } catch (requestError) {
-      setError((requestError as ApiError).message);
+      const message = (requestError as ApiError).message;
+      setError(message);
+      setSessionDetailError(message);
+    } finally {
+      setLoadingSessionDetail(false);
     }
   }
 
@@ -98,7 +113,9 @@ export function WorkspacePage() {
       const result = await sessionsApi.getMemory(session.accessToken, sessionId);
       setMemoryContent(result.content);
     } catch (requestError) {
-      setError((requestError as ApiError).message);
+      const message = (requestError as ApiError).message;
+      setError(message);
+      setSessionDetailError(message);
     }
   }
 
@@ -152,6 +169,7 @@ export function WorkspacePage() {
     setRunningTask(true);
     setError(null);
     setStreamDisconnected(false);
+    setControlRunAction(null);
     setLiveEvents([]);
     try {
       await sessionsApi.streamRun(session.accessToken, selectedSessionId, { query: runForm.query, executionMode: runForm.executionMode, strategyMode: runForm.strategyMode, knowledgeBaseIds: parseIds(runForm.knowledgeBaseIds), artifactIds: selectedArtifacts.map((artifact) => artifact.artifactId) }, onStreamEvent);
@@ -168,32 +186,44 @@ export function WorkspacePage() {
   async function onCancelRun() {
     if (!session?.accessToken || !selectedSessionId) return;
     const runId = activeRun?.runId;
-    if (!runId) return;
+    if (!runId || !canCancelRun) return;
+    setControlRunAction("cancel");
+    setError(null);
     try {
       await sessionsApi.cancelRun(session.accessToken, selectedSessionId, runId, "User cancelled from workspace");
       await loadSessionDetail(selectedSessionId);
     } catch (requestError) {
       setError((requestError as ApiError).message);
+    } finally {
+      setControlRunAction(null);
     }
   }
 
   async function onPauseRun() {
-    if (!session?.accessToken || !selectedSessionId || !activeRun) return;
+    if (!session?.accessToken || !selectedSessionId || !activeRun || !canPauseRun) return;
+    setControlRunAction("pause");
+    setError(null);
     try {
       await sessionsApi.pauseRun(session.accessToken, selectedSessionId, activeRun.runId, "User paused from workspace");
       await loadSessionDetail(selectedSessionId);
     } catch (requestError) {
       setError((requestError as ApiError).message);
+    } finally {
+      setControlRunAction(null);
     }
   }
 
   async function onResumeRun() {
-    if (!session?.accessToken || !selectedSessionId || !activeRun) return;
+    if (!session?.accessToken || !selectedSessionId || !activeRun || !canResumeRun) return;
+    setControlRunAction("resume");
+    setError(null);
     try {
       await sessionsApi.resumeRun(session.accessToken, selectedSessionId, activeRun.runId);
       await loadSessionDetail(selectedSessionId);
     } catch (requestError) {
       setError((requestError as ApiError).message);
+    } finally {
+      setControlRunAction(null);
     }
   }
 
@@ -294,24 +324,41 @@ export function WorkspacePage() {
   }
 
   return (
-    <section className="page">
+    <section className="page page--workspace">
       <header className="page-header">
         <div><h1>研究工作台</h1><p>发起研究任务，并查看规划、工具调用和最终产物。</p></div>
-        <div className="page-header__meta"><span className="badge badge--neutral">{sessions.length} 个会话</span><span className="badge badge--neutral">{parseIds(runForm.knowledgeBaseIds).length} 个知识库</span></div>
-        <StatusPill status={runningTask ? "RUNNING" : sessionDetail?.session.status ?? "IDLE"} />
+        <div className="page-header__meta"><Badge tone="neutral">{sessions.length} 个会话</Badge><Badge tone="neutral">{parseIds(runForm.knowledgeBaseIds).length} 个知识库</Badge></div>
+        <StatusPill status={displayRunStatus} />
       </header>
       {error ? <Alert tone="error">{error}</Alert> : null}
-      {streamDisconnected ? <Alert tone="info">实时连接已中断。已保留当前事件，并尝试从会话详情恢复结果。</Alert> : null}
-      <div className="workspace-grid">
-        <SessionList sessions={sessions} selectedSessionId={selectedSessionId} loading={loadingSessions} creating={creatingSession} form={sessionForm} onFormChange={setSessionForm} onCreate={onCreateSession} onSelect={setSelectedSessionId} onDelete={setSessionToDelete} onRefresh={() => void loadSessions()} />
-        <main className="stack">
-          <ResearchComposer selected={selectedSessionId !== null} sessionStatus={runningTask ? (isRunPaused ? "PAUSED" : "RUNNING") : sessionDetail?.session.status ?? "IDLE"} form={runForm} selectedArtifacts={selectedArtifacts} knowledgeBases={knowledgeBases} running={runningTask || activeRun !== null} paused={isRunPaused} binding={bindingKnowledgeBases} onFormChange={setRunForm} onSubmit={onRunTask} onCancel={() => void onCancelRun()} onPause={() => void onPauseRun()} onResume={() => void onResumeRun()} onRemoveArtifact={(artifactId) => setSelectedArtifacts((current) => current.filter((artifact) => artifact.artifactId !== artifactId))} onBind={() => void onBindKnowledgeBases()} onRefreshKnowledge={() => void loadKnowledgeBases()} />
+      {streamDisconnected ? <Alert tone="warning" title="实时连接中断" action={<Button type="button" variant="secondary" size="sm" onClick={() => selectedSessionId && void loadSessionDetail(selectedSessionId)}>恢复会话详情</Button>}>已保留当前 Agent feed 事件。可以从历史或会话详情恢复服务端结果。</Alert> : null}
+      <div className="workspace-shell">
+        <section className="workspace-session-rail" aria-label="研究会话">
+          <SessionList sessions={sessions} selectedSessionId={selectedSessionId} loading={loadingSessions} creating={creatingSession} form={sessionForm} onFormChange={setSessionForm} onCreate={onCreateSession} onSelect={setSelectedSessionId} onDelete={setSessionToDelete} onRefresh={() => void loadSessions()} />
+        </section>
+        <main className="workspace-main-flow">
+          <ResearchComposer selected={selectedSessionId !== null} sessionStatus={displayRunStatus} form={runForm} selectedArtifacts={selectedArtifacts} knowledgeBases={knowledgeBases} running={runLifecycleActive} canPause={canPauseRun} canResume={canResumeRun} canCancel={canCancelRun} pausing={controlRunAction === "pause"} resuming={controlRunAction === "resume"} cancelling={controlRunAction === "cancel" || activeRunStatus === "CANCEL_REQUESTED"} binding={bindingKnowledgeBases} onFormChange={setRunForm} onSubmit={onRunTask} onCancel={() => void onCancelRun()} onPause={() => void onPauseRun()} onResume={() => void onResumeRun()} onRemoveArtifact={(artifactId) => setSelectedArtifacts((current) => current.filter((artifact) => artifact.artifactId !== artifactId))} onBind={() => void onBindKnowledgeBases()} onRefreshKnowledge={() => void loadKnowledgeBases()} />
           <ExecutionTimeline items={timeline} />
         </main>
-        <aside className="stack workspace-grid__results">
-          <ArtifactPanel detail={sessionDetail} artifacts={sessionDetail?.artifacts ?? []} canRestore={selectedSessionId !== null} onRestore={() => selectedSessionId && void loadSessionDetail(selectedSessionId)} onUseArtifact={onUseArtifact} onUpload={onUploadArtifact} />
-          <MemoryPanel selected={selectedSessionId !== null} content={memoryContent} saving={savingMemory} onChange={setMemoryContent} onSave={() => void onSaveMemory()} onClear={() => void onSaveMemory("")} onRebuild={() => void onRebuildMemory()} />
-          <ToolInvocationList items={sessionDetail?.toolInvocations ?? []} />
+        <aside className="workspace-inspector">
+          <WorkspaceInspector
+            detail={sessionDetail}
+            artifacts={sessionDetail?.artifacts ?? []}
+            selected={selectedSessionId !== null}
+            loading={loadingSessionDetail}
+            error={sessionDetailError}
+            memoryContent={memoryContent}
+            savingMemory={savingMemory}
+            toolInvocations={sessionDetail?.toolInvocations ?? []}
+            canRestore={selectedSessionId !== null}
+            onRestore={() => selectedSessionId && void loadSessionDetail(selectedSessionId)}
+            onUseArtifact={onUseArtifact}
+            onUpload={onUploadArtifact}
+            onMemoryChange={setMemoryContent}
+            onMemorySave={() => void onSaveMemory()}
+            onMemoryClear={() => void onSaveMemory("")}
+            onMemoryRebuild={() => void onRebuildMemory()}
+          />
         </aside>
       </div>
       <ConfirmDialog isOpen={sessionToDelete !== null} title="确认删除会话" message={<>确定要删除会话「<strong>{sessionToDelete?.title}</strong>」吗？此操作不可恢复。</>} confirmText={deletingSession ? "删除中" : "删除会话"} cancelText="取消" onConfirm={onDeleteSession} onCancel={() => setSessionToDelete(null)} danger />
@@ -321,4 +368,12 @@ export function WorkspacePage() {
 
 function parseIds(raw: string) {
   return raw.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function isPausableRunStatus(status: string | null) {
+  return status === "PENDING" || status === "RUNNING";
+}
+
+function isCancelableRunStatus(status: string | null) {
+  return status === "PENDING" || status === "RUNNING" || status === "PAUSED";
 }

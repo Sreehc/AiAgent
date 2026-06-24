@@ -9,11 +9,11 @@ type FieldProps = {
 
 export function Field({ label, description, error, children }: FieldProps) {
   return (
-    <label className="field">
-      <span className="field__label">{label}</span>
+    <label className="flex flex-col gap-1.5">
+      <span className="text-sm font-medium text-foreground">{label}</span>
       {children}
-      {description ? <span className="field__description">{description}</span> : null}
-      {error ? <span className="field__error">{error}</span> : null}
+      {description ? <span className="text-xs text-muted-foreground">{description}</span> : null}
+      {error ? <span className="text-xs text-destructive">{error}</span> : null}
     </label>
   );
 }

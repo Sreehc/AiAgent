@@ -52,20 +52,16 @@ export function RegisterPage() {
 
   return (
     <AuthLayout eyebrow="Invite register" title="创建受邀账号" intro="输入管理员发放的邀请码，创建可访问工作台的账号。" contextTitle="Controlled Access Workspace" contextDescription="邀请注册和登录态保护确保会话、知识库和产物默认归属个人账号。" footer={<>已有账号？<Link to="/login">返回登录</Link></>}>
-      {inviteInvalid ? <EmptyState message="当前邀请码无效、已过期或已被使用，请联系管理员重新生成邀请码。" /> : null}
-      <form className="form-grid" onSubmit={onSubmit}>
-        <Field label="邀请码"><Input value={form.inviteToken} onChange={(event) => setForm((current) => ({ ...current, inviteToken: event.target.value }))} placeholder="INVITE-ABC" /></Field>
-        <div className="form-row">
-          <Field label="用户名"><Input value={form.username} onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))} placeholder="alice" /></Field>
-          <Field label="显示名称"><Input value={form.displayName} onChange={(event) => setForm((current) => ({ ...current, displayName: event.target.value }))} placeholder="Alice" /></Field>
-        </div>
-        <div className="form-row">
-          <Field label="密码"><Input value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} type="password" placeholder="至少 8 位" /></Field>
-          <Field label="确认密码"><Input value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} type="password" placeholder="再次输入密码" /></Field>
-        </div>
-        {error ? <Alert tone="error">{error}</Alert> : null}
-        {success ? <Alert tone="success">{success}</Alert> : null}
-        <Button type="submit" variant="primary" loading={submitting} fullWidth>创建账号</Button>
+      {inviteInvalid ? <EmptyState variant="permission" message="当前邀请码无效、已过期或已被使用，请联系管理员重新生成邀请码。" /> : null}
+      <form className="auth-form" onSubmit={onSubmit}>
+        <Field label="邀请码"><Input value={form.inviteToken} onChange={(event) => setForm((current) => ({ ...current, inviteToken: event.target.value }))} placeholder="INVITE-ABC" required /></Field>
+        <Field label="用户名"><Input value={form.username} onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))} autoComplete="username" placeholder="alice" required /></Field>
+        <Field label="显示名称"><Input value={form.displayName} onChange={(event) => setForm((current) => ({ ...current, displayName: event.target.value }))} placeholder="Alice" required /></Field>
+        <Field label="密码"><Input value={form.password} onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))} type="password" autoComplete="new-password" placeholder="至少 8 位" required /></Field>
+        <Field label="确认密码"><Input value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} type="password" autoComplete="new-password" placeholder="再次输入密码" required /></Field>
+        {error ? <Alert tone="error" title="注册失败">{error}</Alert> : null}
+        {success ? <Alert tone="success" title="注册成功">{success}</Alert> : null}
+        <Button type="submit" variant="primary" size="lg" loading={submitting} disabled={submitting || Boolean(success)} fullWidth>创建账号</Button>
       </form>
     </AuthLayout>
   );

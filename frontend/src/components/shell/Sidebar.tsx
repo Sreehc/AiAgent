@@ -1,6 +1,6 @@
 import { Link, NavLink } from "react-router-dom";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { Tooltip } from "../ui";
+import { AppBrandMark, Tooltip } from "../ui";
 import { cn } from "@/lib/utils";
 import { getNavigationSections, NavigationItem, NavigationSection } from "./navigation";
 
@@ -49,7 +49,7 @@ export function Sidebar({ id, isAdmin, collapsed, onToggleCollapsed, onNavigate,
     <aside id={id} className="app-sidebar" aria-label="主导航" data-collapsed={collapsed || undefined}>
       <div className="app-sidebar__header">
         <Link className="app-brand" to="/workspace/chat" onClick={onNavigate} aria-label="AiAgent 研究工作台">
-          <span className="app-brand__mark">AI</span>
+          <AppBrandMark className="app-brand__mark" />
           <span><strong>AiAgent</strong><small>Operations Console</small></span>
         </Link>
         <Tooltip content={collapsed ? "展开侧栏" : "收起侧栏"} side="right">

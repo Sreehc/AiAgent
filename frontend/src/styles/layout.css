@@ -57,12 +57,9 @@
 .app-brand__mark {
   width: 36px;
   height: 36px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-lg);
-  background: var(--color-primary);
-  color: var(--color-text-inverse);
-  font-weight: 800;
+  display: block;
+  flex: 0 0 auto;
+  color: var(--color-primary);
 }
 
 .app-brand > span:last-child {
@@ -215,8 +212,6 @@
 .app-shell.sidebar-collapsed .app-brand__mark {
   width: 34px;
   height: 34px;
-  border-radius: 14px;
-  font-size: 1rem;
 }
 
 .app-shell.sidebar-collapsed .app-brand > span:last-child,

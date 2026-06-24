@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Badge, Panel } from "../../components/ui";
+import { AppBrandMark, Badge, Panel } from "../../components/ui";
 
 type AuthLayoutProps = {
   eyebrow: string;
@@ -17,7 +17,13 @@ export function AuthLayout({ eyebrow, title, intro, contextTitle, contextDescrip
   return (
     <main className="auth-page">
       <section className="auth-context" aria-label="产品简介">
-        <Link className="auth-brand" to="/login"><span className="app-brand__mark">AI</span><strong>AiAgent</strong></Link>
+        <Link className="auth-brand" to="/login">
+          <AppBrandMark className="app-brand__mark" />
+          <span className="auth-brand__lockup">
+            <strong>AiAgent</strong>
+            <small>Research Operations Console</small>
+          </span>
+        </Link>
         <h1>{contextTitle}</h1>
         <p>{contextDescription}</p>
         <div className="auth-status-strip" aria-label="工作台能力状态">

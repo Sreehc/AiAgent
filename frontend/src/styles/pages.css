@@ -38,6 +38,24 @@
   gap: var(--space-3);
 }
 
+.auth-brand__lockup {
+  display: grid;
+  gap: 2px;
+}
+
+.auth-brand__lockup strong {
+  color: var(--color-text);
+  font-size: 1.125rem;
+  line-height: 1.05;
+}
+
+.auth-brand__lockup small {
+  color: var(--color-text-soft);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
 .auth-context h1 {
   margin: var(--space-4) 0;
   max-width: 12ch;

@@ -1,0 +1,87 @@
+<svg width="1440" height="940" viewBox="0 0 1440 940" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1440" height="940" fill="#F7F8FA"/>
+  <rect x="48" y="40" width="1344" height="860" rx="36" fill="#EEF1F4"/>
+  <text x="96" y="118" fill="#111318" font-size="42" font-family="Arial, sans-serif" font-weight="700">AiAgent Icon Concepts</text>
+  <text x="96" y="154" fill="#525866" font-size="22" font-family="Arial, sans-serif">主应用图标 + favicon 方向示意。都基于 graphite/zinc + restrained cyan/teal。</text>
+
+  <g transform="translate(92 210)">
+    <rect width="392" height="610" rx="28" fill="#FFFFFF" stroke="#D9DEE7" stroke-width="2"/>
+    <text x="32" y="54" fill="#111318" font-size="30" font-family="Arial, sans-serif" font-weight="700">A. Monogram Rail</text>
+    <text x="32" y="88" fill="#525866" font-size="18" font-family="Arial, sans-serif">字母骨架最强，适合当前侧栏品牌升级。</text>
+
+    <rect x="76" y="132" width="240" height="240" rx="62" fill="#0891B2"/>
+    <path d="M132 308L196 192L260 308" stroke="#F8FAFC" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M160 260H232" stroke="#F8FAFC" stroke-width="16" stroke-linecap="round"/>
+    <path d="M284 194V306" stroke="#CFFAFE" stroke-width="20" stroke-linecap="round"/>
+    <circle cx="284" cy="172" r="11" fill="#CFFAFE"/>
+
+    <text x="34" y="434" fill="#111318" font-size="20" font-family="Arial, sans-serif" font-weight="700">应用图标气质</text>
+    <text x="34" y="466" fill="#525866" font-size="18" font-family="Arial, sans-serif">更像“AI 工作台”本体，识别稳定，落到侧栏和启动台都不会跑偏。</text>
+
+    <text x="34" y="528" fill="#111318" font-size="20" font-family="Arial, sans-serif" font-weight="700">favicon 预览</text>
+    <rect x="34" y="548" width="72" height="72" rx="18" fill="#0891B2"/>
+    <path d="M51 604L69 571L87 604" stroke="#F8FAFC" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M59 590H79" stroke="#F8FAFC" stroke-width="5.5" stroke-linecap="round"/>
+    <path d="M95 571V603" stroke="#CFFAFE" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="95" cy="564" r="4" fill="#CFFAFE"/>
+  </g>
+
+  <g transform="translate(524 210)">
+    <rect width="392" height="610" rx="28" fill="#FFFFFF" stroke="#D9DEE7" stroke-width="2"/>
+    <text x="32" y="54" fill="#111318" font-size="30" font-family="Arial, sans-serif" font-weight="700">B. Research Orbit</text>
+    <text x="32" y="88" fill="#525866" font-size="18" font-family="Arial, sans-serif">抽象几何更强，偏“研究网络 / 智能体协作”。</text>
+
+    <rect x="76" y="132" width="240" height="240" rx="62" fill="#11161C"/>
+    <circle cx="196" cy="252" r="18" fill="#22D3EE"/>
+    <circle cx="151" cy="208" r="12" fill="#5EEAD4"/>
+    <circle cx="244" cy="208" r="12" fill="#5EEAD4"/>
+    <circle cx="244" cy="297" r="12" fill="#5EEAD4"/>
+    <path d="M151 208C167 225 176 234 196 252" stroke="#67E8F9" stroke-width="14" stroke-linecap="round"/>
+    <path d="M244 208C226 225 218 233 196 252" stroke="#67E8F9" stroke-width="14" stroke-linecap="round"/>
+    <path d="M244 297C225 282 218 274 196 252" stroke="#67E8F9" stroke-width="14" stroke-linecap="round"/>
+    <path d="M151 208C175 196 213 192 244 208" stroke="#2A3340" stroke-width="10" stroke-linecap="round"/>
+
+    <text x="34" y="434" fill="#111318" font-size="20" font-family="Arial, sans-serif" font-weight="700">应用图标气质</text>
+    <text x="34" y="466" fill="#525866" font-size="18" font-family="Arial, sans-serif">更现代，也更像多智能体、证据流、连接网络，但字母识别会更弱。</text>
+
+    <text x="34" y="528" fill="#111318" font-size="20" font-family="Arial, sans-serif" font-weight="700">favicon 预览</text>
+    <rect x="34" y="548" width="72" height="72" rx="18" fill="#11161C"/>
+    <circle cx="70" cy="584" r="5.5" fill="#22D3EE"/>
+    <circle cx="56" cy="570" r="4" fill="#5EEAD4"/>
+    <circle cx="84" cy="570" r="4" fill="#5EEAD4"/>
+    <circle cx="84" cy="597" r="4" fill="#5EEAD4"/>
+    <path d="M56 570L70 584" stroke="#67E8F9" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M84 570L70 584" stroke="#67E8F9" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M84 597L70 584" stroke="#67E8F9" stroke-width="4.5" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(956 210)">
+    <rect width="392" height="610" rx="28" fill="#FFFFFF" stroke="#D9DEE7" stroke-width="2"/>
+    <text x="32" y="54" fill="#111318" font-size="30" font-family="Arial, sans-serif" font-weight="700">C. Aperture Agent</text>
+    <text x="32" y="88" fill="#525866" font-size="18" font-family="Arial, sans-serif">组合标识，既有系统感，也更容易做动态化。</text>
+
+    <rect x="76" y="132" width="240" height="240" rx="62" fill="#ECFEFF"/>
+    <circle cx="196" cy="252" r="82" fill="#111318"/>
+    <path d="M196 176C220 188 235 202 247 225C224 220 204 216 182 219C187 201 190 190 196 176Z" fill="#22D3EE"/>
+    <path d="M272 252C260 276 246 291 223 303C228 281 230 260 225 238C243 242 255 246 272 252Z" fill="#5EEAD4"/>
+    <path d="M196 328C172 316 157 302 145 279C168 284 188 288 210 285C205 303 202 314 196 328Z" fill="#67E8F9"/>
+    <path d="M120 252C132 228 146 213 169 201C164 223 162 244 167 266C149 262 137 258 120 252Z" fill="#0891B2"/>
+    <circle cx="196" cy="252" r="22" fill="#F8FAFC"/>
+    <circle cx="196" cy="252" r="8" fill="#111318"/>
+
+    <text x="34" y="434" fill="#111318" font-size="20" font-family="Arial, sans-serif" font-weight="700">应用图标气质</text>
+    <text x="34" y="466" fill="#525866" font-size="18" font-family="Arial, sans-serif">视觉完成度最高，适合做 app icon，但 favicon 缩小时细节需要再压缩。</text>
+
+    <text x="34" y="528" fill="#111318" font-size="20" font-family="Arial, sans-serif" font-weight="700">favicon 预览</text>
+    <rect x="34" y="548" width="72" height="72" rx="18" fill="#ECFEFF" stroke="#D9DEE7"/>
+    <circle cx="70" cy="584" r="24" fill="#111318"/>
+    <path d="M70 562C77 566 82 570 85 577C78 576 72 575 66 576C67 570 68 567 70 562Z" fill="#22D3EE"/>
+    <path d="M92 584C89 591 85 596 78 599C79 592 79 586 78 579C84 580 88 581 92 584Z" fill="#5EEAD4"/>
+    <path d="M70 606C63 602 58 598 55 591C62 592 68 593 74 592C73 598 72 601 70 606Z" fill="#67E8F9"/>
+    <path d="M48 584C51 577 55 572 62 569C61 576 61 582 62 589C56 588 52 587 48 584Z" fill="#0891B2"/>
+    <circle cx="70" cy="584" r="6.5" fill="#F8FAFC"/>
+    <circle cx="70" cy="584" r="2.5" fill="#111318"/>
+  </g>
+
+  <text x="96" y="870" fill="#525866" font-size="20" font-family="Arial, sans-serif">如果你选中一个方向，我下一步会把它收敛成正式 SVG：应用图标、favicon、以及侧栏/登录页品牌适配版本。</text>
+</svg>

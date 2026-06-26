@@ -15,6 +15,7 @@
     "test:not-found-page": "node scripts/verify-not-found-page.mjs",
     "test:workspace-layout": "node scripts/verify-workspace-layout.mjs",
     "test:brand-icon-upgrade": "node scripts/verify-brand-icon-upgrade.mjs",
+    "test:route-splitting": "node scripts/verify-route-splitting.mjs",
     "test:file-input-upgrade": "node scripts/verify-file-input-upgrade.mjs",
     "test:select-upgrade": "node scripts/verify-select-upgrade.mjs",
     "test:sidebar-collapse-fix": "node scripts/verify-sidebar-collapse-fix.mjs",

@@ -429,7 +429,7 @@ Rollback immediately if any of these occur:
 - broken personal API config tests
 - broken image edit behavior
 
-- [ ] **Step 4: Tag the migration boundary commit**
+- [x] **Step 4: Tag the migration boundary commit**
 
 ```bash
 cd /Users/cheers/Desktop/workspace/AiAgent

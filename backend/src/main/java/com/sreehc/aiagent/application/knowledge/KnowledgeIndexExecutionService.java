@@ -35,7 +35,7 @@ public class KnowledgeIndexExecutionService {
                     chunkNo,
                     chunk.contentPreview(),
                     chunk.contentText(),
-                    embeddingProviderRouter.embed(chunk.contentText()),
+                    embedChunk(chunk),
                     chunk.sectionTitle(),
                     chunk.headingPath(),
                     chunk.tokenCount(),
@@ -52,5 +52,9 @@ public class KnowledgeIndexExecutionService {
 
     private String nextCode(String prefix) {
         return prefix + "_" + java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+    }
+
+    private String embedChunk(ChunkSegment chunk) {
+        return embeddingProviderRouter.embed(chunk.contentText());
     }
 }

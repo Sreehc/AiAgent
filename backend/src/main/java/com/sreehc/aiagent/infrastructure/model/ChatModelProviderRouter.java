@@ -12,6 +12,10 @@ public class ChatModelProviderRouter {
     }
 
     public ChatModelProvider route(String providerCode) {
+        return findProvider(providerCode);
+    }
+
+    private ChatModelProvider findProvider(String providerCode) {
         return providers.stream()
                 .filter(provider -> provider.providerCode().equalsIgnoreCase(providerCode))
                 .findFirst()

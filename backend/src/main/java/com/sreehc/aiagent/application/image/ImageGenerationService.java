@@ -238,15 +238,7 @@ public class ImageGenerationService {
             String referenceMimeType
     ) {
         try {
-            AppProperties.Image image = appProperties.image();
-            ModelRuntimeResolver.RuntimeModel runtimeModel = modelRuntimeResolver.findForUser(currentUser, ModelType.IMAGE, null)
-                    .orElseGet(() -> new ModelRuntimeResolver.RuntimeModel(
-                            image.modelCode(),
-                            image.provider(),
-                            ModelType.IMAGE,
-                            image.baseUrl(),
-                            image.apiKey()
-                    ));
+            ModelRuntimeResolver.RuntimeModel runtimeModel = resolveImageRuntimeModel(currentUser);
             ImageGenerationProvider provider = imageGenerationProviderRouter.route(runtimeModel.provider());
             return provider.generate(new ImageGenerationProvider.ImageRequest(
                     prompt,
@@ -260,6 +252,18 @@ public class ImageGenerationService {
         } catch (Exception exception) {
             throw new AppException("IMAGE_GENERATION_FAILED", "Image provider failed", HttpStatus.BAD_GATEWAY);
         }
+    }
+
+    private ModelRuntimeResolver.RuntimeModel resolveImageRuntimeModel(SessionUser currentUser) {
+        AppProperties.Image image = appProperties.image();
+        return modelRuntimeResolver.findForUser(currentUser, ModelType.IMAGE, null)
+                .orElseGet(() -> new ModelRuntimeResolver.RuntimeModel(
+                        image.modelCode(),
+                        image.provider(),
+                        ModelType.IMAGE,
+                        image.baseUrl(),
+                        image.apiKey()
+                ));
     }
 
     private String buildTitle(String prompt) {

@@ -13,10 +13,7 @@ public class EmbeddingProviderRouter {
     public EmbeddingProviderRouter(List<EmbeddingProvider> providers, AppProperties appProperties) {
         this.providers = providers;
         String configuredProvider = resolveConfiguredProvider(appProperties);
-        this.activeProvider = providers.stream()
-                .filter(provider -> provider.providerCode().equalsIgnoreCase(configuredProvider))
-                .findFirst()
-                .orElseThrow(() -> new EmbeddingProviderException("Unsupported embedding provider: " + configuredProvider));
+        this.activeProvider = routeProvider(configuredProvider);
     }
 
     public String providerCode() {
@@ -28,11 +25,7 @@ public class EmbeddingProviderRouter {
     }
 
     public String embed(String providerCode, String content, String modelCode, String baseUrl, String apiKey) {
-        return providers.stream()
-                .filter(provider -> provider.providerCode().equalsIgnoreCase(providerCode))
-                .findFirst()
-                .orElseThrow(() -> new EmbeddingProviderException("Unsupported embedding provider: " + providerCode))
-                .embed(content, modelCode, baseUrl, apiKey);
+        return routeProvider(providerCode).embed(content, modelCode, baseUrl, apiKey);
     }
 
     private String resolveConfiguredProvider(AppProperties appProperties) {
@@ -40,5 +33,12 @@ public class EmbeddingProviderRouter {
             return "local-mock";
         }
         return appProperties.embedding().provider().trim().toLowerCase(Locale.ROOT);
+    }
+
+    private EmbeddingProvider routeProvider(String providerCode) {
+        return providers.stream()
+                .filter(provider -> provider.providerCode().equalsIgnoreCase(providerCode))
+                .findFirst()
+                .orElseThrow(() -> new EmbeddingProviderException("Unsupported embedding provider: " + providerCode));
     }
 }

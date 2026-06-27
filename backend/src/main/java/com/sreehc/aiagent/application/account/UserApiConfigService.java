@@ -18,6 +18,8 @@ public class UserApiConfigService {
     private static final UserApiConfig DEFAULT_CONFIG = new UserApiConfig(
             "https://api.openai.com/v1", null, "gpt-4o", 0.7, 2000, false
     );
+    private static final String IMAGE_ROUTE_SMOKE_MESSAGE =
+            "Image provider route is available; generation smoke is skipped to avoid cost";
 
     private final UserApiConfigRepository repository;
     private final SecretCipherService secretCipherService;
@@ -74,7 +76,7 @@ public class UserApiConfigService {
             }
             if (modelType == ModelType.IMAGE) {
                 imageGenerationProviderRouter.route("openai-compatible");
-                return new TestResult(modelType, "SUCCESS", "Image provider route is available; generation smoke is skipped to avoid cost");
+                return new TestResult(modelType, "SUCCESS", IMAGE_ROUTE_SMOKE_MESSAGE);
             }
             return new TestResult(modelType, "FAILED", "Unsupported model type");
         } catch (Exception exception) {

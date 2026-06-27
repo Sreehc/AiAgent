@@ -1,6 +1,6 @@
 # AiAgent V1 技术方案设计
 
-> 文档状态：基于 2026-06-13 仓库代码复核。本文档描述目标架构时，会同时标注当前实现边界；代码事实优先于早期设计假设。
+> 文档状态：基于 2026-06-27 仓库代码复核，已纳入 Spring AI provider 层迁移结果。本文档描述目标架构时，会同时标注当前实现边界；代码事实优先于早期设计假设。
 
 ## 0. 当前技术实现摘要
 
@@ -10,6 +10,7 @@
 - RAG 已实现结构化分块、Kafka 异步索引与重试、向量/全文混合召回、查询改写、重排、上下文预算、缓存和检索审计。
 - HTTP 类 MCP 已实现标准 `tools/list` / `tools/call`；STDIO 已实现 MCP Content-Length JSON-RPC 帧协议、`initialize`、`tools/list`、`tools/call` 和长生命周期进程复用。
 - 管理员模型配置和个人 API 配置均进入运行时解析；Chat、Embedding、Image 按“个人配置 -> 管理员默认模型 -> 环境 fallback”选择。
+- `openai-compatible` provider 已迁移到 Spring AI-backed infrastructure adapter；`application/*` 与 `domain/*` 继续依赖既有 provider interface，不直接依赖 Spring AI 类型。
 - 会话运行支持 heartbeat、暂停、继续、取消、超时回收和僵尸任务恢复；取消、暂停、超时、失败使用独立状态语义。
 
 ## 1. 概述
@@ -35,7 +36,7 @@ V1 产品基线：
 - 缓存：Redis 8.4.0
 - 消息队列：Kafka 3.8.0
 - 文件/产物存储：MinIO RELEASE.2025-09-07T16-13-09Z
-- LLM 接入：OpenAI 兼容 API
+- LLM 接入：Spring AI 2.0 adapter + OpenAI-compatible runtime provider
 
 ### 2.2 后端分层
 
@@ -50,7 +51,7 @@ V1 产品基线：
 - 认证入口：登录页、邀请注册页、找回密码页
 - 工作台：聊天工作台、研究结果、知识库工作区、图片生成工作区、历史会话页
 - 用户中心：个人资料、修改密码、登录日志
-- 配置中心：模型配置、MCP 配置、知识库基础配置。模型配置按 `CHAT`、`EMBEDDING`、`IMAGE` 三类接入运行时 provider；管理接口只展示脱敏密钥，运行时通过密钥解密服务读取真实凭证，本地可使用 `local-mock`，生产不得静默使用 mock provider。
+- 配置中心：模型配置、MCP 配置、知识库基础配置。模型配置按 `CHAT`、`EMBEDDING`、`IMAGE` 三类接入运行时 provider；管理接口只展示脱敏密钥，运行时通过密钥解密服务读取真实凭证，本地可使用 `local-mock`，生产不得静默使用 mock provider。`openai-compatible` 的 chat、embedding、image generation 通过动态 Spring AI factory 按请求构造 runtime client，不使用单例静态模型 bean。
 
 ### 2.4 前端分层架构
 
@@ -122,6 +123,7 @@ React Router
 - Executor 按 `plan -> execute -> observe -> judge -> replan/done/continue` 推进，支持受配置限制的重规划轮次和步骤上限。
 - 会话摘要、最近消息和复用产物可注入后续运行上下文，并提供查看、编辑、清空和重建 API。
 - 任务运行支持取消、暂停、继续、heartbeat 和超时回收；暂停/取消在步骤边界或 provider 调用返回后收敛，不能强杀已发出的阻塞外部调用。
+- Chat provider 迁移仅替换 infrastructure adapter；`SessionRunExecutor.completeWithChatProvider(...)` 的 runtime model 解析、异常包装和非生产 `local-mock` fallback 语义保持不变。
 
 ### 3.3 RAG 模块
 
@@ -146,6 +148,7 @@ V1 策略：
 - 当前允许上传 `txt`、`md`、`markdown`、`csv`、`json`，PDF、DOCX、OCR 不在当前代码范围。
 - 空知识库会回退到普通执行；会话执行路径会把检索、embedding、重排等非权限类异常降级为普通执行，并通过 `rag.degraded` 事件和报告说明原因。
 - RAG 评估已提供管理 API、评估用例 CRUD 和前端页面；当前以同步小批量评估为主。
+- Embedding provider 已迁移到 Spring AI adapter，但 `QueryEmbeddingService` 的 cache key 规则、`EMBEDDING_PROVIDER_FAILED` 错误码，以及 `KnowledgeIndexExecutionService` 写入 pgvector literal string 的行为保持不变。
 
 ### 3.4 MCP 模块
 
@@ -187,7 +190,7 @@ V1 支持：
 当前实现边界：
 
 - 文本生图、参考图上传、对象存储、历史和会话关联已实现。
-- `local-mock` 支持编辑演示流程；OpenAI-compatible provider 已实现参考图编辑 multipart 请求契约，并有本地 mock HTTP 测试覆盖。
+- `local-mock` 支持编辑演示流程；`openai-compatible` 图片 provider 当前使用 Spring AI 处理 text-to-image，参考图编辑则在同一 adapter 内保留 direct multipart `/images/edits` HTTP 调用，并有本地 mock HTTP 测试覆盖。
 - 图片任务当前同步调用 provider，任务记录直接落为完成状态；图片任务独立异步进度和取消不在当前闭环范围。
 
 ### 3.6 历史回放与账本模块

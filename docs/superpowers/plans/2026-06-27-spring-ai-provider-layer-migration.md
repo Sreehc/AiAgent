@@ -8,6 +8,12 @@
 
 **Tech Stack:** Java 21, Spring Boot 4.1.0, Spring AI 2.0.0, Spring AI OpenAI model modules, JUnit 5, existing Spring Boot test stack.
 
+## Execution Notes
+
+- 2026-06-27: Task 1 baseline compatibility landed in commit `658b187`.
+- 2026-06-27: Tasks 2 through 6 implementation work landed in consolidated commit `48e382f` instead of one commit per task.
+- 2026-06-27: Image edit parity was kept inside `SpringAiImageGenerationProvider` via direct multipart `/images/edits` HTTP calls, so no separate legacy production adapter remains.
+
 ---
 
 ## Scope And Non-Goals
@@ -77,11 +83,11 @@
 - Modify: `backend/pom.xml`
 - Test: `backend/src/test/java/com/sreehc/aiagent/app/AiAgentApplicationTests.java`
 
-- [ ] **Step 1: Align Spring AI dependencies with the upgraded platform baseline**
+- [x] **Step 1: Align Spring AI dependencies with the upgraded platform baseline**
 
 Keep Spring AI dependency management and OpenAI model modules aligned in `backend/pom.xml` with the Boot 4.1.0 baseline. Prefer the smallest dependency set that supports chat, embedding, and image generation.
 
-- [ ] **Step 2: Run a narrow context-load test on Boot 4.1.0**
+- [x] **Step 2: Run a narrow context-load test on Boot 4.1.0**
 
 Run: `cd /Users/cheers/Desktop/workspace/AiAgent/backend && mvn -Dtest=AiAgentApplicationTests test`
 
@@ -89,7 +95,7 @@ Expected:
 - PASS if Spring AI 2.0.0 is compatible with the upgraded Boot baseline
 - FAIL fast if there is a BOM or auto-configuration incompatibility
 
-- [ ] **Step 3: Decide the branch**
+- [x] **Step 3: Decide the branch**
 
 If the test fails due to framework incompatibility:
 - stop implementation
@@ -99,7 +105,7 @@ If the test fails due to framework incompatibility:
 If the test passes:
 - continue with this plan
 
-- [ ] **Step 4: Commit the compatibility spike**
+- [x] **Step 4: Commit the compatibility spike**
 
 ```bash
 cd /Users/cheers/Desktop/workspace/AiAgent
@@ -116,7 +122,7 @@ git commit -m "build: add spring ai baseline dependencies"
 - Modify: `backend/src/main/resources/application.yml`
 - Test: `backend/src/test/java/com/sreehc/aiagent/infrastructure/springai/SpringAiOpenAiFactoryTest.java`
 
-- [ ] **Step 1: Add a Spring AI runtime options record**
+- [x] **Step 1: Add a Spring AI runtime options record**
 
 Create a small immutable record that carries:
 - `baseUrl`
@@ -127,7 +133,7 @@ Create a small immutable record that carries:
 
 This record is internal to the Spring AI adapter package and exists to normalize current `AppProperties` and `ModelRuntimeResolver` output into one shape.
 
-- [ ] **Step 2: Add a factory that builds Spring AI OpenAI clients programmatically**
+- [x] **Step 2: Add a factory that builds Spring AI OpenAI clients programmatically**
 
 Create `SpringAiOpenAiFactory` with methods shaped like:
 
@@ -143,7 +149,7 @@ Reason:
 - the codebase resolves credentials dynamically per request
 - a singleton auto-configured model bean is the wrong boundary here
 
-- [ ] **Step 3: Add tests for base URL normalization and missing credential errors**
+- [x] **Step 3: Add tests for base URL normalization and missing credential errors**
 
 Test cases:
 - trims trailing `/`
@@ -151,13 +157,13 @@ Test cases:
 - rejects blank API key
 - carries configured timeout values into the factory-built client options
 
-- [ ] **Step 4: Run the new factory tests**
+- [x] **Step 4: Run the new factory tests**
 
 Run: `cd /Users/cheers/Desktop/workspace/AiAgent/backend && mvn -Dtest=SpringAiOpenAiFactoryTest test`
 
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/cheers/Desktop/workspace/AiAgent
@@ -176,7 +182,7 @@ git commit -m "feat: add dynamic spring ai factory layer"
 - Modify: `backend/src/main/java/com/sreehc/aiagent/application/session/SessionRunExecutor.java`
 - Test: `backend/src/test/java/com/sreehc/aiagent/infrastructure/model/SpringAiChatModelProviderTest.java`
 
-- [ ] **Step 1: Write provider tests first**
+- [x] **Step 1: Write provider tests first**
 
 Cover:
 - `providerCode()` remains `openai-compatible`
@@ -184,7 +190,7 @@ Cover:
 - returned text maps back to `ChatCompletion.text()`
 - provider wraps Spring AI or HTTP-level failures as `ModelProviderException`
 
-- [ ] **Step 2: Implement `SpringAiChatModelProvider` behind the existing interface**
+- [x] **Step 2: Implement `SpringAiChatModelProvider` behind the existing interface**
 
 Implementation constraints:
 - implement `ChatModelProvider`
@@ -192,7 +198,7 @@ Implementation constraints:
 - construct runtime options from `ChatRequest`
 - do not change `ChatModelProvider.ChatRequest`
 
-- [ ] **Step 3: Preserve fallback behavior in `SessionRunExecutor`**
+- [x] **Step 3: Preserve fallback behavior in `SessionRunExecutor`**
 
 Confirm [SessionRunExecutor.java](/Users/cheers/Desktop/workspace/AiAgent/backend/src/main/java/com/sreehc/aiagent/application/session/SessionRunExecutor.java:563) still:
 - resolves runtime model the same way
@@ -201,7 +207,7 @@ Confirm [SessionRunExecutor.java](/Users/cheers/Desktop/workspace/AiAgent/backen
 
 This should be a no-op or near-no-op in behavior. The goal is provider replacement, not orchestration change.
 
-- [ ] **Step 4: Run targeted tests**
+- [x] **Step 4: Run targeted tests**
 
 Run:
 - `cd /Users/cheers/Desktop/workspace/AiAgent/backend && mvn -Dtest=SpringAiChatModelProviderTest test`
@@ -209,7 +215,7 @@ Run:
 
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/cheers/Desktop/workspace/AiAgent
@@ -230,7 +236,7 @@ git commit -m "feat: migrate chat provider to spring ai"
 - Test: `backend/src/test/java/com/sreehc/aiagent/infrastructure/knowledge/SpringAiEmbeddingProviderTest.java`
 - Test: `backend/src/test/java/com/sreehc/aiagent/infrastructure/knowledge/EmbeddingProviderRouterTest.java`
 
-- [ ] **Step 1: Write tests for vector literal compatibility**
+- [x] **Step 1: Write tests for vector literal compatibility**
 
 The new provider must still return the current pgvector literal string format:
 
@@ -243,7 +249,7 @@ Cover:
 - blank input normalization still produces a valid vector
 - configured dimension mismatch still fails deterministically
 
-- [ ] **Step 2: Implement `SpringAiEmbeddingProvider`**
+- [x] **Step 2: Implement `SpringAiEmbeddingProvider`**
 
 Implementation constraints:
 - implement `EmbeddingProvider`
@@ -252,13 +258,13 @@ Implementation constraints:
   - per-user runtime path
 - convert Spring AI embedding response to the exact existing vector-literal string
 
-- [ ] **Step 3: Keep cache key semantics unchanged**
+- [x] **Step 3: Keep cache key semantics unchanged**
 
 Verify [QueryEmbeddingService.java](/Users/cheers/Desktop/workspace/AiAgent/backend/src/main/java/com/sreehc/aiagent/application/knowledge/QueryEmbeddingService.java:29) still:
 - uses the same cache key layout
 - throws `EMBEDDING_PROVIDER_FAILED` on provider failures
 
-- [ ] **Step 4: Validate both query and indexing paths**
+- [x] **Step 4: Validate both query and indexing paths**
 
 Run:
 - `cd /Users/cheers/Desktop/workspace/AiAgent/backend && mvn -Dtest=SpringAiEmbeddingProviderTest,EmbeddingProviderRouterTest test`
@@ -266,7 +272,7 @@ Run:
 
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/cheers/Desktop/workspace/AiAgent
@@ -288,20 +294,20 @@ git commit -m "feat: migrate embedding provider to spring ai"
 - Test: `backend/src/test/java/com/sreehc/aiagent/infrastructure/model/SpringAiImageGenerationProviderTest.java`
 - Test: `backend/src/test/java/com/sreehc/aiagent/application/account/UserApiConfigServiceTest.java`
 
-- [ ] **Step 1: Split text-to-image and image-edit parity checks**
+- [x] **Step 1: Split text-to-image and image-edit parity checks**
 
 Before implementation, write two test groups:
 - text-to-image generation using Spring AI
 - image edit behavior parity compared with the current multipart `/images/edits` path
 
-- [ ] **Step 2: Implement Spring AI text-to-image path**
+- [x] **Step 2: Implement Spring AI text-to-image path**
 
 Implementation constraints:
 - implement `ImageGenerationProvider`
 - preserve `providerCode()` as `openai-compatible`
 - return the existing `GeneratedImage(content, contentType, fileExtension)` contract
 
-- [ ] **Step 3: Decide the image-edit branch**
+- [x] **Step 3: Decide the image-edit branch**
 
 If Spring AI reproduces the current edit API behavior:
 - migrate both generation and edit into `SpringAiImageGenerationProvider`
@@ -311,11 +317,11 @@ If Spring AI does not reproduce it cleanly:
 - use Spring AI only for text generation
 - document this explicitly in code comments and docs
 
-- [ ] **Step 4: Keep account connection tests behavior stable**
+- [x] **Step 4: Keep account connection tests behavior stable**
 
 `UserApiConfigService.test(ModelType.IMAGE)` currently validates route availability without doing a paid generation request. Preserve that behavior.
 
-- [ ] **Step 5: Run targeted tests**
+- [x] **Step 5: Run targeted tests**
 
 Run:
 - `cd /Users/cheers/Desktop/workspace/AiAgent/backend && mvn -Dtest=SpringAiImageGenerationProviderTest,OpenAiCompatibleImageGenerationProviderTest test`
@@ -325,7 +331,7 @@ Expected:
 - PASS
 - If edit parity is not complete, legacy edit-path tests remain green
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 cd /Users/cheers/Desktop/workspace/AiAgent
@@ -346,7 +352,7 @@ git commit -m "feat: migrate image provider to spring ai"
 - Modify: `README.md`
 - Modify: `docs/tech-design.md`
 
-- [ ] **Step 1: Confirm no production path still references legacy classes**
+- [x] **Step 1: Confirm no production path still references legacy classes**
 
 Run:
 
@@ -359,13 +365,13 @@ Expected:
 - no runtime references remain
 - image provider may still remain temporarily if image-edit parity is incomplete
 
-- [ ] **Step 2: Delete only what is fully replaced**
+- [x] **Step 2: Delete only what is fully replaced**
 
 Delete chat and embedding legacy implementations after tests are green.
 
 Delete image legacy implementation only if both generation and edit paths are covered by the Spring AI provider.
 
-- [ ] **Step 3: Update docs**
+- [x] **Step 3: Update docs**
 
 Update:
 - `README.md`
@@ -376,13 +382,13 @@ Document:
 - retained local-mock providers
 - whether image edit still uses the temporary legacy adapter
 
-- [ ] **Step 4: Run full backend regression**
+- [x] **Step 4: Run full backend regression**
 
 Run: `cd /Users/cheers/Desktop/workspace/AiAgent/backend && mvn test`
 
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/cheers/Desktop/workspace/AiAgent
@@ -395,7 +401,7 @@ git commit -m "refactor: remove legacy openai-compatible providers"
 **Files:**
 - No new files
 
-- [ ] **Step 1: Verify critical runtime paths**
+- [x] **Step 1: Verify critical runtime paths**
 
 Run this ordered suite:
 
@@ -406,7 +412,7 @@ mvn -Dtest=AiAgentApplicationTests,SessionControllerContractTest,AccountControll
 
 Expected: PASS
 
-- [ ] **Step 2: Verify no semantic drift in orchestration layer**
+- [x] **Step 2: Verify no semantic drift in orchestration layer**
 
 Manual code review checklist:
 - `SessionRunExecutor.completeWithChatProvider(...)` still resolves runtime config and fallback exactly once
@@ -414,7 +420,7 @@ Manual code review checklist:
 - `KnowledgeIndexExecutionService` still writes pgvector literal strings
 - `ImageGenerationService` still produces the same artifact and job records
 
-- [ ] **Step 3: Define rollback trigger**
+- [x] **Step 3: Define rollback trigger**
 
 Rollback immediately if any of these occur:
 - changed SSE event payloads
@@ -439,9 +445,9 @@ git tag spring-ai-provider-migration-cutover
 
 ## Review Checklist
 
-- [ ] `openai-compatible` provider code remains valid in admin and user configuration.
-- [ ] `local-mock` remains the dev fallback.
-- [ ] No Spring AI type leaks into `application/*` or `domain/*`.
-- [ ] No run-state or SSE semantic changes.
-- [ ] Image edit parity decision is explicit, not implicit.
-- [ ] Full backend test suite passes before deleting legacy implementations.
+- [x] `openai-compatible` provider code remains valid in admin and user configuration.
+- [x] `local-mock` remains the dev fallback.
+- [x] No Spring AI type leaks into `application/*` or `domain/*`.
+- [x] No run-state or SSE semantic changes.
+- [x] Image edit parity decision is explicit, not implicit.
+- [x] Full backend test suite passes before deleting legacy implementations.

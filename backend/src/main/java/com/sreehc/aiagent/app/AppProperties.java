@@ -1,8 +1,6 @@
 package com.sreehc.aiagent.app;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.bind.ConstructorBinding;
-
 @ConfigurationProperties(prefix = "app")
 public record AppProperties(
         Auth auth,
@@ -18,7 +16,6 @@ public record AppProperties(
         Bootstrap bootstrap,
         Secret secret
 ) {
-    @ConstructorBinding
     public AppProperties {
     }
 
@@ -86,16 +83,26 @@ public record AppProperties(
             String provider,
             String modelCode,
             String baseUrl,
-            String apiKey
+            String apiKey,
+            Long connectTimeoutMillis,
+            Long readTimeoutMillis
     ) {
+        public Chat(String provider, String modelCode, String baseUrl, String apiKey) {
+            this(provider, modelCode, baseUrl, apiKey, 5000L, 15000L);
+        }
     }
 
     public record Image(
             String provider,
             String modelCode,
             String baseUrl,
-            String apiKey
+            String apiKey,
+            Long connectTimeoutMillis,
+            Long readTimeoutMillis
     ) {
+        public Image(String provider, String modelCode, String baseUrl, String apiKey) {
+            this(provider, modelCode, baseUrl, apiKey, 5000L, 15000L);
+        }
     }
 
     public record Mcp(

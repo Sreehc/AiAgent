@@ -3,6 +3,7 @@ package com.sreehc.aiagent.infrastructure.model;
 import com.sreehc.aiagent.app.AppProperties;
 import com.sreehc.aiagent.infrastructure.springai.SpringAiOpenAiFactory;
 import com.sreehc.aiagent.infrastructure.springai.SpringAiRuntimeOptions;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -32,6 +33,7 @@ class SpringAiChatModelProviderTest {
         SpringAiOpenAiFactory factory = mock(SpringAiOpenAiFactory.class);
         OpenAiChatModel chatModel = mock(OpenAiChatModel.class);
         when(factory.createChatModel(any())).thenReturn(chatModel);
+        when(factory.executeWithRetry(any(), any())).thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
         when(chatModel.call(any(Prompt.class))).thenReturn(new ChatResponse(
                 java.util.List.of(new Generation(new AssistantMessage("result-text")))
         ));
@@ -51,6 +53,9 @@ class SpringAiChatModelProviderTest {
         assertEquals("gpt-4o-mini", runtimeOptionsCaptor.getValue().model());
         assertEquals(3210L, runtimeOptionsCaptor.getValue().connectTimeoutMillis());
         assertEquals(6543L, runtimeOptionsCaptor.getValue().readTimeoutMillis());
+        assertEquals(3, runtimeOptionsCaptor.getValue().retryMaxAttempts());
+        assertEquals(800L, runtimeOptionsCaptor.getValue().retryBackoffMillis());
+        assertEquals(true, runtimeOptionsCaptor.getValue().observationEnabled());
 
         ArgumentCaptor<Prompt> promptCaptor = ArgumentCaptor.forClass(Prompt.class);
         verify(chatModel).call(promptCaptor.capture());
@@ -65,6 +70,7 @@ class SpringAiChatModelProviderTest {
         SpringAiOpenAiFactory factory = mock(SpringAiOpenAiFactory.class);
         OpenAiChatModel chatModel = mock(OpenAiChatModel.class);
         when(factory.createChatModel(any())).thenReturn(chatModel);
+        when(factory.executeWithRetry(any(), any())).thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
         when(chatModel.call(any(Prompt.class))).thenThrow(new IllegalStateException("upstream failed"));
         SpringAiChatModelProvider provider = new SpringAiChatModelProvider(factory, appProperties());
 
@@ -88,7 +94,7 @@ class SpringAiChatModelProviderTest {
                 new AppProperties.Embedding("local-mock", "text-embedding-3-small", "https://api.openai.com/v1", "", 1536, 5000L, 15000L),
                 new AppProperties.Kafka("localhost:9092", "aiagent.knowledge.index", "aiagent-backend"),
                 new AppProperties.Rag(3600L, 300L, 1500L),
-                new AppProperties.Chat("openai-compatible", "gpt-4o-mini", "https://api.openai.com/v1", "secret", 3210L, 6543L),
+                new AppProperties.Chat("openai-compatible", "gpt-4o-mini", "https://api.openai.com/v1", "secret", 3210L, 6543L, 3, 800L, true),
                 new AppProperties.Image("local-mock", "image-generation-default", "", ""),
                 new AppProperties.Mcp("localhost", false, ""),
                 new AppProperties.Bootstrap(true),

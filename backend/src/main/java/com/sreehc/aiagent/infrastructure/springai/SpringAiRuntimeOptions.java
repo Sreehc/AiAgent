@@ -5,6 +5,9 @@ public record SpringAiRuntimeOptions(
         String apiKey,
         String model,
         Long connectTimeoutMillis,
-        Long readTimeoutMillis
+        Long readTimeoutMillis,
+        Integer retryMaxAttempts,
+        Long retryBackoffMillis,
+        Boolean observationEnabled
 ) {
 }

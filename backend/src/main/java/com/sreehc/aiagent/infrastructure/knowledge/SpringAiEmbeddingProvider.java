@@ -30,14 +30,18 @@ public class SpringAiEmbeddingProvider implements EmbeddingProvider {
             throw new EmbeddingProviderException("Embedding configuration is missing");
         }
         try {
-            OpenAiEmbeddingModel model = factory.createEmbeddingModel(new SpringAiRuntimeOptions(
+            SpringAiRuntimeOptions runtimeOptions = new SpringAiRuntimeOptions(
                     embeddingProperties.baseUrl(),
                     embeddingProperties.apiKey(),
                     embeddingProperties.modelCode(),
                     embeddingProperties.connectTimeoutMillis(),
-                    embeddingProperties.readTimeoutMillis()
-            ));
-            return embedWithModel(model, content, embeddingProperties.dimension());
+                    embeddingProperties.readTimeoutMillis(),
+                    embeddingProperties.retryMaxAttempts(),
+                    embeddingProperties.retryBackoffMillis(),
+                    embeddingProperties.observationEnabled()
+            );
+            OpenAiEmbeddingModel model = factory.createEmbeddingModel(runtimeOptions);
+            return embedWithModel(factory, runtimeOptions, model, content, embeddingProperties.dimension());
         } catch (EmbeddingProviderException exception) {
             throw exception;
         } catch (Exception exception) {
@@ -48,14 +52,18 @@ public class SpringAiEmbeddingProvider implements EmbeddingProvider {
     @Override
     public String embed(String content, String modelCode, String baseUrl, String apiKey) {
         try {
-            OpenAiEmbeddingModel model = factory.createEmbeddingModel(new SpringAiRuntimeOptions(
+            SpringAiRuntimeOptions runtimeOptions = new SpringAiRuntimeOptions(
                     baseUrl,
                     apiKey,
                     modelCode,
                     embeddingProperties == null ? null : embeddingProperties.connectTimeoutMillis(),
-                    embeddingProperties == null ? null : embeddingProperties.readTimeoutMillis()
-            ));
-            return embedWithModel(model, content, null);
+                    embeddingProperties == null ? null : embeddingProperties.readTimeoutMillis(),
+                    embeddingProperties == null ? null : embeddingProperties.retryMaxAttempts(),
+                    embeddingProperties == null ? null : embeddingProperties.retryBackoffMillis(),
+                    embeddingProperties == null ? null : embeddingProperties.observationEnabled()
+            );
+            OpenAiEmbeddingModel model = factory.createEmbeddingModel(runtimeOptions);
+            return embedWithModel(factory, runtimeOptions, model, content, null);
         } catch (EmbeddingProviderException exception) {
             throw exception;
         } catch (Exception exception) {
@@ -63,11 +71,12 @@ public class SpringAiEmbeddingProvider implements EmbeddingProvider {
         }
     }
 
-    private static String embedWithModel(OpenAiEmbeddingModel model, String content, Integer expectedDimension) {
-        EmbeddingResponse response = model.call(new EmbeddingRequest(
+    private static String embedWithModel(SpringAiOpenAiFactory factory, SpringAiRuntimeOptions runtimeOptions,
+                                         OpenAiEmbeddingModel model, String content, Integer expectedDimension) {
+        EmbeddingResponse response = factory.executeWithRetry(runtimeOptions, () -> model.call(new EmbeddingRequest(
                 List.of(sanitizeInput(content)),
                 model.getOptions()
-        ));
+        )));
         return vectorLiteralFromResponse(response, expectedDimension);
     }
 

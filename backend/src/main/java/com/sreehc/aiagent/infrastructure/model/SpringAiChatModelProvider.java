@@ -27,14 +27,19 @@ public class SpringAiChatModelProvider implements ChatModelProvider {
     @Override
     public ChatCompletion complete(ChatRequest request) {
         try {
-            OpenAiChatModel chatModel = factory.createChatModel(new SpringAiRuntimeOptions(
+            SpringAiRuntimeOptions runtimeOptions = new SpringAiRuntimeOptions(
                     request.baseUrl(),
                     request.apiKey(),
                     request.modelCode(),
                     chatProperties == null ? null : chatProperties.connectTimeoutMillis(),
-                    chatProperties == null ? null : chatProperties.readTimeoutMillis()
-            ));
-            ChatResponse response = chatModel.call(new Prompt(new UserMessage(request.prompt())));
+                    chatProperties == null ? null : chatProperties.readTimeoutMillis(),
+                    chatProperties == null ? null : chatProperties.retryMaxAttempts(),
+                    chatProperties == null ? null : chatProperties.retryBackoffMillis(),
+                    chatProperties == null ? null : chatProperties.observationEnabled()
+            );
+            OpenAiChatModel chatModel = factory.createChatModel(runtimeOptions);
+            ChatResponse response = factory.executeWithRetry(runtimeOptions,
+                    () -> chatModel.call(new Prompt(new UserMessage(request.prompt()))));
             return new ChatCompletion(extractText(response));
         } catch (ModelProviderException exception) {
             throw exception;

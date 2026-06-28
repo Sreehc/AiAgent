@@ -133,3 +133,9 @@ v2 按 17 个 Task 分批交付：服务层 → token → UI primitive → Dialo
 | 2026-06-06 | UI 升级第一轮启动，建立样式入口与 UI primitive 雏形 |
 | 2026-06-07 | UI 升级完成；UX 改进同期完成 |
 | 2026-06-13 | 前端 v2 完全重构完成；未闭环能力 v3 全量完成审计通过 |
+| 2026-06-27 | `openai-compatible` chat / embedding / image provider 完成 Spring AI adapter 迁移，保留 Agent orchestration、SSE 协议、MCP 执行和 RAG 业务语义自研边界 |
+| 2026-06-28 | Spring AI provider runtime hardening 完成，chat / embedding / image 统一接入 timeout、bounded retry、observation toggle 等 adapter-local runtime policy |
+
+## 8. 文档收缩
+
+2026-06-28 对 `docs/` 做了一轮瘦身，移除了前端 UI 升级专项的阶段性需求、设计稿、任务清单和截图基线，以及阶段性 Spring AI 迁移计划目录，只保留当前事实文档与长期有效的产品/架构文档；Spring AI 迁移结果已收口进事实文档与本历史文档。

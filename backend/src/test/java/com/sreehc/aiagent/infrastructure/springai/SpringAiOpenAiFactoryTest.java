@@ -23,7 +23,10 @@ class SpringAiOpenAiFactoryTest {
                 "secret-key",
                 "gpt-4o-mini",
                 1234L,
-                5678L
+                5678L,
+                1,
+                250L,
+                false
         );
 
         OpenAiChatModel model = factory.createChatModel(options);
@@ -47,7 +50,10 @@ class SpringAiOpenAiFactoryTest {
                 "secret-key",
                 "text-embedding-3-small",
                 5000L,
-                15000L
+                15000L,
+                1,
+                250L,
+                false
         );
 
         assertThrows(IllegalArgumentException.class, () -> factory.createEmbeddingModel(options));
@@ -60,7 +66,10 @@ class SpringAiOpenAiFactoryTest {
                 " ",
                 "gpt-image-1",
                 5000L,
-                15000L
+                15000L,
+                1,
+                250L,
+                false
         );
 
         assertThrows(IllegalArgumentException.class, () -> factory.createImageModel(options));
@@ -73,14 +82,20 @@ class SpringAiOpenAiFactoryTest {
                 "embedding-key",
                 "text-embedding-3-small",
                 700L,
-                1700L
+                1700L,
+                1,
+                250L,
+                false
         );
         SpringAiRuntimeOptions imageOptions = new SpringAiRuntimeOptions(
                 "https://image.example.com/v1/",
                 "image-key",
                 "gpt-image-1",
                 800L,
-                1800L
+                1800L,
+                1,
+                250L,
+                false
         );
 
         OpenAiEmbeddingModel embeddingModel = factory.createEmbeddingModel(embeddingOptions);
@@ -95,6 +110,25 @@ class SpringAiOpenAiFactoryTest {
         assertEquals("image-key", imageModel.getOptions().getApiKey());
         assertEquals("gpt-image-1", imageModel.getOptions().getModel());
         assertEquals(Duration.ofMillis(2600L), clientOptionsOf(privateOpenAiClient(imageModel, "openAiClient")).timeout().request());
+    }
+
+    @Test
+    void shouldNormalizeRetryAndObservationSettingsIntoResolvedRuntimeOptions() {
+        SpringAiOpenAiFactory.ResolvedRuntimeOptions options = factory.resolveRuntimeOptions(new SpringAiRuntimeOptions(
+                "https://example.com/v1/",
+                "secret-key",
+                "gpt-4o-mini",
+                1234L,
+                5678L,
+                99,
+                0L,
+                null
+        ));
+
+        assertEquals(5, options.retryMaxAttempts());
+        assertEquals(Duration.ofMillis(250L), options.retryBackoff());
+        assertEquals(false, options.observationEnabled());
+        assertEquals(true, options.retryEnabled());
     }
 
     private static OpenAIClient privateOpenAiClient(Object model, String fieldName) throws Exception {

@@ -66,20 +66,24 @@ public class SpringAiImageGenerationProvider implements ImageGenerationProvider 
     }
 
     private GeneratedImage generateImage(ImageRequest request) {
-        OpenAiImageModel imageModel = factory.createImageModel(new SpringAiRuntimeOptions(
+        SpringAiRuntimeOptions runtimeOptions = new SpringAiRuntimeOptions(
                 request.baseUrl(),
                 request.apiKey(),
                 request.modelCode(),
                 connectTimeoutMillis(imageProperties),
-                readTimeoutMillis(imageProperties)
-        ));
-        ImageResponse response = imageModel.call(new ImagePrompt(
-                request.prompt(),
-                OpenAiImageOptions.builder()
-                        .size(request.size())
-                        .responseFormat("b64_json")
-                        .build()
-        ));
+                readTimeoutMillis(imageProperties),
+                imageProperties == null ? null : imageProperties.retryMaxAttempts(),
+                imageProperties == null ? null : imageProperties.retryBackoffMillis(),
+                imageProperties == null ? null : imageProperties.observationEnabled()
+        );
+        OpenAiImageModel imageModel = factory.createImageModel(runtimeOptions);
+        ImageResponse response = factory.executeWithRetry(runtimeOptions, () -> imageModel.call(new ImagePrompt(
+                        request.prompt(),
+                        OpenAiImageOptions.builder()
+                                .size(request.size())
+                                .responseFormat("b64_json")
+                                .build()
+                )));
         String b64 = extractB64Json(response);
         return new GeneratedImage(Base64.getDecoder().decode(b64), "image/png", "png");
     }

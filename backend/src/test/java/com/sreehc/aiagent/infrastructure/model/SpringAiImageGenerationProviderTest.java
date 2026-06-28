@@ -10,6 +10,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -45,6 +46,7 @@ class SpringAiImageGenerationProviderTest {
         SpringAiOpenAiFactory factory = mock(SpringAiOpenAiFactory.class);
         OpenAiImageModel imageModel = mock(OpenAiImageModel.class);
         when(factory.createImageModel(any())).thenReturn(imageModel);
+        when(factory.executeWithRetry(any(), any())).thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
         when(imageModel.call(any(ImagePrompt.class))).thenReturn(new ImageResponse(
                 java.util.List.of(new ImageGeneration(new Image(null, Base64.getEncoder().encodeToString("png-bytes".getBytes(StandardCharsets.UTF_8)))))
         ));
@@ -67,6 +69,9 @@ class SpringAiImageGenerationProviderTest {
         assertEquals("gpt-image-1", runtimeOptionsCaptor.getValue().model());
         assertEquals(2222L, runtimeOptionsCaptor.getValue().connectTimeoutMillis());
         assertEquals(7777L, runtimeOptionsCaptor.getValue().readTimeoutMillis());
+        assertEquals(4, runtimeOptionsCaptor.getValue().retryMaxAttempts());
+        assertEquals(900L, runtimeOptionsCaptor.getValue().retryBackoffMillis());
+        assertEquals(true, runtimeOptionsCaptor.getValue().observationEnabled());
 
         ArgumentCaptor<ImagePrompt> promptCaptor = ArgumentCaptor.forClass(ImagePrompt.class);
         verify(imageModel).call(promptCaptor.capture());
@@ -111,6 +116,7 @@ class SpringAiImageGenerationProviderTest {
         SpringAiOpenAiFactory factory = mock(SpringAiOpenAiFactory.class);
         OpenAiImageModel imageModel = mock(OpenAiImageModel.class);
         when(factory.createImageModel(any())).thenReturn(imageModel);
+        when(factory.executeWithRetry(any(), any())).thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
         when(imageModel.call(any(ImagePrompt.class))).thenThrow(new IllegalStateException("upstream failed"));
         SpringAiImageGenerationProvider provider = new SpringAiImageGenerationProvider(factory, appProperties(), new ObjectMapper());
 
@@ -163,7 +169,7 @@ class SpringAiImageGenerationProviderTest {
                 new AppProperties.Kafka("localhost:9092", "aiagent.knowledge.index", "aiagent-backend"),
                 new AppProperties.Rag(3600L, 300L, 1500L),
                 new AppProperties.Chat("local-mock", "gpt-4o-mini", "", ""),
-                new AppProperties.Image("openai-compatible", "gpt-image-1", "https://api.openai.com/v1", "secret", 2222L, 7777L),
+                new AppProperties.Image("openai-compatible", "gpt-image-1", "https://api.openai.com/v1", "secret", 2222L, 7777L, 4, 900L, true),
                 new AppProperties.Mcp("localhost", false, ""),
                 new AppProperties.Bootstrap(true),
                 new AppProperties.Secret("")

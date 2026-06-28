@@ -136,10 +136,10 @@ APP_BOOTSTRAP_DEMO_DATA_ENABLED=false
 - `APP_KAFKA_*`：Kafka bootstrap、知识库索引 topic 和 consumer group。
 - `APP_MINIO_*`：对象存储 endpoint、凭证和 bucket。
 - `APP_STORAGE_PRESIGNED_URL_TTL_SECONDS`：对象访问预签名 URL 有效期。
-- `APP_EMBEDDING_*`：Embedding provider、模型、base URL、API key、维度和超时。
+- `APP_EMBEDDING_*`：Embedding provider、模型、base URL、API key、维度、超时、重试和 observation 开关。
 - `APP_RAG_*`：RAG embedding/retrieval 缓存 TTL 和检索超时。
-- `APP_CHAT_*`：Chat provider 运行配置。
-- `APP_IMAGE_*`：图片生成 provider 运行配置。
+- `APP_CHAT_*`：Chat provider 运行配置，包含超时、重试和 observation 开关。
+- `APP_IMAGE_*`：图片生成 provider 运行配置，包含超时、重试和 observation 开关。
 - `APP_MCP_ALLOWED_HOSTS`：允许 MCP HTTP 访问的主机列表。
 - `APP_MCP_ALLOW_PRIVATE_NETWORK`：是否允许 MCP 访问私有网络地址。
 - `APP_MCP_ALLOWED_STDIO_EXECUTABLES`：允许运行的 STDIO MCP 可执行文件名白名单。
@@ -147,7 +147,7 @@ APP_BOOTSTRAP_DEMO_DATA_ENABLED=false
 
 生产 profile 会拒绝以 `local-mock` 作为默认模型 provider 启动。`openai-compatible` 运行时 provider 当前通过 Spring AI adapter 层接入 chat、embedding 和 text-to-image；参考图编辑仍走同一 provider 内部保留的 multipart `/images/edits` 请求路径，以维持现有能力和返回契约。
 
-`APP_CHAT_*`、`APP_EMBEDDING_*` 和 `APP_IMAGE_*` 除 provider、model、base URL、API key 外，还支持 `*_CONNECT_TIMEOUT_MILLIS` 与 `*_READ_TIMEOUT_MILLIS` 两类超时配置。
+`APP_CHAT_*`、`APP_EMBEDDING_*` 和 `APP_IMAGE_*` 除 provider、model、base URL、API key 外，还支持 `*_CONNECT_TIMEOUT_MILLIS`、`*_READ_TIMEOUT_MILLIS`、`*_RETRY_MAX_ATTEMPTS`、`*_RETRY_BACKOFF_MILLIS`、`*_OBSERVATION_ENABLED`。其中 retry 默认以 `1` 次表示关闭增强重试，observation 默认关闭。
 
 ## 常用命令
 

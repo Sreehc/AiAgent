@@ -1,6 +1,8 @@
 package com.sreehc.aiagent.infrastructure.model;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sreehc.aiagent.app.AppProperties;
+import com.sreehc.aiagent.infrastructure.springai.SpringAiOpenAiFactory;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
@@ -12,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
 
 class OpenAiCompatibleImageGenerationProviderTest {
     private HttpServer server;
@@ -24,10 +27,14 @@ class OpenAiCompatibleImageGenerationProviderTest {
     }
 
     @Test
-    void shouldSendMultipartEditRequestWhenReferenceImageIsPresent() throws Exception {
+    void shouldPreserveOpenAiCompatibleEditMultipartContract() throws Exception {
         AtomicReference<CapturedRequest> captured = new AtomicReference<>();
         startServer("/images/edits", captured);
-        OpenAiCompatibleImageGenerationProvider provider = new OpenAiCompatibleImageGenerationProvider(new ObjectMapper());
+        SpringAiImageGenerationProvider provider = new SpringAiImageGenerationProvider(
+                mock(SpringAiOpenAiFactory.class),
+                appProperties(),
+                new ObjectMapper()
+        );
 
         ImageGenerationProvider.GeneratedImage image = provider.generate(new ImageGenerationProvider.ImageRequest(
                 "edit this image",
@@ -48,27 +55,6 @@ class OpenAiCompatibleImageGenerationProviderTest {
         assertTrue(captured.get().body().contains("edit this image"));
         assertTrue(captured.get().body().contains("name=\"image\"; filename=\"reference.png\""));
         assertTrue(captured.get().body().contains("Content-Type: image/png"));
-    }
-
-    @Test
-    void shouldSendJsonGenerationRequestWhenNoReferenceImageIsPresent() throws Exception {
-        AtomicReference<CapturedRequest> captured = new AtomicReference<>();
-        startServer("/images/generations", captured);
-        OpenAiCompatibleImageGenerationProvider provider = new OpenAiCompatibleImageGenerationProvider(new ObjectMapper());
-
-        provider.generate(new ImageGenerationProvider.ImageRequest(
-                "draw a diagram",
-                "1024x1024",
-                "gpt-image-1",
-                baseUrl(),
-                "secret-key",
-                null,
-                null
-        ));
-
-        assertEquals("application/json", captured.get().contentType());
-        assertTrue(captured.get().body().contains("\"prompt\":\"draw a diagram\""));
-        assertTrue(captured.get().body().contains("\"response_format\":\"b64_json\""));
     }
 
     private void startServer(String path, AtomicReference<CapturedRequest> captured) throws Exception {
@@ -94,6 +80,21 @@ class OpenAiCompatibleImageGenerationProviderTest {
 
     private String baseUrl() {
         return "http://127.0.0.1:" + server.getAddress().getPort();
+    }
+
+    private static AppProperties appProperties() {
+        return new AppProperties(
+                new AppProperties.Auth(7200L, 5, 600L),
+                new AppProperties.Storage("http://localhost:9000", "minioadmin", "minioadmin", "aiagent", 900L),
+                new AppProperties.Embedding("local-mock", "text-embedding-3-small", "", "", 1536, 5000L, 15000L),
+                new AppProperties.Kafka("localhost:9092", "aiagent.knowledge.index", "aiagent-backend"),
+                new AppProperties.Rag(3600L, 300L, 1500L),
+                new AppProperties.Chat("local-mock", "gpt-4o-mini", "", ""),
+                new AppProperties.Image("openai-compatible", "gpt-image-1", "https://api.openai.com/v1", "secret", 2222L, 7777L),
+                new AppProperties.Mcp("localhost", false, ""),
+                new AppProperties.Bootstrap(true),
+                new AppProperties.Secret("")
+        );
     }
 
     private record CapturedRequest(

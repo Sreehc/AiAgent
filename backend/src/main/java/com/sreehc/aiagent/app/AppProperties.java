@@ -1,8 +1,6 @@
 package com.sreehc.aiagent.app;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.bind.ConstructorBinding;
-
 @ConfigurationProperties(prefix = "app")
 public record AppProperties(
         Auth auth,
@@ -18,7 +16,6 @@ public record AppProperties(
         Bootstrap bootstrap,
         Secret secret
 ) {
-    @ConstructorBinding
     public AppProperties {
     }
 
@@ -64,8 +61,23 @@ public record AppProperties(
             String apiKey,
             Integer dimension,
             Long connectTimeoutMillis,
-            Long readTimeoutMillis
+            Long readTimeoutMillis,
+            Integer retryMaxAttempts,
+            Long retryBackoffMillis,
+            Boolean observationEnabled
     ) {
+        public Embedding {
+            connectTimeoutMillis = connectTimeoutMillis == null ? 5000L : connectTimeoutMillis;
+            readTimeoutMillis = readTimeoutMillis == null ? 15000L : readTimeoutMillis;
+            retryMaxAttempts = retryMaxAttempts == null ? 1 : retryMaxAttempts;
+            retryBackoffMillis = retryBackoffMillis == null ? 250L : retryBackoffMillis;
+            observationEnabled = observationEnabled != null && observationEnabled;
+        }
+
+        public Embedding(String provider, String modelCode, String baseUrl, String apiKey, Integer dimension, Long connectTimeoutMillis,
+                         Long readTimeoutMillis) {
+            this(provider, modelCode, baseUrl, apiKey, dimension, connectTimeoutMillis, readTimeoutMillis, 1, 250L, false);
+        }
     }
 
     public record Kafka(
@@ -86,16 +98,56 @@ public record AppProperties(
             String provider,
             String modelCode,
             String baseUrl,
-            String apiKey
+            String apiKey,
+            Long connectTimeoutMillis,
+            Long readTimeoutMillis,
+            Integer retryMaxAttempts,
+            Long retryBackoffMillis,
+            Boolean observationEnabled
     ) {
+        public Chat {
+            connectTimeoutMillis = connectTimeoutMillis == null ? 5000L : connectTimeoutMillis;
+            readTimeoutMillis = readTimeoutMillis == null ? 15000L : readTimeoutMillis;
+            retryMaxAttempts = retryMaxAttempts == null ? 1 : retryMaxAttempts;
+            retryBackoffMillis = retryBackoffMillis == null ? 250L : retryBackoffMillis;
+            observationEnabled = observationEnabled != null && observationEnabled;
+        }
+
+        public Chat(String provider, String modelCode, String baseUrl, String apiKey) {
+            this(provider, modelCode, baseUrl, apiKey, 5000L, 15000L, 1, 250L, false);
+        }
+
+        public Chat(String provider, String modelCode, String baseUrl, String apiKey, Long connectTimeoutMillis, Long readTimeoutMillis) {
+            this(provider, modelCode, baseUrl, apiKey, connectTimeoutMillis, readTimeoutMillis, 1, 250L, false);
+        }
     }
 
     public record Image(
             String provider,
             String modelCode,
             String baseUrl,
-            String apiKey
+            String apiKey,
+            Long connectTimeoutMillis,
+            Long readTimeoutMillis,
+            Integer retryMaxAttempts,
+            Long retryBackoffMillis,
+            Boolean observationEnabled
     ) {
+        public Image {
+            connectTimeoutMillis = connectTimeoutMillis == null ? 5000L : connectTimeoutMillis;
+            readTimeoutMillis = readTimeoutMillis == null ? 15000L : readTimeoutMillis;
+            retryMaxAttempts = retryMaxAttempts == null ? 1 : retryMaxAttempts;
+            retryBackoffMillis = retryBackoffMillis == null ? 250L : retryBackoffMillis;
+            observationEnabled = observationEnabled != null && observationEnabled;
+        }
+
+        public Image(String provider, String modelCode, String baseUrl, String apiKey) {
+            this(provider, modelCode, baseUrl, apiKey, 5000L, 15000L, 1, 250L, false);
+        }
+
+        public Image(String provider, String modelCode, String baseUrl, String apiKey, Long connectTimeoutMillis, Long readTimeoutMillis) {
+            this(provider, modelCode, baseUrl, apiKey, connectTimeoutMillis, readTimeoutMillis, 1, 250L, false);
+        }
     }
 
     public record Mcp(

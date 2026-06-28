@@ -54,6 +54,9 @@ app:
     dimension: ${APP_EMBEDDING_DIMENSION:1536}
     connect-timeout-millis: ${APP_EMBEDDING_CONNECT_TIMEOUT_MILLIS:5000}
     read-timeout-millis: ${APP_EMBEDDING_READ_TIMEOUT_MILLIS:15000}
+    retry-max-attempts: ${APP_EMBEDDING_RETRY_MAX_ATTEMPTS:1}
+    retry-backoff-millis: ${APP_EMBEDDING_RETRY_BACKOFF_MILLIS:250}
+    observation-enabled: ${APP_EMBEDDING_OBSERVATION_ENABLED:false}
   rag:
     embedding-cache-ttl-seconds: ${APP_RAG_EMBEDDING_CACHE_TTL_SECONDS:3600}
     retrieval-cache-ttl-seconds: ${APP_RAG_RETRIEVAL_CACHE_TTL_SECONDS:300}
@@ -63,11 +66,21 @@ app:
     model-code: ${APP_CHAT_MODEL_CODE:claude-sonnet-4-6}
     base-url: ${APP_CHAT_BASE_URL:}
     api-key: ${APP_CHAT_API_KEY:}
+    connect-timeout-millis: ${APP_CHAT_CONNECT_TIMEOUT_MILLIS:5000}
+    read-timeout-millis: ${APP_CHAT_READ_TIMEOUT_MILLIS:15000}
+    retry-max-attempts: ${APP_CHAT_RETRY_MAX_ATTEMPTS:1}
+    retry-backoff-millis: ${APP_CHAT_RETRY_BACKOFF_MILLIS:250}
+    observation-enabled: ${APP_CHAT_OBSERVATION_ENABLED:false}
   image:
     provider: ${APP_IMAGE_PROVIDER:local-mock}
     model-code: ${APP_IMAGE_MODEL_CODE:image-generation-default}
     base-url: ${APP_IMAGE_BASE_URL:}
     api-key: ${APP_IMAGE_API_KEY:}
+    connect-timeout-millis: ${APP_IMAGE_CONNECT_TIMEOUT_MILLIS:5000}
+    read-timeout-millis: ${APP_IMAGE_READ_TIMEOUT_MILLIS:15000}
+    retry-max-attempts: ${APP_IMAGE_RETRY_MAX_ATTEMPTS:1}
+    retry-backoff-millis: ${APP_IMAGE_RETRY_BACKOFF_MILLIS:250}
+    observation-enabled: ${APP_IMAGE_OBSERVATION_ENABLED:false}
   mcp:
     allowed-hosts: ${APP_MCP_ALLOWED_HOSTS:localhost}
     allow-private-network: ${APP_MCP_ALLOW_PRIVATE_NETWORK:true}

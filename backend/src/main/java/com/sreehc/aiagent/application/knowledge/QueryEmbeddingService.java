@@ -29,7 +29,7 @@ public class QueryEmbeddingService {
     public String embedForUser(SessionUser currentUser, String query) {
         return modelRuntimeResolver.findForUser(currentUser, ModelType.EMBEDDING, null)
                 .map(runtimeModel -> {
-                    String cacheProviderKey = runtimeModel.provider() + ":" + runtimeModel.modelCode() + ":" + runtimeModel.baseUrl();
+                    String cacheProviderKey = cacheProviderKey(runtimeModel);
                     return ragCacheService.getEmbedding(cacheProviderKey, query)
                             .orElseGet(() -> embedAndCache(query, runtimeModel, cacheProviderKey));
                 })
@@ -54,5 +54,9 @@ public class QueryEmbeddingService {
         } catch (EmbeddingProviderException exception) {
             throw new AppException("EMBEDDING_PROVIDER_FAILED", exception.getMessage(), HttpStatus.BAD_GATEWAY);
         }
+    }
+
+    private String cacheProviderKey(ModelRuntimeResolver.RuntimeModel runtimeModel) {
+        return runtimeModel.provider() + ":" + runtimeModel.modelCode() + ":" + runtimeModel.baseUrl();
     }
 }

@@ -562,15 +562,7 @@ public class SessionRunExecutor {
 
     private String completeWithChatProvider(SessionUser currentUser, String prompt) {
         try {
-            AppProperties.Chat chat = appProperties.chat();
-            ModelRuntimeResolver.RuntimeModel runtimeModel = modelRuntimeResolver.findForUser(currentUser, ModelType.CHAT, null)
-                    .orElseGet(() -> new ModelRuntimeResolver.RuntimeModel(
-                            chat.modelCode(),
-                            chat.provider(),
-                            ModelType.CHAT,
-                            chat.baseUrl(),
-                            chat.apiKey()
-                    ));
+            ModelRuntimeResolver.RuntimeModel runtimeModel = resolveChatRuntimeModel(currentUser);
             ChatModelProvider provider = chatModelProviderRouter.route(runtimeModel.provider());
             return provider.complete(new ChatModelProvider.ChatRequest(
                     prompt,
@@ -584,6 +576,18 @@ public class SessionRunExecutor {
             }
             return "[local-mock chat] " + prompt.substring(0, Math.min(prompt.length(), 120));
         }
+    }
+
+    private ModelRuntimeResolver.RuntimeModel resolveChatRuntimeModel(SessionUser currentUser) {
+        AppProperties.Chat chat = appProperties.chat();
+        return modelRuntimeResolver.findForUser(currentUser, ModelType.CHAT, null)
+                .orElseGet(() -> new ModelRuntimeResolver.RuntimeModel(
+                        chat.modelCode(),
+                        chat.provider(),
+                        ModelType.CHAT,
+                        chat.baseUrl(),
+                        chat.apiKey()
+                ));
     }
 
     private List<PlanSeed> parsePlannerJson(String plannerJson) {

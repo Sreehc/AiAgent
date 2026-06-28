@@ -1,6 +1,6 @@
 # AiAgent V1 数据库设计文档
 
-> 文档状态：基于 2026-06-13 `backend/src/main/resources/db/migration/V1` 至 `V22` 复核。第 4 节保留了早期逻辑设计描述；字段名、类型、约束和索引以 Flyway migration 为唯一事实来源。
+> 文档状态：基于 2026-06-28 `backend/src/main/resources/db/migration/V1` 至 `V22` 复核。第 4 节保留了早期逻辑设计描述；字段名、类型、约束和索引以 Flyway migration 为唯一事实来源。
 
 ## 0. 当前物理模型事实
 

@@ -15,7 +15,7 @@ AiAgent 是一个面向研究、知识检索和多工具调用的智能体工作
 ## 技术栈
 
 - 前端：React 19、React Router 7、TypeScript 5、Vite 6、pnpm 10。
-- 后端：Java 21、Spring Boot 3.5、Maven、JDBC、Flyway、Actuator、Spring Kafka、Spring Data Redis。
+- 后端：Java 21、Spring Boot 4.1、Spring AI 2.0、Maven、JDBC、Flyway、Actuator、Spring Kafka、Spring Data Redis。
 - 基础设施：PostgreSQL 17 + pgvector、Redis、Kafka 3.8、MinIO。
 - CI/CD：GitHub Actions、SSH 远端部署，支持宿主机 native 或共享 Docker runtime 回退模式。
 
@@ -136,16 +136,18 @@ APP_BOOTSTRAP_DEMO_DATA_ENABLED=false
 - `APP_KAFKA_*`：Kafka bootstrap、知识库索引 topic 和 consumer group。
 - `APP_MINIO_*`：对象存储 endpoint、凭证和 bucket。
 - `APP_STORAGE_PRESIGNED_URL_TTL_SECONDS`：对象访问预签名 URL 有效期。
-- `APP_EMBEDDING_*`：Embedding provider、模型、base URL、API key、维度和超时。
+- `APP_EMBEDDING_*`：Embedding provider、模型、base URL、API key、维度、超时、重试和 observation 开关。
 - `APP_RAG_*`：RAG embedding/retrieval 缓存 TTL 和检索超时。
-- `APP_CHAT_*`：Chat provider 运行配置。
-- `APP_IMAGE_*`：图片生成 provider 运行配置。
+- `APP_CHAT_*`：Chat provider 运行配置，包含超时、重试和 observation 开关。
+- `APP_IMAGE_*`：图片生成 provider 运行配置，包含超时、重试和 observation 开关。
 - `APP_MCP_ALLOWED_HOSTS`：允许 MCP HTTP 访问的主机列表。
 - `APP_MCP_ALLOW_PRIVATE_NETWORK`：是否允许 MCP 访问私有网络地址。
 - `APP_MCP_ALLOWED_STDIO_EXECUTABLES`：允许运行的 STDIO MCP 可执行文件名白名单。
 - `APP_BOOTSTRAP_DEMO_DATA_ENABLED`：是否启用本地演示数据。
 
-生产 profile 会拒绝以 `local-mock` 作为默认模型 provider 启动。OpenAI-compatible provider 需要配置对应 `baseUrl`、模型 code 和 API key。
+生产 profile 会拒绝以 `local-mock` 作为默认模型 provider 启动。`openai-compatible` 运行时 provider 当前通过 Spring AI adapter 层接入 chat、embedding 和 text-to-image；参考图编辑仍走同一 provider 内部保留的 multipart `/images/edits` 请求路径，以维持现有能力和返回契约。
+
+`APP_CHAT_*`、`APP_EMBEDDING_*` 和 `APP_IMAGE_*` 除 provider、model、base URL、API key 外，还支持 `*_CONNECT_TIMEOUT_MILLIS`、`*_READ_TIMEOUT_MILLIS`、`*_RETRY_MAX_ATTEMPTS`、`*_RETRY_BACKOFF_MILLIS`、`*_OBSERVATION_ENABLED`。其中 retry 默认以 `1` 次表示关闭增强重试，observation 默认关闭。
 
 ## 常用命令
 
